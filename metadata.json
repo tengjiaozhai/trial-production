@@ -1,0 +1,8 @@
+{
+  "name": "试产搭配表自动生成",
+  "description": "天珑手机试产搭配表自动生成交互工具，支持四步向导流程、业务规则校验及Excel导出。",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
