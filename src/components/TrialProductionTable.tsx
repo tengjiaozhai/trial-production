@@ -324,24 +324,33 @@ function SortableRow({
                         fieldLabel={field.label}
                       />
                     </div>
-                  ) : field.id === 'lcd' && sku.lcdOptions && sku.lcdOptions.length > 0 ? (
-                    <div
-                      style={{ minHeight: rowHeight ? rowHeight - 20 : 34 }}
-                      className={cn(
-                        'grid gap-1.5 w-full p-1',
-                        sku.lcdOptions.length >= 2 ? 'grid-cols-2' : 'grid-cols-1'
-                      )}
-                    >
-                      {sku.lcdOptions.slice(0, 2).map((option: any) => (
-                        <div
-                          key={option.supply}
-                          className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-[12px] text-slate-700 text-center leading-snug"
-                        >
-                          {option.text}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
+                  ) : (() => {
+                    const camOptionsMap: Record<string, any[] | undefined> = {
+                      lcd:       sku.lcdOptions,
+                      front_cam: sku.frontCamOptions,
+                      main_cam:  sku.mainCamOptions,
+                      sub_cam:   sku.subCamOptions,
+                    };
+                    const camOptions = camOptionsMap[field.id];
+                    return camOptions && camOptions.length > 0 ? (
+                      <div
+                        style={{ minHeight: rowHeight ? rowHeight - 20 : 34 }}
+                        className={cn(
+                          'grid gap-1.5 w-full p-1',
+                          camOptions.length >= 2 ? 'grid-cols-2' : 'grid-cols-1'
+                        )}
+                      >
+                        {camOptions.slice(0, 2).map((option: any) => (
+                          <div
+                            key={option.supply}
+                            className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-[12px] text-slate-700 text-center leading-snug"
+                          >
+                            {option.text}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null;
+                  })() ?? (
                     <input
                       style={{ height: rowHeight ? rowHeight - 20 : 34 }}
                       className={cn(

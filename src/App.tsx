@@ -26,7 +26,7 @@ import {
   AM_RULE_DEFS,
   FIELD_GROUPS
 } from './constants';
-import { cn, extractPcbaOptions, normalizeStorage, extractManagedMaterialWorkbook, resolveLcdOptionsForProject, serializeLcdOptions } from './lib/utils';
+import { cn, extractPcbaOptions, normalizeStorage, extractManagedMaterialWorkbook, resolveLcdOptionsForProject, serializeLcdOptions, resolveFrontCamOptionsForProject, resolveMainCamOptionsForProject, resolveSubCamOptionsForProject } from './lib/utils';
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState<StepId>(1);
@@ -407,16 +407,25 @@ export default function App() {
           if (!ddrNum || !emmcNum) return '';
           return `${ddrNum}+${emmcNum}`;
         })();
-        const lcdOptions = resolveLcdOptionsForProject(opt?.projectName || '', projectInfo.materialWorkbook);
-        const lcdValue = serializeLcdOptions(lcdOptions);
+        const lcdOptions      = resolveLcdOptionsForProject(opt?.projectName || '', projectInfo.materialWorkbook);
+        const frontCamOptions = resolveFrontCamOptionsForProject(opt?.projectName || '', projectInfo.materialWorkbook);
+        const mainCamOptions  = resolveMainCamOptionsForProject(opt?.projectName || '', projectInfo.materialWorkbook);
+        const subCamOptions   = resolveSubCamOptionsForProject(opt?.projectName || '', projectInfo.materialWorkbook);
+        const lcdValue      = serializeLcdOptions(lcdOptions);
+        const frontCamValue = serializeLcdOptions(frontCamOptions);
+        const mainCamValue  = serializeLcdOptions(mainCamOptions);
+        const subCamValue   = serializeLcdOptions(subCamOptions);
         return {
           id: `sku_${Date.now()}_${idx}`,
           stage: projectInfo.stage,
           orderNo: '',
           project: pcbaId,
           lcdOptions,
+          frontCamOptions,
+          mainCamOptions,
+          subCamOptions,
           supplies: [
-            { id: `s_${Date.now()}_${idx}_1`, label: '主供', values: { storage: storageValue, lcd: lcdValue, band: bandValue } }
+            { id: `s_${Date.now()}_${idx}_1`, label: '主供', values: { storage: storageValue, lcd: lcdValue, front_cam: frontCamValue, main_cam: mainCamValue, sub_cam: subCamValue, band: bandValue } }
           ]
         };
       });
