@@ -436,7 +436,7 @@ export function TrialProductionTable({
         'project', 'stage', 'order_no', 'prod_order', 'board_adj_qty', 'backup_unit', 'prod_yield', 'test_yield',
         'software', 'online_time', 'assembly_time', 'prod_loc', 'color', 'unit_id', 'mb_id', 'cal_file',
         'pkg_process', 'copy_mold', 'underfill', 'thermal_gel_mb', 'usb_glue', 'solder_paste', 'thermal_gel_front', 'tp_hotmelt',
-        'ebom', 'sub_bom', 'lda', 'mbom', 'pbom'
+        'ebom', 'ebom_desc', 'sub_bom', 'sub_bom_desc', 'lda', 'mbom', 'pbom'
       ];
       return fields.filter(f => step3Ids.includes(f.id));
     }

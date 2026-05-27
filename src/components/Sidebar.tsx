@@ -123,7 +123,7 @@ export function Sidebar({
               {[
                 { title: '基础业务信息', items: ['订单号', '生产顺序', '试产地点'] },
                 { title: '关键交付属性', items: ['软件版本', '上线时间', '颜色/整机标识'] },
-                { title: '工艺辅料与BOM', items: ['锡膏', '导热凝胶', 'MBOM/PBOM'] }
+                { title: '工艺辅料与BOM', items: ['锡膏', '导热凝胶', 'EBOM/小板BOM（料号+描述）', 'MBOM/PBOM'] }
               ].map((group, i) => (
                 <div key={i} className="bg-white p-4 rounded border border-slate-200 space-y-3 hover:border-[#00897b] transition-all">
                   <div className="flex items-center gap-2">
