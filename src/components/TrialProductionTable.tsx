@@ -324,6 +324,23 @@ function SortableRow({
                         fieldLabel={field.label}
                       />
                     </div>
+                  ) : field.id === 'lcd' && sku.lcdOptions && sku.lcdOptions.length > 0 ? (
+                    <div
+                      style={{ minHeight: rowHeight ? rowHeight - 20 : 34 }}
+                      className={cn(
+                        'grid gap-1.5 w-full p-1',
+                        sku.lcdOptions.length >= 2 ? 'grid-cols-2' : 'grid-cols-1'
+                      )}
+                    >
+                      {sku.lcdOptions.slice(0, 2).map((option: any) => (
+                        <div
+                          key={option.supply}
+                          className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-[12px] text-slate-700 text-center leading-snug"
+                        >
+                          {option.text}
+                        </div>
+                      ))}
+                    </div>
                   ) : (
                     <input
                       style={{ height: rowHeight ? rowHeight - 20 : 34 }}

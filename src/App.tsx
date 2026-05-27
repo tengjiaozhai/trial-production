@@ -26,7 +26,7 @@ import {
   AM_RULE_DEFS,
   FIELD_GROUPS
 } from './constants';
-import { cn, extractPcbaOptions, normalizeStorage } from './lib/utils';
+import { cn, extractPcbaOptions, normalizeStorage, extractManagedMaterialWorkbook, resolveLcdOptionsForProject, serializeLcdOptions } from './lib/utils';
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState<StepId>(1);
@@ -148,6 +148,7 @@ export default function App() {
       mainboardId: '',
       pcbaOptions: [],
       checkedPcbaOptions: [],
+      materialWorkbook: undefined,
       customer: '',
       stage: '',
       files: []
@@ -341,6 +342,16 @@ export default function App() {
         break; // 取第一个有效配置表
       }
     }
+
+    // 检测管控物料表，异步解析 LCD 选项
+    const materialFiles = fileList.filter((f: File) => f.name.includes('管控物料表'));
+    for (const materialFile of materialFiles) {
+      const workbook = await extractManagedMaterialWorkbook(materialFile as File);
+      if (Object.keys(workbook.lcdBySheet).length > 0) {
+        setProjectInfo(prev => ({ ...prev, materialWorkbook: workbook }));
+        break;
+      }
+    }
   };
 
   const handleDeleteFile = (fileId: string) => {
@@ -349,10 +360,16 @@ export default function App() {
       const nextFiles = prev.files.filter(f => f.id !== fileId);
       // 如果删除的是配置表，且剩余文件中没有其他配置表，则清除 PCBA 选项
       const hasRemainingConfig = nextFiles.some(f => f.type === '配置表');
+      // 如果删除的是物料表，且剩余文件中没有其他物料表，则清除 materialWorkbook
+      const hasRemainingMaterial = nextFiles.some(f => f.type === '物料表');
+      let next = { ...prev, files: nextFiles };
       if (deletedFile?.type === '配置表' && !hasRemainingConfig) {
-        return { ...prev, files: nextFiles, pcbaOptions: [], checkedPcbaOptions: [] };
+        next = { ...next, pcbaOptions: [], checkedPcbaOptions: [] };
       }
-      return { ...prev, files: nextFiles };
+      if (deletedFile?.type === '物料表' && !hasRemainingMaterial) {
+        next = { ...next, materialWorkbook: undefined };
+      }
+      return next;
     });
   };
 
@@ -385,18 +402,21 @@ export default function App() {
         const bandValue = opt && !opt.bandConflict ? opt.band : '';
         const storageValue = (() => {
           if (!opt) return '';
-          const ddrRaw  = (opt.ddr  || '').replace(/[Gg]/g, '').trim();
-          const emmcRaw = (opt.emmc || '').replace(/[Gg]/g, '').trim();
-          if (!ddrRaw || !emmcRaw) return '';
-          return `${ddrRaw}+${emmcRaw}`;
+          const ddrNum = (opt.ddr || '').match(/\d+/)?.[0] || '';
+          const emmcNum = (opt.emmc || '').match(/\d+/)?.[0] || '';
+          if (!ddrNum || !emmcNum) return '';
+          return `${ddrNum}+${emmcNum}`;
         })();
+        const lcdOptions = resolveLcdOptionsForProject(opt?.projectName || '', projectInfo.materialWorkbook);
+        const lcdValue = serializeLcdOptions(lcdOptions);
         return {
           id: `sku_${Date.now()}_${idx}`,
           stage: projectInfo.stage,
           orderNo: '',
           project: pcbaId,
+          lcdOptions,
           supplies: [
-            { id: `s_${Date.now()}_${idx}_1`, label: '主供', values: { storage: storageValue, lcd: '', band: bandValue } }
+            { id: `s_${Date.now()}_${idx}_1`, label: '主供', values: { storage: storageValue, lcd: lcdValue, band: bandValue } }
           ]
         };
       });
