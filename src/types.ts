@@ -34,6 +34,8 @@ export interface PcbaOption {
   pcba: string;          // PCBA 标识，如 "A1"、"U1"
   band: string;          // 出货市场（即频段）；冲突时为空字符串 ""
   bandConflict: boolean; // true 表示该 PCBA 对应配置表中多个不同出货市场
+  emmc: string;          // EMMC 列原始值，如 "128G"；列不存在或冲突时为 ""
+  ddr: string;           // DDR 列原始值，如 "4G"；列不存在或冲突时为 ""
 }
 
 export interface ProjectInfo {
