@@ -30,10 +30,16 @@ export interface SKUData {
   }[];
 }
 
+export interface PcbaOption {
+  pcba: string;          // PCBA 标识，如 "A1"、"U1"
+  band: string;          // 出货市场（即频段）；冲突时为空字符串 ""
+  bandConflict: boolean; // true 表示该 PCBA 对应配置表中多个不同出货市场
+}
+
 export interface ProjectInfo {
   name: string;
   mainboardId?: string;
-  pcbaOptions?: string[]; // The extracted PCBA configs
+  pcbaOptions?: PcbaOption[]; // The extracted PCBA configs with band info
   checkedPcbaOptions?: string[]; // The ones selected by user
   efuseConfigs?: Record<string, string>;
   isCopied?: boolean;
