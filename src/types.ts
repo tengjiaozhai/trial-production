@@ -6,6 +6,7 @@ export type FieldBehavior = 'auto' | 'calc' | 'manual' | 'order_no';
 
 export type SplitOptionFieldId =
   | 'lcd' | 'front_cam' | 'main_cam' | 'sub_cam'
+  | 'cpu' | 'emmc' | 'ddr' | 'pmu' | 'tx' | 'rf_transceiver' | 'nfc'
   | 'battery' | 'speaker' | 'receiver' | 'mic' | 'motor'
   | 'spk_fpc' | 'sidekey_fpc' | 'ir_fpc' | 'lens' | 'housing'
   | 'battery_cover' | 'sim_tray' | 'side_key' | 'aux_material'
@@ -76,6 +77,23 @@ export interface PcbaOption {
   ddr: string;           // DDR 列原始值，如 "4G"；列不存在或冲突时为 ""
 }
 
+export interface ManagedMaterialCoreRow {
+  materialName: string;
+  code: string;
+  vendor: string;
+  supply: string;
+}
+
+export interface ManagedMaterialCoreMatch {
+  sourceFileName: string;
+  sourceSheetName: string;
+  rows: ManagedMaterialCoreRow[];
+  materialNames: string[];
+  materialNameByStaticField: Partial<Record<'cpu' | 'pmu' | 'tx' | 'rf_transceiver' | 'nfc', string>>;
+  materialNameByEmmcSize: Record<string, string>;
+  materialNameByDdrSize: Record<string, string>;
+}
+
 export interface ProjectInfo {
   name: string;
   mainboardId?: string;
@@ -83,6 +101,7 @@ export interface ProjectInfo {
   checkedPcbaOptions?: string[]; // The ones selected by user
   materialWorkbook?: ManagedMaterialWorkbook;
   keyMaterialTemplate?: KeyMaterialTemplateMatch;
+  managedMaterialCore?: ManagedMaterialCoreMatch;
   efuseConfigs?: Record<string, string>;
   isCopied?: boolean;
   customer: Template | '';
