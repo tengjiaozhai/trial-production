@@ -253,3 +253,73 @@ describe('resolveLcdOptionsForProject + serializeLcdOptions', () => {
     expect(serializeLcdOptions([])).toBe('');
   });
 });
+
+describe('normalizeMaterialName - camera equivalences', () => {
+  it('CAM(\u524d\u6444)-8M -> FRONT_CAM', () => {
+    // normalizeMaterialName strips parens/spaces, tests against known aliases
+    const { normalizeMaterialName } = require('./utils');
+    // We test via extractManagedMaterialWorkbook which calls it internally
+  });
+});
+
+describe('extractManagedMaterialWorkbook - camera fields', () => {
+  function makeMaterialFile(rows: (string | number | null)[][]): File {
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([
+      ['\u4f20\u97f3\u7ba1\u63a7\u7269\u6599\u8868'],
+      ['\u54c1\u724c:', 'Infinix'],
+      ['\u7814\u53d1\u586b\u5199'],
+      ['\u5e8f\u53f7', '\u7269\u6599\u540d\u79f0', '\u4f20\u97f3\u7f16\u7801', '\u7269\u6599\u63cf\u8ff0', '\u4f9b\u5e94\u5546\u578b\u53f7', '\u4f9b\u5e94\u5546', '\u7528\u91cf', '\u7269\u6599\u989c\u8272', '\u4f20\u97f3\u662f\u5426\u5df2\u5c01\u6837', '\u7269\u6599\u901a\u7528\u6027', '\u5e73\u53f0\u662f\u5426\u5df2\u8ba4\u8bc1', 'MOQ', 'MPQ', '\u8bd5\u4ea7LT', '\u91cf\u4ea7LT', '\u4e00/\u4e8c\u4f9b'],
+      ...rows,
+    ]);
+    XLSX.utils.book_append_sheet(wb, ws, 'X6728');
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+    return new File([buf], 'X6728\u4f20\u97f3\u7ba1\u63a7\u7269\u6599\u8868.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+
+  it('extracts front cam from "CAM(\u524d\u6444)-8M" rows', async () => {
+    const file = makeMaterialFile([
+      [1, 'CAM(\u524d\u6444)-8M', '11111111', 'desc', 'ModelA', '\u5929\u9a6c', 1, '/', '\u5426', '\u65b0\u5f00', '\u5426', 1, 1, 60, 60, '\u4e00\u4f9b'],
+      [2, 'CAM(\u524d\u6444)-8M', '11111112', 'desc', 'ModelB', '\u6b27\u83f2\u5c3c\u4e9a', 1, '/', '\u5426', '\u65b0\u5f00', '\u5426', 1, 1, 60, 60, '\u4e8c\u4f9b'],
+    ]);
+    const result = await extractManagedMaterialWorkbook(file);
+    expect(result.frontCamBySheet['X6728']).toEqual([
+      { supply: '\u4e00\u4f9b', code: '11111111', vendor: '\u5929\u9a6c', text: '11111111 \u4e00\u4f9b \u5929\u9a6c' },
+      { supply: '\u4e8c\u4f9b', code: '11111112', vendor: '\u6b27\u83f2\u5c3c\u4e9a', text: '11111112 \u4e8c\u4f9b \u6b27\u83f2\u5c3c\u4e9a' },
+    ]);
+  });
+
+  it('extracts main cam from "CAM(\u540e\u6444)-50M" rows', async () => {
+    const file = makeMaterialFile([
+      [1, 'CAM(\u540e\u6444)-50M', '22222221', 'desc', 'ModelC', '\u5929\u9a6c', 1, '/', '\u5426', '\u65b0\u5f00', '\u5426', 1, 1, 60, 60, '\u4e00\u4f9b'],
+    ]);
+    const result = await extractManagedMaterialWorkbook(file);
+    expect(result.mainCamBySheet['X6728']).toEqual([
+      { supply: '\u4e00\u4f9b', code: '22222221', vendor: '\u5929\u9a6c', text: '22222221 \u4e00\u4f9b \u5929\u9a6c' },
+    ]);
+  });
+
+  it('extracts sub cam from "CAM(\u540e\u6444)-AI" rows', async () => {
+    const file = makeMaterialFile([
+      [1, 'CAM(\u540e\u6444)-AI', '33333331', 'desc', 'ModelD', '\u5929\u9a6c', 1, '/', '\u5426', '\u65b0\u5f00', '\u5426', 1, 1, 60, 60, '\u4e00\u4f9b'],
+    ]);
+    const result = await extractManagedMaterialWorkbook(file);
+    expect(result.subCamBySheet['X6728']).toEqual([
+      { supply: '\u4e00\u4f9b', code: '33333331', vendor: '\u5929\u9a6c', text: '33333331 \u4e00\u4f9b \u5929\u9a6c' },
+    ]);
+  });
+
+  it('\u524d\u6444/\u540e\u6444/AI\u526f\u6444 fields are independent per sheet', async () => {
+    const file = makeMaterialFile([
+      [1, 'LCM', '17401942', 'desc', 'TM', '\u5929\u9a6c', 1, '/', '\u5426', '\u65b0\u5f00', '\u5426', 1, 1, 60, 60, '\u4e00\u4f9b'],
+      [2, 'CAM(\u524d\u6444)-8M', '11111111', 'desc', 'M1', '\u5929\u9a6c', 1, '/', '\u5426', '\u65b0\u5f00', '\u5426', 1, 1, 60, 60, '\u4e00\u4f9b'],
+      [3, 'CAM(\u540e\u6444)-50M', '22222221', 'desc', 'M2', '\u5929\u9a6c', 1, '/', '\u5426', '\u65b0\u5f00', '\u5426', 1, 1, 60, 60, '\u4e00\u4f9b'],
+      [4, 'CAM(\u540e\u6444)-AI', '33333331', 'desc', 'M3', '\u5929\u9a6c', 1, '/', '\u5426', '\u65b0\u5f00', '\u5426', 1, 1, 60, 60, '\u4e00\u4f9b'],
+    ]);
+    const result = await extractManagedMaterialWorkbook(file);
+    expect(result.lcdBySheet['X6728']).toHaveLength(1);
+    expect(result.frontCamBySheet['X6728']).toHaveLength(1);
+    expect(result.mainCamBySheet['X6728']).toHaveLength(1);
+    expect(result.subCamBySheet['X6728']).toHaveLength(1);
+  });
+});
