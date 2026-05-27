@@ -82,9 +82,9 @@ export const FIELD_DEFS: FieldDefinition[] = [
   { id: 'tp_hotmelt', label: 'TP热熔胶', group: '工艺辅料', behavior: 'manual' },
 
   // BOM信息
-  { id: 'ebom', label: 'EBOM', group: 'BOM信息', behavior: 'manual' },
+  { id: 'ebom', label: 'EBOM（料号）', group: 'BOM信息', behavior: 'manual' },
   { id: 'ebom_desc', label: 'EBOM（描述）', group: 'BOM信息', behavior: 'manual' },
-  { id: 'sub_bom', label: '小板BOM', group: 'BOM信息', behavior: 'manual' },
+  { id: 'sub_bom', label: '小板BOM（料号）', group: 'BOM信息', behavior: 'manual' },
   { id: 'sub_bom_desc', label: '小板BOM（描述）', group: 'BOM信息', behavior: 'manual' },
   { id: 'lda', label: 'LDA组件', group: 'BOM信息', behavior: 'manual' },
   { id: 'mbom', label: 'MBOM', group: 'BOM信息', behavior: 'manual' },
