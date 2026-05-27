@@ -4,6 +4,28 @@ export type Stage = string;
 
 export type FieldBehavior = 'auto' | 'calc' | 'manual' | 'order_no';
 
+export type SplitOptionFieldId =
+  | 'lcd' | 'front_cam' | 'main_cam' | 'sub_cam'
+  | 'battery' | 'speaker' | 'receiver' | 'mic' | 'motor'
+  | 'spk_fpc' | 'sidekey_fpc' | 'ir_fpc' | 'lens' | 'housing'
+  | 'battery_cover' | 'sim_tray' | 'side_key' | 'aux_material'
+  | 'cooling' | 'pcb' | 'sub_board';
+
+export type SupplyTag = '一供' | '二供' | '三供' | '';
+
+export interface SplitFieldOption {
+  supply: SupplyTag;
+  text: string;
+  sourceCategory2: string;
+}
+
+export interface KeyMaterialTemplateMatch {
+  sourceFileName: string;
+  sourceSheetName: string;
+  category2ByField: Partial<Record<SplitOptionFieldId, string>>;
+  optionsByField: Partial<Record<SplitOptionFieldId, SplitFieldOption[]>>;
+}
+
 export interface FieldDefinition {
   id: string;
   label: string;
@@ -37,10 +59,7 @@ export interface SKUData {
   stage: string;
   orderNo: string;
   project: string;
-  lcdOptions?: LcdSupplyOption[];
-  frontCamOptions?: LcdSupplyOption[];
-  mainCamOptions?: LcdSupplyOption[];
-  subCamOptions?: LcdSupplyOption[];
+  fieldOptions?: Partial<Record<SplitOptionFieldId, SplitFieldOption[]>>;
   supplies: {
     id: string;
     label: string;
@@ -63,6 +82,7 @@ export interface ProjectInfo {
   pcbaOptions?: PcbaOption[]; // The extracted PCBA configs with band info
   checkedPcbaOptions?: string[]; // The ones selected by user
   materialWorkbook?: ManagedMaterialWorkbook;
+  keyMaterialTemplate?: KeyMaterialTemplateMatch;
   efuseConfigs?: Record<string, string>;
   isCopied?: boolean;
   customer: Template | '';
