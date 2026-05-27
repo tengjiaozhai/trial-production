@@ -182,5 +182,11 @@ export const AM_RULE_DEFS = [
     title: '壳体 MBOM vs 器件规格',
     amReference: 'MBOM 壳体与器件规格壳体不一致时提示',
     requiresFlowComplete: false,
+  },
+  {
+    id: 'R-EBOM-STORAGE-001',
+    title: 'EBOM描述存储配置一致性',
+    amReference: 'EBOM描述中的 DDR+EMMC 符号应与存储字段匹配（顺序无关），不一致时给出错误提示',
+    requiresFlowComplete: false,
   }
 ];

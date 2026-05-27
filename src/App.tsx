@@ -26,7 +26,7 @@ import {
   AM_RULE_DEFS,
   FIELD_GROUPS
 } from './constants';
-import { cn, extractPcbaOptions } from './lib/utils';
+import { cn, extractPcbaOptions, normalizeStorage } from './lib/utils';
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState<StepId>(1);
@@ -567,6 +567,57 @@ export default function App() {
             detail: `${prefix}请填写带横杠的整机标识以执行后缀校验。`,
             level: 'warn'
           });
+        }
+
+        // --- Rule R-EBOM-STORAGE-001: ebom_desc storage token vs storage field ---
+        const ebomDesc = String(vals['ebom_desc'] || '').toLowerCase();
+        const storageFld = String(vals['storage'] || '').toLowerCase();
+
+        const ebomTokenMatch = ebomDesc.replace(/[gG]/g, '').match(/(\d+)\+(\d+)/);
+        const ebomToken = ebomTokenMatch ? `${ebomTokenMatch[1]}+${ebomTokenMatch[2]}` : '';
+
+        if (!ebomDesc) {
+          // ebom_desc 未填写 —— 跳过（空字段由 Step 2 冲突检测负责）
+        } else if (!ebomToken) {
+          results.push({
+            id: `RULE-EBOM-STORAGE-${sku.id}-${sup.id}`,
+            title: 'EBOM描述无存储标识',
+            amReference: 'R-EBOM-STORAGE-001',
+            detail: `${prefix}EBOM描述中未找到 DDR+EMMC 数字格式（如 4+128），无法校验。`,
+            level: 'warn',
+            fieldId: 'ebom_desc',
+          });
+        } else if (!storageFld) {
+          results.push({
+            id: `RULE-EBOM-STORAGE-${sku.id}-${sup.id}`,
+            title: 'EBOM描述存储待校验',
+            amReference: 'R-EBOM-STORAGE-001',
+            detail: `${prefix}存储字段未填写，无法与 EBOM 描述校验。`,
+            level: 'warn',
+            fieldId: 'storage',
+          });
+        } else {
+          const normalEbom    = normalizeStorage(ebomToken);
+          const normalStorage = normalizeStorage(storageFld);
+          if (normalEbom && normalStorage && normalEbom !== normalStorage) {
+            results.push({
+              id: `RULE-EBOM-STORAGE-${sku.id}-${sup.id}`,
+              title: 'EBOM描述存储不匹配',
+              amReference: 'R-EBOM-STORAGE-001',
+              detail: `${prefix}EBOM描述存储(${ebomToken})与存储字段(${storageFld})不一致。`,
+              level: 'error',
+              fieldId: 'ebom_desc',
+            });
+          } else {
+            results.push({
+              id: `RULE-EBOM-STORAGE-${sku.id}-${sup.id}`,
+              title: 'EBOM存储核验通过',
+              amReference: 'R-EBOM-STORAGE-001',
+              detail: `${prefix}EBOM描述存储与存储字段匹配。`,
+              level: 'pass',
+              fieldId: 'ebom_desc',
+            });
+          }
         }
       });
     });
