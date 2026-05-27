@@ -305,6 +305,8 @@ export default function App() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files) return;
     const fileList = Array.from(e.target.files);
+    // 重置 input value，确保同一文件可以再次触发 onChange
+    e.target.value = '';
 
     const newFiles = fileList.map((file: File) => {
       let type = '其他';
@@ -342,10 +344,16 @@ export default function App() {
   };
 
   const handleDeleteFile = (fileId: string) => {
-    setProjectInfo(prev => ({
-      ...prev,
-      files: prev.files.filter(f => (f as any).id !== fileId)
-    }));
+    setProjectInfo(prev => {
+      const deletedFile = prev.files.find(f => f.id === fileId);
+      const nextFiles = prev.files.filter(f => f.id !== fileId);
+      // 如果删除的是配置表，且剩余文件中没有其他配置表，则清除 PCBA 选项
+      const hasRemainingConfig = nextFiles.some(f => f.type === '配置表');
+      if (deletedFile?.type === '配置表' && !hasRemainingConfig) {
+        return { ...prev, files: nextFiles, pcbaOptions: [], checkedPcbaOptions: [] };
+      }
+      return { ...prev, files: nextFiles };
+    });
   };
 
   const isStep1Complete = projectInfo.isCopied || (projectInfo.name && projectInfo.customer && projectInfo.stage && projectInfo.files.length > 0 && (projectInfo.checkedPcbaOptions && projectInfo.checkedPcbaOptions.length > 0));
