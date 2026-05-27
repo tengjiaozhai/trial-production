@@ -1,6 +1,6 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { FIELD_GROUPS, FIELD_DEFS } from '@/src/constants';
-import { SKUData, FieldDefinition, StepId } from '@/src/types';
+import { SKUData, FieldDefinition, StepId, SplitOptionFieldId } from '@/src/types';
 import { cn } from '@/src/lib/utils';
 import { Trash2, Plus, GripVertical, ChevronDown, X } from 'lucide-react';
 
@@ -325,24 +325,20 @@ function SortableRow({
                       />
                     </div>
                   ) : (() => {
-                    const camOptionsMap: Record<string, any[] | undefined> = {
-                      lcd:       sku.lcdOptions,
-                      front_cam: sku.frontCamOptions,
-                      main_cam:  sku.mainCamOptions,
-                      sub_cam:   sku.subCamOptions,
-                    };
-                    const camOptions = camOptionsMap[field.id];
-                    return camOptions && camOptions.length > 0 ? (
+                    const options = sku.fieldOptions?.[field.id as SplitOptionFieldId];
+                    return options && options.length > 0 ? (
                       <div
                         style={{ minHeight: rowHeight ? rowHeight - 20 : 34 }}
                         className={cn(
                           'grid gap-1.5 w-full p-1',
-                          camOptions.length >= 2 ? 'grid-cols-2' : 'grid-cols-1'
+                          options.length === 1 && 'grid-cols-1',
+                          options.length === 2 && 'grid-cols-2',
+                          options.length >= 3 && 'grid-cols-3'
                         )}
                       >
-                        {camOptions.slice(0, 2).map((option: any) => (
+                        {options.slice(0, 3).map((option: any) => (
                           <div
-                            key={option.supply}
+                            key={`${field.id}-${option.supply}-${option.text}`}
                             className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-[12px] text-slate-700 text-center leading-snug"
                           >
                             {option.text}

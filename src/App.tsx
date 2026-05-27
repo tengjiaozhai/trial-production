@@ -27,6 +27,8 @@ import {
   FIELD_GROUPS
 } from './constants';
 import { cn, extractPcbaOptions, normalizeStorage, extractManagedMaterialWorkbook, resolveLcdOptionsForProject, serializeLcdOptions, resolveFrontCamOptionsForProject, resolveMainCamOptionsForProject, resolveSubCamOptionsForProject } from './lib/utils';
+import { parseKeyMaterialTemplate, matchCategory2WithLLM, buildOptionsByField, serializeSplitOptions } from './lib/keyMaterialTemplate';
+import type { SplitOptionFieldId } from './types';
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState<StepId>(1);
@@ -352,6 +354,27 @@ export default function App() {
         break;
       }
     }
+
+    // 检测关键物料选型模板，异步解析并调用 LLM 匹配分类2
+    const keyMaterialFile = fileList.find((f: File) =>
+      /关键物料选项模版|关键物料选项模板|关键物料选型模板/.test(f.name)
+    );
+    if (keyMaterialFile) {
+      const parsed = await parseKeyMaterialTemplate(keyMaterialFile as File);
+      if (parsed) {
+        const category2ByField = await matchCategory2WithLLM(parsed.category2List);
+        const optionsByField = buildOptionsByField(parsed, category2ByField);
+        setProjectInfo(prev => ({
+          ...prev,
+          keyMaterialTemplate: {
+            sourceFileName: parsed.sourceFileName,
+            sourceSheetName: parsed.sourceSheetName,
+            category2ByField,
+            optionsByField,
+          },
+        }));
+      }
+    }
   };
 
   const handleDeleteFile = (fileId: string) => {
@@ -362,12 +385,17 @@ export default function App() {
       const hasRemainingConfig = nextFiles.some(f => f.type === '配置表');
       // 如果删除的是物料表，且剩余文件中没有其他物料表，则清除 materialWorkbook
       const hasRemainingMaterial = nextFiles.some(f => f.type === '物料表');
+      // 如果删除的是关键物料选型模板，则清除 keyMaterialTemplate
+      const hasRemainingKeyMaterial = nextFiles.some(f => f.type === '关键物料选型模板');
       let next = { ...prev, files: nextFiles };
       if (deletedFile?.type === '配置表' && !hasRemainingConfig) {
         next = { ...next, pcbaOptions: [], checkedPcbaOptions: [] };
       }
       if (deletedFile?.type === '物料表' && !hasRemainingMaterial) {
         next = { ...next, materialWorkbook: undefined };
+      }
+      if (deletedFile?.type === '关键物料选型模板' && !hasRemainingKeyMaterial) {
+        next = { ...next, keyMaterialTemplate: undefined };
       }
       return next;
     });
@@ -393,8 +421,7 @@ export default function App() {
 
     // Logic based on types of files uploaded
     const hasConfig = projectInfo.files.some(f => f.type === '配置表');
-    const hasCCL = projectInfo.files.some(f => f.type === '关键物料选型模板');
-    
+
     let baseData: SKUData[] = [];
     if (projectInfo.checkedPcbaOptions && projectInfo.checkedPcbaOptions.length > 0) {
       baseData = projectInfo.checkedPcbaOptions.map((pcbaId, idx) => {
@@ -407,26 +434,51 @@ export default function App() {
           if (!ddrNum || !emmcNum) return '';
           return `${ddrNum}+${emmcNum}`;
         })();
-        const lcdOptions      = resolveLcdOptionsForProject(opt?.projectName || '', projectInfo.materialWorkbook);
-        const frontCamOptions = resolveFrontCamOptionsForProject(opt?.projectName || '', projectInfo.materialWorkbook);
-        const mainCamOptions  = resolveMainCamOptionsForProject(opt?.projectName || '', projectInfo.materialWorkbook);
-        const subCamOptions   = resolveSubCamOptionsForProject(opt?.projectName || '', projectInfo.materialWorkbook);
-        const lcdValue      = serializeLcdOptions(lcdOptions);
-        const frontCamValue = serializeLcdOptions(frontCamOptions);
-        const mainCamValue  = serializeLcdOptions(mainCamOptions);
-        const subCamValue   = serializeLcdOptions(subCamOptions);
+
+        // Build fieldOptions from managed material workbook (LCD/CAM) and key material template
+        const lcdRaw      = resolveLcdOptionsForProject(opt?.projectName || '', projectInfo.materialWorkbook);
+        const frontCamRaw = resolveFrontCamOptionsForProject(opt?.projectName || '', projectInfo.materialWorkbook);
+        const mainCamRaw  = resolveMainCamOptionsForProject(opt?.projectName || '', projectInfo.materialWorkbook);
+        const subCamRaw   = resolveSubCamOptionsForProject(opt?.projectName || '', projectInfo.materialWorkbook);
+
+        const toLcdSplitOptions = (opts: typeof lcdRaw, category2: string) =>
+          opts.map(o => ({ supply: o.supply as import('./types').SupplyTag, text: o.text, sourceCategory2: category2 }));
+
+        const keyMaterialOptions = projectInfo.keyMaterialTemplate?.optionsByField ?? {};
+
+        const fieldOptions: SKUData['fieldOptions'] = {
+          lcd:       lcdRaw.length > 0 ? toLcdSplitOptions(lcdRaw, 'LCD') : keyMaterialOptions.lcd,
+          front_cam: frontCamRaw.length > 0 ? toLcdSplitOptions(frontCamRaw, 'FRONT_CAM') : keyMaterialOptions.front_cam,
+          main_cam:  mainCamRaw.length > 0 ? toLcdSplitOptions(mainCamRaw, 'MAIN_CAM') : keyMaterialOptions.main_cam,
+          sub_cam:   subCamRaw.length > 0 ? toLcdSplitOptions(subCamRaw, 'SUB_CAM') : keyMaterialOptions.sub_cam,
+          ...Object.fromEntries(
+            (Object.keys(keyMaterialOptions) as import('./types').SplitOptionFieldId[])
+              .filter(k => !['lcd', 'front_cam', 'main_cam', 'sub_cam'].includes(k))
+              .map(k => [k, keyMaterialOptions[k]])
+          ),
+        };
+
+        // Serialize to initial text values
+        const initialValues: Record<string, string> = {};
+        for (const [fieldId, opts] of Object.entries(fieldOptions)) {
+          if (opts && opts.length > 0) {
+            initialValues[fieldId] = serializeSplitOptions(opts);
+          }
+        }
+
         return {
           id: `sku_${Date.now()}_${idx}`,
           stage: projectInfo.stage,
           orderNo: '',
           project: pcbaId,
-          lcdOptions,
-          frontCamOptions,
-          mainCamOptions,
-          subCamOptions,
+          fieldOptions,
           supplies: [
-            { id: `s_${Date.now()}_${idx}_1`, label: '主供', values: { storage: storageValue, lcd: lcdValue, front_cam: frontCamValue, main_cam: mainCamValue, sub_cam: subCamValue, band: bandValue } }
-          ]
+            {
+              id: `s_${Date.now()}_${idx}_1`,
+              label: '主供',
+              values: { ...initialValues, storage: storageValue, band: bandValue },
+            },
+          ],
         };
       });
     } else {
@@ -438,28 +490,15 @@ export default function App() {
       ...sku,
       project: sku.project,
       stage: projectInfo.stage,
-      supplies: sku.supplies.map(sup => {
-        const newValues = { 
+      supplies: sku.supplies.map(sup => ({
+        ...sup,
+        values: {
           ...sup.values,
           project: projectInfo.name,
           stage: projectInfo.stage,
-          mb_id: sku.project
-        };
-        
-        // Dynamic matching simulation based on files
-        projectInfo.files.forEach(f => {
-          if (f.name.toLowerCase().includes('ccl')) {
-            newValues['cpu'] = f.name.includes('MTK') ? 'MT6761' : 'T606';
-          }
-        });
-        
-        // Force a conflict for demonstration purposes on 'battery' or 'lcd'
-        if (Math.random() > 0.3) {
-           newValues['lcd'] = ''; // triggers conflict
-        }
-        
-        return { ...sup, values: newValues };
-      })
+          mb_id: sku.project,
+        },
+      })),
     }));
 
     setSkuData(baseData);
