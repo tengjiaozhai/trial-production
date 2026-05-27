@@ -31,10 +31,10 @@ export function normalizeStorage(raw: string): string {
  * 5. 从表头行下一行开始逐行读取：
  *    - 跳过 null / 空字符串
  *    - 跳过分隔行：包含中文字符或含空格
- * 6. 每个 pcba 收集所有市场値到 Set：
- *    - size===0 -> {pcba, band:'', bandConflict:false}
- *    - size===1 -> {pcba, band:onlyValue, bandConflict:false}
- *    - size>1   -> {pcba, band:'', bandConflict:true}
+ *    - 每个 PCBA 标识只取首次出现的行（跳过重复行）
+ * 6. 取首次出现行的 market 值：
+ *    - 无值 -> {pcba, band:'', bandConflict:false}
+ *    - 有值 -> {pcba, band:value, bandConflict:false}
  */
 export async function extractPcbaOptions(file: File): Promise<PcbaOption[]> {
   const buffer = await file.arrayBuffer();
@@ -85,8 +85,19 @@ export async function extractPcbaOptions(file: File): Promise<PcbaOption[]> {
     }
   }
 
+  // Find EMMC and DDR columns
+  let emmcColIdx = -1;
+  let ddrColIdx = -1;
+  for (let c = 0; c < headerRow.length; c++) {
+    const val = String(headerRow[c] ?? '').trim().toUpperCase();
+    if (val === 'EMMC') emmcColIdx = c;
+    if (val === 'DDR')  ddrColIdx  = c;
+  }
+
   // Step 4: collect data rows, build map of pcba -> Set<market>
   const pcbaMarkets = new Map<string, Set<string>>();
+  const pcbaEmmcSets = new Map<string, Set<string>>();
+  const pcbaDdrSets  = new Map<string, Set<string>>();
   const pcbaOrder: string[] = [];
 
   for (let r = headerRowIdx + 1; r < aoa.length; r++) {
@@ -116,17 +127,34 @@ export async function extractPcbaOptions(file: File): Promise<PcbaOption[]> {
         }
       }
     }
+
+    // Collect EMMC/DDR values
+    const collectSet = (colIdx: number, map: Map<string, Set<string>>) => {
+      if (colIdx === -1) return;
+      const raw = row[colIdx];
+      if (raw === null || raw === undefined) return;
+      const v = String(raw).trim();
+      if (!v) return;
+      if (!map.has(val)) map.set(val, new Set<string>());
+      map.get(val)!.add(v);
+    };
+    collectSet(emmcColIdx, pcbaEmmcSets);
+    collectSet(ddrColIdx,  pcbaDdrSets);
   }
 
   // Step 5: build result
   const results: PcbaOption[] = pcbaOrder.map(pcba => {
-    const markets = pcbaMarkets.get(pcba)!;
+    const markets  = pcbaMarkets.get(pcba)!;
+    const emmcSet  = pcbaEmmcSets.get(pcba) ?? new Set<string>();
+    const ddrSet   = pcbaDdrSets.get(pcba)  ?? new Set<string>();
+    const emmc = emmcSet.size === 1 ? [...emmcSet][0] : '';
+    const ddr  = ddrSet.size  === 1 ? [...ddrSet][0]  : '';
     if (markets.size === 0) {
-      return { pcba, band: '', bandConflict: false };
+      return { pcba, band: '', bandConflict: false, emmc, ddr };
     } else if (markets.size === 1) {
-      return { pcba, band: [...markets][0], bandConflict: false };
+      return { pcba, band: [...markets][0], bandConflict: false, emmc, ddr };
     } else {
-      return { pcba, band: '', bandConflict: true };
+      return { pcba, band: '', bandConflict: true, emmc, ddr };
     }
   });
 
