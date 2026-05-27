@@ -1,7 +1,7 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as XLSX from 'xlsx';
-import type { PcbaOption } from '../types';
+import type { PcbaOption, LcdSupplyOption, ManagedMaterialWorkbook } from '../types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -55,25 +55,47 @@ export async function extractPcbaOptions(file: File): Promise<PcbaOption[]> {
 
   if (!aoa.length) return [];
 
-  // Step 2: find header row — row where a cell matches /PCBA\s*\u914d\u7f6e/
+  // Step 2: collect all header candidates (exact match "PCBA配置" or "PCBA 配置"),
+  // then pick the one whose column contains the most valid PCBA data rows below.
   let headerRowIdx = -1;
   let headerColIdx = -1;
   let marketColIdx = -1;
 
+  const headerCandidates: Array<{ row: number; col: number }> = [];
   for (let r = 0; r < aoa.length; r++) {
     const row = aoa[r];
     for (let c = 0; c < row.length; c++) {
       const val = String(row[c] ?? '').trim();
-      if (/PCBA\s*配置/.test(val)) {
-        headerRowIdx = r;
-        headerColIdx = c;
-        break;
+      if (/^PCBA\s*配置$/.test(val)) {
+        headerCandidates.push({ row: r, col: c });
       }
     }
-    if (headerRowIdx !== -1) break;
   }
 
-  if (headerRowIdx === -1 || headerColIdx === -1) return [];
+  if (headerCandidates.length === 0) return [];
+
+  // Score each candidate by counting valid (non-separator, non-empty) data rows below it
+  let bestCandidate: { row: number; col: number; score: number } | null = null;
+  for (const cand of headerCandidates) {
+    let score = 0;
+    for (let r = cand.row + 1; r < aoa.length; r++) {
+      const rawVal = aoa[r]?.[cand.col];
+      if (rawVal === null || rawVal === undefined) continue;
+      const v = String(rawVal).trim();
+      if (!v) continue;
+      const isSep = /[一-龥]/.test(v) || /\s/.test(v);
+      if (isSep) continue;
+      score++;
+    }
+    if (!bestCandidate || score > bestCandidate.score ||
+        (score === bestCandidate.score && cand.col > bestCandidate.col)) {
+      bestCandidate = { ...cand, score };
+    }
+  }
+
+  if (!bestCandidate || bestCandidate.score === 0) return [];
+  headerRowIdx = bestCandidate.row;
+  headerColIdx = bestCandidate.col;
 
   // Step 3: find market column in the same header row
   const headerRow = aoa[headerRowIdx];
@@ -85,19 +107,23 @@ export async function extractPcbaOptions(file: File): Promise<PcbaOption[]> {
     }
   }
 
-  // Find EMMC and DDR columns
+  // Find EMMC, DDR, and projectName columns
   let emmcColIdx = -1;
   let ddrColIdx = -1;
+  let projectNameColIdx = -1;
   for (let c = 0; c < headerRow.length; c++) {
-    const val = String(headerRow[c] ?? '').trim().toUpperCase();
-    if (val === 'EMMC') emmcColIdx = c;
-    if (val === 'DDR')  ddrColIdx  = c;
+    const raw = String(headerRow[c] ?? '').trim();
+    const upper = raw.toUpperCase();
+    if (upper === 'EMMC') emmcColIdx = c;
+    if (upper === 'DDR')  ddrColIdx  = c;
+    if (raw === '项目名') projectNameColIdx = c;
   }
 
   // Step 4: collect data rows, build map of pcba -> Set<market>
   const pcbaMarkets = new Map<string, Set<string>>();
   const pcbaEmmcSets = new Map<string, Set<string>>();
   const pcbaDdrSets  = new Map<string, Set<string>>();
+  const pcbaProjectNames = new Map<string, string>();
   const pcbaOrder: string[] = [];
 
   for (let r = headerRowIdx + 1; r < aoa.length; r++) {
@@ -127,6 +153,15 @@ export async function extractPcbaOptions(file: File): Promise<PcbaOption[]> {
         }
       }
 
+      // Collect projectName from first occurrence only
+      if (projectNameColIdx !== -1) {
+        const pnRaw = row[projectNameColIdx];
+        if (pnRaw !== null && pnRaw !== undefined) {
+          const pn = String(pnRaw).trim();
+          if (pn) pcbaProjectNames.set(val, pn);
+        }
+      }
+
       // Collect EMMC/DDR from first occurrence only
       const collectFirst = (colIdx: number, map: Map<string, Set<string>>) => {
         if (colIdx === -1) return;
@@ -144,19 +179,121 @@ export async function extractPcbaOptions(file: File): Promise<PcbaOption[]> {
 
   // Step 5: build result
   const results: PcbaOption[] = pcbaOrder.map(pcba => {
-    const markets  = pcbaMarkets.get(pcba)!;
-    const emmcSet  = pcbaEmmcSets.get(pcba) ?? new Set<string>();
-    const ddrSet   = pcbaDdrSets.get(pcba)  ?? new Set<string>();
-    const emmc = emmcSet.size === 1 ? [...emmcSet][0] : '';
-    const ddr  = ddrSet.size  === 1 ? [...ddrSet][0]  : '';
+    const markets     = pcbaMarkets.get(pcba)!;
+    const emmcSet     = pcbaEmmcSets.get(pcba) ?? new Set<string>();
+    const ddrSet      = pcbaDdrSets.get(pcba)  ?? new Set<string>();
+    const emmc        = emmcSet.size === 1 ? [...emmcSet][0] : '';
+    const ddr         = ddrSet.size  === 1 ? [...ddrSet][0]  : '';
+    const projectName = pcbaProjectNames.get(pcba) ?? '';
     if (markets.size === 0) {
-      return { pcba, band: '', bandConflict: false, emmc, ddr };
+      return { pcba, projectName, band: '', bandConflict: false, emmc, ddr };
     } else if (markets.size === 1) {
-      return { pcba, band: [...markets][0], bandConflict: false, emmc, ddr };
+      return { pcba, projectName, band: [...markets][0], bandConflict: false, emmc, ddr };
     } else {
-      return { pcba, band: '', bandConflict: true, emmc, ddr };
+      return { pcba, projectName, band: '', bandConflict: true, emmc, ddr };
     }
   });
 
   return results;
+}
+
+export function normalizeMaterialName(raw: string): string {
+  const compact = String(raw ?? '').replace(/\s+/g, '').replace(/[()（）_\-/]/g, '').trim().toUpperCase();
+  if (compact === 'LCD' || compact === 'LCM' || compact === '\u663e\u793a\u5c4f') return 'LCD';
+  return compact;
+}
+
+export async function extractManagedMaterialWorkbook(file: File): Promise<ManagedMaterialWorkbook> {
+  const buffer = await file.arrayBuffer();
+  const wb = XLSX.read(buffer, { type: 'array' });
+
+  const lcdBySheet: Record<string, import('../types').LcdSupplyOption[]> = {};
+
+  const sheetVisibility = wb.Workbook?.Sheets ?? [];
+
+  for (let si = 0; si < wb.SheetNames.length; si++) {
+    const sheetName = wb.SheetNames[si];
+    const sheetMeta = sheetVisibility[si];
+    // Hidden: 0 = visible, 1 = hidden, 2 = very hidden
+    if (sheetMeta && (sheetMeta.Hidden === 1 || sheetMeta.Hidden === 2)) continue;
+
+    const ws = wb.Sheets[sheetName];
+    const aoa: (string | number | null | undefined)[][] = XLSX.utils.sheet_to_json(ws, {
+      header: 1,
+      defval: null,
+      blankrows: true,
+    }) as (string | number | null | undefined)[][];
+
+    // Find header row in first 10 rows: must have material-name, code, vendor, supply columns
+    let headerRowIdx = -1;
+    let materialColIdx = -1;
+    let codeColIdx = -1;
+    let vendorColIdx = -1;
+    let supplyColIdx = -1;
+
+    for (let r = 0; r < Math.min(10, aoa.length); r++) {
+      const row = aoa[r];
+      let mCol = -1, cdCol = -1, vCol = -1, sCol = -1;
+      for (let c = 0; c < row.length; c++) {
+        const cell = String(row[c] ?? '').replace(/\s+/g, '').trim();
+        if (cell === '\u7269\u6599\u540d\u79f0') mCol = c;
+        if (/\u7f16\u7801/.test(cell)) cdCol = c;
+        if (cell === '\u4f9b\u5e94\u5546') vCol = c;
+        if (/[\u4e00]\/[\n\r]?[\u4e8c]\u4f9b|[\u4e00\u4e8c]\u4f9b/.test(cell) ||
+            cell === '\u4e00/\u4e8c\u4f9b') sCol = c;
+      }
+      if (mCol !== -1 && cdCol !== -1 && vCol !== -1 && sCol !== -1) {
+        headerRowIdx = r;
+        materialColIdx = mCol;
+        codeColIdx = cdCol;
+        vendorColIdx = vCol;
+        supplyColIdx = sCol;
+        break;
+      }
+    }
+
+    if (headerRowIdx === -1) continue;
+
+    const lcdOptions: import('../types').LcdSupplyOption[] = [];
+    const seenSupply = new Set<string>();
+
+    for (let r = headerRowIdx + 1; r < aoa.length; r++) {
+      const row = aoa[r];
+      const materialRaw = String(row[materialColIdx] ?? '').trim();
+      if (!materialRaw) continue;
+      if (normalizeMaterialName(materialRaw) !== 'LCD') continue;
+
+      const supplyRaw = String(row[supplyColIdx] ?? '').replace(/\s+/g, '').trim();
+      if (supplyRaw !== '\u4e00\u4f9b' && supplyRaw !== '\u4e8c\u4f9b') continue;
+      if (seenSupply.has(supplyRaw)) continue;
+      seenSupply.add(supplyRaw);
+
+      const code = String(row[codeColIdx] ?? '').trim();
+      const vendor = String(row[vendorColIdx] ?? '').trim();
+      const supply = supplyRaw as '\u4e00\u4f9b' | '\u4e8c\u4f9b';
+      lcdOptions.push({ supply, code, vendor, text: `${code} ${supply} ${vendor}` });
+    }
+
+    // Sort: 一供 before 二供
+    lcdOptions.sort((a, b) => (a.supply === '\u4e00\u4f9b' ? -1 : 1));
+
+    if (lcdOptions.length > 0) {
+      lcdBySheet[sheetName] = lcdOptions;
+    }
+  }
+
+  return { lcdBySheet };
+}
+
+export function resolveLcdOptionsForProject(
+  projectName: string,
+  workbook?: ManagedMaterialWorkbook
+): LcdSupplyOption[] {
+  return projectName && workbook?.lcdBySheet[projectName]
+    ? workbook.lcdBySheet[projectName]
+    : [];
+}
+
+export function serializeLcdOptions(options: LcdSupplyOption[]): string {
+  return options.map(o => o.text).join(' / ');
 }
