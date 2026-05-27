@@ -383,13 +383,20 @@ export default function App() {
       baseData = projectInfo.checkedPcbaOptions.map((pcbaId, idx) => {
         const opt = (projectInfo.pcbaOptions || []).find(o => o.pcba === pcbaId);
         const bandValue = opt && !opt.bandConflict ? opt.band : '';
+        const storageValue = (() => {
+          if (!opt) return '';
+          const ddrRaw  = (opt.ddr  || '').replace(/[Gg]/g, '').trim();
+          const emmcRaw = (opt.emmc || '').replace(/[Gg]/g, '').trim();
+          if (!ddrRaw || !emmcRaw) return '';
+          return `${ddrRaw}+${emmcRaw}`;
+        })();
         return {
           id: `sku_${Date.now()}_${idx}`,
           stage: projectInfo.stage,
           orderNo: '',
           project: pcbaId,
           supplies: [
-            { id: `s_${Date.now()}_${idx}_1`, label: '主供', values: { storage: pcbaId.replace('PCBA-', '').replace('G', '') + '+G', lcd: '', band: bandValue } }
+            { id: `s_${Date.now()}_${idx}_1`, label: '主供', values: { storage: storageValue, lcd: '', band: bandValue } }
           ]
         };
       });
