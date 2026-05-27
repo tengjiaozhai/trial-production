@@ -115,31 +115,31 @@ export async function extractPcbaOptions(file: File): Promise<PcbaOption[]> {
     if (!pcbaMarkets.has(val)) {
       pcbaMarkets.set(val, new Set<string>());
       pcbaOrder.push(val);
-    }
 
-    // Collect market value if column exists
-    if (marketColIdx !== -1) {
-      const marketRaw = row[marketColIdx];
-      if (marketRaw !== null && marketRaw !== undefined) {
-        const market = String(marketRaw).trim();
-        if (market) {
-          pcbaMarkets.get(val)!.add(market);
+      // Collect market value from first occurrence only
+      if (marketColIdx !== -1) {
+        const marketRaw = row[marketColIdx];
+        if (marketRaw !== null && marketRaw !== undefined) {
+          const market = String(marketRaw).trim();
+          if (market) {
+            pcbaMarkets.get(val)!.add(market);
+          }
         }
       }
-    }
 
-    // Collect EMMC/DDR values
-    const collectSet = (colIdx: number, map: Map<string, Set<string>>) => {
-      if (colIdx === -1) return;
-      const raw = row[colIdx];
-      if (raw === null || raw === undefined) return;
-      const v = String(raw).trim();
-      if (!v) return;
-      if (!map.has(val)) map.set(val, new Set<string>());
-      map.get(val)!.add(v);
-    };
-    collectSet(emmcColIdx, pcbaEmmcSets);
-    collectSet(ddrColIdx,  pcbaDdrSets);
+      // Collect EMMC/DDR from first occurrence only
+      const collectFirst = (colIdx: number, map: Map<string, Set<string>>) => {
+        if (colIdx === -1) return;
+        const raw = row[colIdx];
+        if (raw === null || raw === undefined) return;
+        const v = String(raw).trim();
+        if (!v) return;
+        if (!map.has(val)) map.set(val, new Set<string>());
+        map.get(val)!.add(v);
+      };
+      collectFirst(emmcColIdx, pcbaEmmcSets);
+      collectFirst(ddrColIdx,  pcbaDdrSets);
+    }
   }
 
   // Step 5: build result
