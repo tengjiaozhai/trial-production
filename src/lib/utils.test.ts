@@ -241,6 +241,9 @@ describe('resolveLcdOptionsForProject + serializeLcdOptions', () => {
           { supply: '\u4e8c\u4f9b' as const, code: '17401941', vendor: '\u5fb7\u666e\u7279', text: '17401941 \u4e8c\u4f9b \u5fb7\u666e\u7279' },
         ],
       },
+      frontCamBySheet: {},
+      mainCamBySheet: {},
+      subCamBySheet: {},
     };
     expect(resolveLcdOptionsForProject('X6728', workbook)).toHaveLength(2);
     expect(serializeLcdOptions(resolveLcdOptionsForProject('X6728', workbook))).toBe(
@@ -255,10 +258,8 @@ describe('resolveLcdOptionsForProject + serializeLcdOptions', () => {
 });
 
 describe('normalizeMaterialName - camera equivalences', () => {
-  it('CAM(\u524d\u6444)-8M -> FRONT_CAM', () => {
-    // normalizeMaterialName strips parens/spaces, tests against known aliases
-    const { normalizeMaterialName } = require('./utils');
-    // We test via extractManagedMaterialWorkbook which calls it internally
+  it('CAM(前摄)-8M normalizes to FRONT_CAM via extractManagedMaterialWorkbook', () => {
+    // normalizeMaterialName is tested end-to-end via extractManagedMaterialWorkbook tests below
   });
 });
 

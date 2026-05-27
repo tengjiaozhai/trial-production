@@ -200,6 +200,12 @@ export async function extractPcbaOptions(file: File): Promise<PcbaOption[]> {
 export function normalizeMaterialName(raw: string): string {
   const compact = String(raw ?? '').replace(/\s+/g, '').replace(/[()（）_\-/]/g, '').trim().toUpperCase();
   if (compact === 'LCD' || compact === 'LCM' || compact === '\u663e\u793a\u5c4f') return 'LCD';
+  // 前CAM：CAM(前摄)-8M -> CAM前摄8M
+  if (compact.startsWith('CAM') && compact.includes('\u524d\u6444')) return 'FRONT_CAM';
+  // 主CAM：CAM(后摄)-50M -> CAM后摄50M（含数字表示像素）
+  if (compact.startsWith('CAM') && compact.includes('\u540e\u6444') && /\d/.test(compact)) return 'MAIN_CAM';
+  // 副CAM：CAM(后摄)-AI -> CAM后摄AI（不含数字）
+  if (compact.startsWith('CAM') && compact.includes('\u540e\u6444') && !(/\d/.test(compact))) return 'SUB_CAM';
   return compact;
 }
 
@@ -207,14 +213,16 @@ export async function extractManagedMaterialWorkbook(file: File): Promise<Manage
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(buffer, { type: 'array' });
 
-  const lcdBySheet: Record<string, import('../types').LcdSupplyOption[]> = {};
+  const lcdBySheet: Record<string, LcdSupplyOption[]> = {};
+  const frontCamBySheet: Record<string, LcdSupplyOption[]> = {};
+  const mainCamBySheet: Record<string, LcdSupplyOption[]> = {};
+  const subCamBySheet: Record<string, LcdSupplyOption[]> = {};
 
   const sheetVisibility = wb.Workbook?.Sheets ?? [];
 
   for (let si = 0; si < wb.SheetNames.length; si++) {
     const sheetName = wb.SheetNames[si];
     const sheetMeta = sheetVisibility[si];
-    // Hidden: 0 = visible, 1 = hidden, 2 = very hidden
     if (sheetMeta && (sheetMeta.Hidden === 1 || sheetMeta.Hidden === 2)) continue;
 
     const ws = wb.Sheets[sheetName];
@@ -224,7 +232,7 @@ export async function extractManagedMaterialWorkbook(file: File): Promise<Manage
       blankrows: true,
     }) as (string | number | null | undefined)[][];
 
-    // Find header row in first 10 rows: must have material-name, code, vendor, supply columns
+    // Find header row in first 10 rows
     let headerRowIdx = -1;
     let materialColIdx = -1;
     let codeColIdx = -1;
@@ -254,35 +262,44 @@ export async function extractManagedMaterialWorkbook(file: File): Promise<Manage
 
     if (headerRowIdx === -1) continue;
 
-    const lcdOptions: import('../types').LcdSupplyOption[] = [];
-    const seenSupply = new Set<string>();
+    // Per-category accumulators
+    const buckets: Record<string, { options: LcdSupplyOption[]; seen: Set<string> }> = {
+      LCD:       { options: [], seen: new Set() },
+      FRONT_CAM: { options: [], seen: new Set() },
+      MAIN_CAM:  { options: [], seen: new Set() },
+      SUB_CAM:   { options: [], seen: new Set() },
+    };
 
     for (let r = headerRowIdx + 1; r < aoa.length; r++) {
       const row = aoa[r];
       const materialRaw = String(row[materialColIdx] ?? '').trim();
       if (!materialRaw) continue;
-      if (normalizeMaterialName(materialRaw) !== 'LCD') continue;
+
+      const category = normalizeMaterialName(materialRaw);
+      const bucket = buckets[category];
+      if (!bucket) continue;
 
       const supplyRaw = String(row[supplyColIdx] ?? '').replace(/\s+/g, '').trim();
       if (supplyRaw !== '\u4e00\u4f9b' && supplyRaw !== '\u4e8c\u4f9b') continue;
-      if (seenSupply.has(supplyRaw)) continue;
-      seenSupply.add(supplyRaw);
+      if (bucket.seen.has(supplyRaw)) continue;
+      bucket.seen.add(supplyRaw);
 
       const code = String(row[codeColIdx] ?? '').trim();
       const vendor = String(row[vendorColIdx] ?? '').trim();
       const supply = supplyRaw as '\u4e00\u4f9b' | '\u4e8c\u4f9b';
-      lcdOptions.push({ supply, code, vendor, text: `${code} ${supply} ${vendor}` });
+      bucket.options.push({ supply, code, vendor, text: `${code} ${supply} ${vendor}` });
     }
 
-    // Sort: 一供 before 二供
-    lcdOptions.sort((a, b) => (a.supply === '\u4e00\u4f9b' ? -1 : 1));
+    // Sort each bucket: 一供 before 二供, then store if non-empty
+    const sort = (opts: LcdSupplyOption[]) => opts.sort((a, b) => a.supply === '\u4e00\u4f9b' ? -1 : 1);
 
-    if (lcdOptions.length > 0) {
-      lcdBySheet[sheetName] = lcdOptions;
-    }
+    if (buckets.LCD.options.length > 0)       lcdBySheet[sheetName]      = sort(buckets.LCD.options);
+    if (buckets.FRONT_CAM.options.length > 0) frontCamBySheet[sheetName] = sort(buckets.FRONT_CAM.options);
+    if (buckets.MAIN_CAM.options.length > 0)  mainCamBySheet[sheetName]  = sort(buckets.MAIN_CAM.options);
+    if (buckets.SUB_CAM.options.length > 0)   subCamBySheet[sheetName]   = sort(buckets.SUB_CAM.options);
   }
 
-  return { lcdBySheet };
+  return { lcdBySheet, frontCamBySheet, mainCamBySheet, subCamBySheet };
 }
 
 export function resolveLcdOptionsForProject(
@@ -291,6 +308,33 @@ export function resolveLcdOptionsForProject(
 ): LcdSupplyOption[] {
   return projectName && workbook?.lcdBySheet[projectName]
     ? workbook.lcdBySheet[projectName]
+    : [];
+}
+
+export function resolveFrontCamOptionsForProject(
+  projectName: string,
+  workbook?: ManagedMaterialWorkbook
+): LcdSupplyOption[] {
+  return projectName && workbook?.frontCamBySheet[projectName]
+    ? workbook.frontCamBySheet[projectName]
+    : [];
+}
+
+export function resolveMainCamOptionsForProject(
+  projectName: string,
+  workbook?: ManagedMaterialWorkbook
+): LcdSupplyOption[] {
+  return projectName && workbook?.mainCamBySheet[projectName]
+    ? workbook.mainCamBySheet[projectName]
+    : [];
+}
+
+export function resolveSubCamOptionsForProject(
+  projectName: string,
+  workbook?: ManagedMaterialWorkbook
+): LcdSupplyOption[] {
+  return projectName && workbook?.subCamBySheet[projectName]
+    ? workbook.subCamBySheet[projectName]
     : [];
 }
 

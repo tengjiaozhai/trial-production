@@ -27,6 +27,9 @@ export interface LcdSupplyOption {
 
 export interface ManagedMaterialWorkbook {
   lcdBySheet: Record<string, LcdSupplyOption[]>;
+  frontCamBySheet: Record<string, LcdSupplyOption[]>;
+  mainCamBySheet: Record<string, LcdSupplyOption[]>;
+  subCamBySheet: Record<string, LcdSupplyOption[]>;
 }
 
 export interface SKUData {
@@ -35,6 +38,9 @@ export interface SKUData {
   orderNo: string;
   project: string;
   lcdOptions?: LcdSupplyOption[];
+  frontCamOptions?: LcdSupplyOption[];
+  mainCamOptions?: LcdSupplyOption[];
+  subCamOptions?: LcdSupplyOption[];
   supplies: {
     id: string;
     label: string;
