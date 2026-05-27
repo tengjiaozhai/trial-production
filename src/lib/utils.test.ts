@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as XLSX from 'xlsx';
 import { extractPcbaOptions } from './utils';
+import { normalizeStorage } from './utils';
 
 function makeXlsxFile(aoa: (string | null)[][]): File {
   const wb = XLSX.utils.book_new();
@@ -83,5 +84,51 @@ describe('extractPcbaOptions', () => {
     const result = await extractPcbaOptions(file);
     expect(result).toHaveLength(1);
     expect(result[0].pcba).toBe('A1');
+  });
+});
+
+describe('normalizeStorage', () => {
+  it('canonical order: smaller first', () => {
+    expect(normalizeStorage('4+128')).toBe('4+128');
+  });
+
+  it('reversed input equals canonical', () => {
+    expect(normalizeStorage('128+4')).toBe('4+128');
+  });
+
+  it('strips trailing G', () => {
+    expect(normalizeStorage('128G+4G')).toBe('4+128');
+  });
+
+  it('strips trailing g (lowercase)', () => {
+    expect(normalizeStorage('4g+128g')).toBe('4+128');
+  });
+
+  it('returns empty string for single number', () => {
+    expect(normalizeStorage('128')).toBe('');
+  });
+
+  it('returns empty string for empty input', () => {
+    expect(normalizeStorage('')).toBe('');
+  });
+
+  it('returns empty string for non-numeric string', () => {
+    expect(normalizeStorage('V633A-EBOM')).toBe('');
+  });
+
+  it('real ebom_desc: 4+128 stays 4+128', () => {
+    expect(normalizeStorage('4+128')).toBe('4+128');
+  });
+
+  it('real pcba storage: 128+4 normalizes to same as 4+128', () => {
+    expect(normalizeStorage('128+4')).toBe(normalizeStorage('4+128'));
+  });
+
+  it('real pcba storage with G: 128G+4G normalizes to 4+128', () => {
+    expect(normalizeStorage('128G+4G')).toBe('4+128');
+  });
+
+  it('8+256 and 256+8 are equal', () => {
+    expect(normalizeStorage('8+256')).toBe(normalizeStorage('256+8'));
   });
 });

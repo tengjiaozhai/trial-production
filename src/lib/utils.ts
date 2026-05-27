@@ -8,6 +8,19 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * Normalize a storage string like "4+128", "128+4", "128G+4G" into
+ * a canonical "smaller+larger" form without G suffix.
+ * Returns "" if the input does not contain two numeric tokens separated by "+".
+ */
+export function normalizeStorage(raw: string): string {
+  const match = raw.replace(/[Gg]/g, '').match(/(\d+)\+(\d+)/);
+  if (!match) return '';
+  const a = parseInt(match[1], 10);
+  const b = parseInt(match[2], 10);
+  return `${Math.min(a, b)}+${Math.max(a, b)}`;
+}
+
+/**
  * 从上传的配置表文件中提取 PCBA 配置选项，同时解析出货市场信息。
  *
  * 策略：
