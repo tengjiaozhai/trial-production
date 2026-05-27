@@ -1,26 +1,29 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as XLSX from 'xlsx';
+import type { PcbaOption } from '../types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
 /**
- * 从上传的配置表文件中提取 PCBA 配置选项。
+ * 从上传的配置表文件中提取 PCBA 配置选项，同时解析出货市场信息。
  *
  * 策略：
  * 1. 遍历所有 sheet，找名称包含 "PCBA配置表" 的 sheet。
  * 2. 将该 sheet 转为 AOA（rows × cols，空格均保留为 null）。
- * 3. 扫描行，找到某一行中有单元格文字匹配 "PCBA 配置" / "PCBA配置" 的行作为
- *    "表头行"，记下该列索引 headerColIdx。
- * 4. 从表头行下一行开始逐行读取 headerColIdx 列的值：
+ * 3. 扫描行，找到某一行中有单元格文字匹配 "PCBA 配置" / "PCBA配置" 的行作为表头行。
+ * 4. 在表头行中查找匹配 /出货\s*市场/ 的列作为 marketColIdx。
+ * 5. 从表头行下一行开始逐行读取：
  *    - 跳过 null / 空字符串
- *    - 跳过"合并分隔行"：判定条件 = 该行除 headerColIdx 外所有列均为空
- *      且 该列值不像正常 PCBA 编号（不含字母数字组合，或含中文）
- * 5. 对结果去重后返回。
+ *    - 跳过分隔行：包含中文字符或含空格
+ * 6. 每个 pcba 收集所有市场値到 Set：
+ *    - size===0 -> {pcba, band:'', bandConflict:false}
+ *    - size===1 -> {pcba, band:onlyValue, bandConflict:false}
+ *    - size>1   -> {pcba, band:'', bandConflict:true}
  */
-export async function extractPcbaOptions(file: File): Promise<string[]> {
+export async function extractPcbaOptions(file: File): Promise<PcbaOption[]> {
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(buffer, { type: 'array' });
 
@@ -39,9 +42,10 @@ export async function extractPcbaOptions(file: File): Promise<string[]> {
 
   if (!aoa.length) return [];
 
-  // Step 2: find header row — row where a cell matches /PCBA\s*配置/
+  // Step 2: find header row — row where a cell matches /PCBA\s*\u914d\u7f6e/
   let headerRowIdx = -1;
   let headerColIdx = -1;
+  let marketColIdx = -1;
 
   for (let r = 0; r < aoa.length; r++) {
     const row = aoa[r];
@@ -58,9 +62,19 @@ export async function extractPcbaOptions(file: File): Promise<string[]> {
 
   if (headerRowIdx === -1 || headerColIdx === -1) return [];
 
-  // Step 3: collect data rows, skip merged/separator rows
-  const results: string[] = [];
-  const seen = new Set<string>();
+  // Step 3: find market column in the same header row
+  const headerRow = aoa[headerRowIdx];
+  for (let c = 0; c < headerRow.length; c++) {
+    const val = String(headerRow[c] ?? '').trim();
+    if (/出货\s*市场/.test(val)) {
+      marketColIdx = c;
+      break;
+    }
+  }
+
+  // Step 4: collect data rows, build map of pcba -> Set<market>
+  const pcbaMarkets = new Map<string, Set<string>>();
+  const pcbaOrder: string[] = [];
 
   for (let r = headerRowIdx + 1; r < aoa.length; r++) {
     const row = aoa[r];
@@ -70,16 +84,38 @@ export async function extractPcbaOptions(file: File): Promise<string[]> {
     const val = String(rawVal).trim();
     if (!val) continue;
 
-    // Detect separator/merged row: value contains Chinese chars or looks like a description
-    // A real PCBA code looks like A1, B1, U1, Aa1, Ab1 etc. — letters + digits, no spaces/Chinese
-    const isMergedRow = /[\u4e00-\u9fa5]/.test(val) || /\s/.test(val);
+    // Detect separator/merged row: contains Chinese chars or whitespace
+    const isMergedRow = /[一-龥]/.test(val) || /\s/.test(val);
     if (isMergedRow) continue;
 
-    if (!seen.has(val)) {
-      seen.add(val);
-      results.push(val);
+    if (!pcbaMarkets.has(val)) {
+      pcbaMarkets.set(val, new Set<string>());
+      pcbaOrder.push(val);
+    }
+
+    // Collect market value if column exists
+    if (marketColIdx !== -1) {
+      const marketRaw = row[marketColIdx];
+      if (marketRaw !== null && marketRaw !== undefined) {
+        const market = String(marketRaw).trim();
+        if (market) {
+          pcbaMarkets.get(val)!.add(market);
+        }
+      }
     }
   }
+
+  // Step 5: build result
+  const results: PcbaOption[] = pcbaOrder.map(pcba => {
+    const markets = pcbaMarkets.get(pcba)!;
+    if (markets.size === 0) {
+      return { pcba, band: '', bandConflict: false };
+    } else if (markets.size === 1) {
+      return { pcba, band: [...markets][0], bandConflict: false };
+    } else {
+      return { pcba, band: '', bandConflict: true };
+    }
+  });
 
   return results;
 }
