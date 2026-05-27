@@ -28,6 +28,7 @@ import {
 } from './constants';
 import { cn, extractPcbaOptions, normalizeStorage, extractManagedMaterialWorkbook, resolveLcdOptionsForProject, serializeLcdOptions, resolveFrontCamOptionsForProject, resolveMainCamOptionsForProject, resolveSubCamOptionsForProject } from './lib/utils';
 import { parseKeyMaterialTemplate, matchCategory2WithLLM, buildOptionsByField, serializeSplitOptions } from './lib/keyMaterialTemplate';
+import { parseManagedMaterialCoreWorkbook, matchManagedMaterialNamesWithLLM, buildManagedMaterialCoreFieldOptions, serializeSplitFieldOptions } from './lib/managedMaterialCore';
 import type { SplitOptionFieldId } from './types';
 
 export default function App() {
@@ -330,10 +331,12 @@ export default function App() {
     }));
 
     // 检测配置表文件，异步解析 PCBA 选项
+    let parsedPcbaOptions: import('./types').PcbaOption[] = [];
     const configFiles = fileList.filter((f: File) => f.name.includes('配置'));
     for (const configFile of configFiles) {
       const options = await extractPcbaOptions(configFile as File);
       if (options.length > 0) {
+        parsedPcbaOptions = options;
         setProjectInfo(prev => ({
           ...prev,
           pcbaOptions: options,
@@ -345,14 +348,43 @@ export default function App() {
       }
     }
 
-    // 检测管控物料表，异步解析 LCD 选项
+    // 也尝试从当前 projectInfo 中获取已解析的 pcbaOptions（配置表可能在本次上传前已上传）
+    const allPcbaOptions = parsedPcbaOptions.length > 0
+      ? parsedPcbaOptions
+      : (projectInfo.pcbaOptions ?? []);
+    const emmcSizes: string[] = Array.from(new Set(allPcbaOptions.map(item => item.emmc.match(/\d+/)?.[0] ?? '').filter((s): s is string => s !== '')));
+    const ddrSizes: string[] = Array.from(new Set(allPcbaOptions.map(item => item.ddr.match(/\d+/)?.[0] ?? '').filter((s): s is string => s !== '')));
+
+    // 检测管控物料表，异步解析 LCD 选项 + 核心器件 LLM 匹配
     const materialFiles = fileList.filter((f: File) => f.name.includes('管控物料表'));
     for (const materialFile of materialFiles) {
       const workbook = await extractManagedMaterialWorkbook(materialFile as File);
       if (Object.keys(workbook.lcdBySheet).length > 0) {
         setProjectInfo(prev => ({ ...prev, materialWorkbook: workbook }));
-        break;
       }
+
+      const coreRaw = await parseManagedMaterialCoreWorkbook(materialFile as File);
+      if (coreRaw) {
+        const coreMatch = await matchManagedMaterialNamesWithLLM({
+          materialNames: coreRaw.materialNames,
+          emmcSizes,
+          ddrSizes,
+        });
+        setProjectInfo(prev => ({
+          ...prev,
+          managedMaterialCore: {
+            sourceFileName: coreRaw.sourceFileName,
+            sourceSheetName: coreRaw.sourceSheetName,
+            rows: coreRaw.rows,
+            materialNames: coreRaw.materialNames,
+            materialNameByStaticField: coreMatch.materialNameByStaticField,
+            materialNameByEmmcSize: coreMatch.materialNameByEmmcSize,
+            materialNameByDdrSize: coreMatch.materialNameByDdrSize,
+          },
+        }));
+      }
+
+      break; // 取第一个有效物料表
     }
 
     // 检测关键物料选型模板，异步解析并调用 LLM 匹配分类2
@@ -392,7 +424,7 @@ export default function App() {
         next = { ...next, pcbaOptions: [], checkedPcbaOptions: [] };
       }
       if (deletedFile?.type === '物料表' && !hasRemainingMaterial) {
-        next = { ...next, materialWorkbook: undefined };
+        next = { ...next, materialWorkbook: undefined, managedMaterialCore: undefined };
       }
       if (deletedFile?.type === '关键物料选型模板' && !hasRemainingKeyMaterial) {
         next = { ...next, keyMaterialTemplate: undefined };
@@ -445,24 +477,29 @@ export default function App() {
           opts.map(o => ({ supply: o.supply as import('./types').SupplyTag, text: o.text, sourceCategory2: category2 }));
 
         const keyMaterialOptions = projectInfo.keyMaterialTemplate?.optionsByField ?? {};
+        const coreOptions = projectInfo.managedMaterialCore
+          ? buildManagedMaterialCoreFieldOptions(projectInfo.managedMaterialCore, opt)
+          : {};
 
         const fieldOptions: SKUData['fieldOptions'] = {
           lcd:       lcdRaw.length > 0 ? toLcdSplitOptions(lcdRaw, 'LCD') : keyMaterialOptions.lcd,
           front_cam: frontCamRaw.length > 0 ? toLcdSplitOptions(frontCamRaw, 'FRONT_CAM') : keyMaterialOptions.front_cam,
           main_cam:  mainCamRaw.length > 0 ? toLcdSplitOptions(mainCamRaw, 'MAIN_CAM') : keyMaterialOptions.main_cam,
           sub_cam:   subCamRaw.length > 0 ? toLcdSplitOptions(subCamRaw, 'SUB_CAM') : keyMaterialOptions.sub_cam,
+          // Core components from managed material workbook take priority over key material template
           ...Object.fromEntries(
             (Object.keys(keyMaterialOptions) as import('./types').SplitOptionFieldId[])
               .filter(k => !['lcd', 'front_cam', 'main_cam', 'sub_cam'].includes(k))
               .map(k => [k, keyMaterialOptions[k]])
           ),
+          ...coreOptions,
         };
 
         // Serialize to initial text values
         const initialValues: Record<string, string> = {};
         for (const [fieldId, opts] of Object.entries(fieldOptions)) {
           if (opts && opts.length > 0) {
-            initialValues[fieldId] = serializeSplitOptions(opts);
+            initialValues[fieldId] = serializeSplitFieldOptions(opts);
           }
         }
 
