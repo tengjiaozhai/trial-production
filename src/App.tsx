@@ -327,9 +327,9 @@ export default function App() {
     }));
 
     // 检测配置表文件，异步解析 PCBA 选项
-    const configFiles = fileList.filter(f => f.name.includes('配置'));
+    const configFiles = fileList.filter((f: File) => f.name.includes('配置'));
     for (const configFile of configFiles) {
-      const options = await extractPcbaOptions(configFile);
+      const options = await extractPcbaOptions(configFile as File);
       if (options.length > 0) {
         setProjectInfo(prev => ({
           ...prev,
@@ -380,15 +380,19 @@ export default function App() {
     
     let baseData: SKUData[] = [];
     if (projectInfo.checkedPcbaOptions && projectInfo.checkedPcbaOptions.length > 0) {
-      baseData = projectInfo.checkedPcbaOptions.map((pcba, idx) => ({
-        id: `sku_${Date.now()}_${idx}`,
-        stage: projectInfo.stage,
-        orderNo: '',
-        project: pcba, // Use pcba as the title for this SKU
-        supplies: [
-          { id: `s_${Date.now()}_${idx}_1`, label: '主供', values: { storage: pcba.replace('PCBA-', '').replace('G', '') + '+G', lcd: '' } }
-        ]
-      }));
+      baseData = projectInfo.checkedPcbaOptions.map((pcbaId, idx) => {
+        const opt = (projectInfo.pcbaOptions || []).find(o => o.pcba === pcbaId);
+        const bandValue = opt && !opt.bandConflict ? opt.band : '';
+        return {
+          id: `sku_${Date.now()}_${idx}`,
+          stage: projectInfo.stage,
+          orderNo: '',
+          project: pcbaId,
+          supplies: [
+            { id: `s_${Date.now()}_${idx}_1`, label: '主供', values: { storage: pcbaId.replace('PCBA-', '').replace('G', '') + '+G', lcd: '', band: bandValue } }
+          ]
+        };
+      });
     } else {
       // Fallback
       baseData = MOCK_COLUMNS.map(sku => ({ ...sku, project: projectInfo.name, stage: projectInfo.stage }));
@@ -925,11 +929,14 @@ export default function App() {
                           <input 
                             type="checkbox"
                             className="rounded text-blue-600 w-3.5 h-3.5"
-                            checked={projectInfo.checkedPcbaOptions?.length === projectInfo.pcbaOptions.length}
+                            checked={
+                              projectInfo.pcbaOptions.length > 0 &&
+                              projectInfo.checkedPcbaOptions?.length === projectInfo.pcbaOptions.length
+                            }
                             onChange={(e) => {
                               setProjectInfo(prev => ({
                                 ...prev,
-                                checkedPcbaOptions: e.target.checked ? [...(prev.pcbaOptions || [])] : []
+                                checkedPcbaOptions: e.target.checked ? (prev.pcbaOptions || []).map(o => o.pcba) : []
                               }))
                             }}
                           />
@@ -938,27 +945,35 @@ export default function App() {
                       </div>
                       <div className="overflow-y-auto mt-2">
                         <div className="flex flex-wrap gap-2">
-                          {projectInfo.pcbaOptions.map(pcba => (
+                          {projectInfo.pcbaOptions.map(opt => (
                             <label 
-                              key={pcba} 
+                              key={opt.pcba} 
                               className={cn(
                                 "flex items-center justify-center gap-2 bg-white px-3 py-2 cursor-pointer hover:bg-blue-50 transition-colors relative border border-slate-200 rounded-lg shadow-sm min-w-[60px]",
-                                projectInfo.checkedPcbaOptions?.includes(pcba) ? 'bg-blue-50/50 border-blue-400' : ''
+                                projectInfo.checkedPcbaOptions?.includes(opt.pcba) ? 'bg-blue-50/50 border-blue-400' : ''
                               )}
                             >
                               <input 
                                 type="checkbox" 
                                 className="w-3.5 h-3.5 text-blue-600 rounded shrink-0"
-                                checked={projectInfo.checkedPcbaOptions?.includes(pcba)}
+                                checked={projectInfo.checkedPcbaOptions?.includes(opt.pcba)}
                                 onChange={(e) => {
                                   setProjectInfo(prev => {
                                     const c = new Set(prev.checkedPcbaOptions || []);
-                                    if (e.target.checked) c.add(pcba); else c.delete(pcba);
+                                    if (e.target.checked) c.add(opt.pcba); else c.delete(opt.pcba);
                                     return { ...prev, checkedPcbaOptions: Array.from(c) };
                                   });
                                 }}
                               />
-                              <span className="text-[13px] font-bold text-slate-800 truncate" title={pcba}>{pcba}</span>
+                              <div className="flex flex-col items-center min-w-0">
+                                <span className="text-[13px] font-bold text-slate-800 truncate" title={opt.pcba}>{opt.pcba}</span>
+                                {opt.band && !opt.bandConflict && (
+                                  <span className="text-[10px] text-slate-400 font-medium">{opt.band}</span>
+                                )}
+                                {opt.bandConflict && (
+                                  <span className="text-[10px] text-amber-500 font-bold">多市场冲突</span>
+                                )}
+                              </div>
                             </label>
                           ))}
                         </div>
