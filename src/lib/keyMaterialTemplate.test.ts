@@ -136,6 +136,7 @@ describe('matchCategory2WithLLM', () => {
       '听筒',
       'MIC',
       '马达',
+      '指纹模组',
       'SPK FPC',
       'Sidekey FPC',
       'IR FPC',
@@ -153,6 +154,7 @@ describe('matchCategory2WithLLM', () => {
     // Should not return empty object - local fallback should pick up values
     expect(result.battery).toBe('电池');
     expect(result.speaker).toBe('喇叭');
+    expect(result.fingerprint).toBe('指纹模组');
     expect(result.pcb).toBe('PCB');
     expect(result.sub_board).toBe('小板');
   });
@@ -192,5 +194,22 @@ describe('buildOptionsByField', () => {
     // Must not contain supply or vendor
     expect(options.pcb![0].text).not.toContain('一供');
     expect(options.pcb![0].text).not.toContain('骁龙');
+  });
+
+  it('fingerprint field: two rows produce two options with supply+vendor+desc text', () => {
+    const parsed: ParsedKeyMaterialTemplate = {
+      sourceFileName: 'test.xlsx',
+      sourceSheetName: '关键物料选项模版',
+      category2List: ['指纹模组'],
+      rows: [
+        { category2: '指纹模组', description: 'FP-128', brand: 'Goodix', vendor: '汇顶', supply: '一供' },
+        { category2: '指纹模组', description: 'FP-128', brand: 'Silead', vendor: '思立微', supply: '二供' },
+      ],
+    };
+    const category2ByField = { fingerprint: '指纹模组' };
+    const options = buildOptionsByField(parsed, category2ByField);
+    expect(options.fingerprint).toHaveLength(2);
+    expect(options.fingerprint![0].text).toBe('一供汇顶FP-128');
+    expect(options.fingerprint![1].text).toBe('二供思立微FP-128');
   });
 });

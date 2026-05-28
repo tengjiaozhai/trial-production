@@ -7,7 +7,7 @@ export type FieldBehavior = 'auto' | 'calc' | 'manual' | 'order_no';
 export type SplitOptionFieldId =
   | 'lcd' | 'front_cam' | 'main_cam' | 'sub_cam'
   | 'cpu' | 'emmc' | 'ddr' | 'pmu' | 'tx' | 'rf_transceiver' | 'nfc'
-  | 'battery' | 'speaker' | 'receiver' | 'mic' | 'motor'
+  | 'battery' | 'speaker' | 'receiver' | 'mic' | 'motor' | 'fingerprint'
   | 'spk_fpc' | 'sidekey_fpc' | 'ir_fpc' | 'lens' | 'housing'
   | 'battery_cover' | 'sim_tray' | 'side_key' | 'aux_material'
   | 'cooling' | 'pcb' | 'sub_board';
