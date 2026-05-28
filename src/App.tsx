@@ -37,6 +37,8 @@ import {
   validateUnitIdVsMbId,
 } from './lib/step4ValidationRules';
 import type { SplitOptionFieldId } from './types';
+import { buildTrialProductionWorkbook } from './lib/trialProductionWorkbook';
+import type { Step5LayoutSnapshot } from './lib/trialProductionWorkbook';
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState<StepId>(1);
@@ -61,6 +63,7 @@ export default function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [createNewPrompt, setCreateNewPrompt] = useState(false);
   const [manualPcbaInput, setManualPcbaInput] = useState("");
+  const [step5Layout, setStep5Layout] = useState<Step5LayoutSnapshot | null>(null);
 
   // Compute step 2 conflicts based on activeFields and skuData
   const getStep2Conflicts = () => {
@@ -186,21 +189,20 @@ export default function App() {
   };
 
   const performExport = () => {
-    const wb = XLSX.utils.book_new();
-    const dataRows: any[][] = [];
-    
-    const h1 = ['', '阶段', ...skuData.flatMap(s => s.supplies.map(() => s.stage))];
-    dataRows.push(h1);
+    const wb = buildTrialProductionWorkbook({
+      projectName: projectInfo.name ?? 'trial',
+      activeFields,
+      skuData,
+      layout: step5Layout ?? undefined,
+    });
 
-    const ws = XLSX.utils.aoa_to_sheet(dataRows);
-    XLSX.utils.book_append_sheet(wb, ws, '搭配表');
-    
-    // Find highest version for this project to append to filename
-    const existingSameName = history.filter(h => h.name === projectInfo.name);
-    const maxVersion = existingSameName.length > 0 ? Math.max(...existingSameName.map(h => h.version || 1)) : 1;
-    
-    XLSX.writeFile(wb, `搭配表_${projectInfo.name}_V${maxVersion}.xlsx`);
+    const existingSameName = history.filter((item) => item.name === (projectInfo.name ?? 'trial'));
+    const maxVersion =
+      existingSameName.length > 0
+        ? Math.max(...existingSameName.map((item) => item.version || 1))
+        : 1;
 
+    XLSX.writeFile(wb, `搭配表_${projectInfo.name ?? 'trial'}_V${maxVersion}.xlsx`, { cellStyles: true });
     setIsFlowComplete(true);
   };
 
@@ -634,10 +636,10 @@ export default function App() {
         if (!color) {
           results.push({
             id: `RULE-COLOR-${sku.id}-${sup.id}`,
-            title: '颜色项待填',
+            title: '颜色冲突',
             amReference: 'Rule-1',
-            detail: `${prefix}未填写颜色，无法执行一致性校验。`,
-            level: 'warn',
+            detail: `${prefix}未填写颜色，判定为颜色冲突。`,
+            level: 'error',
             fieldId: 'color',
           });
         } else {
@@ -661,10 +663,10 @@ export default function App() {
         if (!storage) {
           results.push({
             id: `RULE-STORAGE-${sku.id}-${sup.id}`,
-            title: '存储字段待填',
+            title: '存储配置冲突',
             amReference: 'Rule-2',
-            detail: `${prefix}未填写存储，无法执行存储核验。`,
-            level: 'warn',
+            detail: `${prefix}未填写存储，判定为存储冲突。`,
+            level: 'error',
             fieldId: 'storage',
           });
         } else {
@@ -687,10 +689,10 @@ export default function App() {
         if (!unitId || !mbId) {
           results.push({
             id: `RULE-SUFFIX-${sku.id}-${sup.id}`,
-            title: '整机标识待完善',
+            title: '整机标识冲突',
             amReference: 'Rule-3',
-            detail: `${prefix}请完善整机标识和主板标识后再校验。`,
-            level: 'warn',
+            detail: `${prefix}整机标识或主板标识为空，判定为整机标识冲突。`,
+            level: 'error',
             fieldId: 'unit_id',
           });
         } else {
@@ -1192,11 +1194,12 @@ export default function App() {
                     onReorderFields={handleReorderFields}
                     onReorderSkus={handleReorderSkus}
                     onReorderSupplies={handleReorderSupplies}
-                    onInsertRowAt={handleInsertFieldAt}
-                    onUpdateFieldLabel={(id, label) => setActiveFields(flds => flds.map(f => f.id === id ? { ...f, label } : f))}
-                    onDeleteRow={id => {
-                       setActiveFields(prev => prev.filter(f => f.id !== id));
-                    }}
+                     onInsertRowAt={handleInsertFieldAt}
+                     onUpdateFieldLabel={(id, label) => setActiveFields(flds => flds.map(f => f.id === id ? { ...f, label } : f))}
+                     onDeleteRow={id => {
+                        setActiveFields(prev => prev.filter(f => f.id !== id));
+                     }}
+                     onStep5LayoutChange={setStep5Layout}
                   />
                 </div>
 

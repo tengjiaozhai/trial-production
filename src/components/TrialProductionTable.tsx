@@ -1,8 +1,10 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { FIELD_GROUPS, FIELD_DEFS } from '@/src/constants';
 import { SKUData, FieldDefinition, StepId, SplitOptionFieldId } from '@/src/types';
 import { cn } from '@/src/lib/utils';
 import { Trash2, Plus, GripVertical, ChevronDown, X } from 'lucide-react';
+import { buildStep5TableModel } from '../lib/step5TableModel';
+import type { Step5Row } from '../lib/step5TableModel';
 
 function ProdLocDropdown({ value, onChange, disabled, hasConflict, fieldLabel }: any) {
   const options = ['宜宾', '南昌', '河源', '越南'];
@@ -99,6 +101,7 @@ interface TrialProductionTableProps {
   onReorderSkus?: (activeId: string, overId: string) => void;
   onReorderSupplies?: (skuId: string, activeId: string, overId: string) => void;
   onInsertRowAt?: (index: number) => void;
+  onStep5LayoutChange?: (layout: { supplyWidths: Record<string, number>; rowHeights: Record<string, number> }) => void;
 }
 
 // Resize Handle Component
@@ -428,13 +431,19 @@ export function TrialProductionTable({
   onSelectRow,
   activeFields,
   onReorderFields,
-  onInsertRowAt
+  onInsertRowAt,
+  onStep5LayoutChange
 }: TrialProductionTableProps) {
 
   const topTableRef = useRef<HTMLDivElement>(null);
   const bottomTableRef = useRef<HTMLDivElement>(null);
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (currentStep !== 5) return;
+    onStep5LayoutChange?.({ supplyWidths: colWidths, rowHeights });
+  }, [currentStep, colWidths, rowHeights, onStep5LayoutChange]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -469,6 +478,73 @@ export function TrialProductionTable({
   const basicInfoFields = visibleFields.filter(f => f.group === '基本信息');
   const otherFields = visibleFields.filter(f => f.group !== '基本信息');
   const otherGroups = Array.from(new Set(otherFields.map(f => f.group)));
+
+  if (currentStep === 5) {
+    const step5Model = buildStep5TableModel({ activeFields, skuData });
+    const totalValueCols = step5Model.columns.length;
+
+    return (
+      <div className="overflow-auto h-full border border-slate-200 rounded shadow-sm bg-white">
+        <table className="border-collapse text-[13px]" style={{ tableLayout: 'fixed', width: '100%' }}>
+          <colgroup>
+            <col style={{ width: 36 }} />
+            <col style={{ width: 120 }} />
+            {step5Model.columns.map((col) => (
+              <col key={col.supplyId} style={{ width: colWidths[col.supplyId] ?? 160 }} />
+            ))}
+          </colgroup>
+          <tbody>
+            {step5Model.rows.map((row: Step5Row, rowIdx: number) => {
+              if (row.kind === 'title') {
+                return (
+                  <tr key={rowIdx}>
+                    <td
+                      colSpan={2 + totalValueCols}
+                      className="bg-[#e8f5e9] font-bold text-slate-700 px-3 py-2 border border-slate-200 text-center"
+                    >
+                      {row.title}
+                    </td>
+                  </tr>
+                );
+              }
+              if (row.kind === 'group') {
+                return (
+                  <tr key={rowIdx}>
+                    <td
+                      colSpan={2 + totalValueCols}
+                      className="bg-[#f1f8e9] font-semibold text-slate-600 px-3 py-1.5 border border-slate-200"
+                    >
+                      {row.title}
+                    </td>
+                  </tr>
+                );
+              }
+              // field row
+              return (
+                <tr key={rowIdx} style={{ height: rowHeights[row.fieldId] ?? 36 }}>
+                  <td className="text-center text-slate-400 text-[11px] border border-slate-200 px-1">
+                    {row.indexLabel}
+                  </td>
+                  <td className="px-3 text-slate-600 border border-slate-200 whitespace-nowrap">
+                    {row.fieldLabel}
+                  </td>
+                  {row.cells.map((cell, ci) => (
+                    <td
+                      key={ci}
+                      colSpan={cell.colSpan}
+                      className="px-3 text-slate-700 border border-slate-200"
+                    >
+                      {cell.value}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
 
   const handleDragEndRows = (event: DragEndEvent) => {
     const { active, over } = event;
