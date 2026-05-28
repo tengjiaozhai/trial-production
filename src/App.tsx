@@ -27,10 +27,15 @@ import {
   FIELD_GROUPS
 } from './constants';
 import { cn, extractPcbaOptions, normalizeStorage, extractManagedMaterialWorkbook, resolveLcdOptionsForProject, serializeLcdOptions, resolveFrontCamOptionsForProject, resolveMainCamOptionsForProject, resolveSubCamOptionsForProject } from './lib/utils';
-import { parseKeyMaterialTemplate, matchCategory2WithLLM, buildOptionsByField, serializeSplitOptions } from './lib/keyMaterialTemplate';
-import { parseManagedMaterialCoreWorkbook, matchManagedMaterialNamesWithLLM, buildManagedMaterialCoreFieldOptions, serializeSplitFieldOptions } from './lib/managedMaterialCore';
+import { parseKeyMaterialTemplate, matchCategory2WithLLM, buildOptionsByField } from './lib/keyMaterialTemplate';
+import { parseManagedMaterialCoreWorkbook, matchManagedMaterialNamesWithLLM, buildManagedMaterialCoreFieldOptions } from './lib/managedMaterialCore';
 import { parseSampleCollectionWorkbook, matchSampleCollectionRowsWithLLM, buildSampleCollectionFieldOptions } from './lib/sampleCollectionWorkbook';
-import { deriveSupplyColumnsFromFieldOptions, recomputeStep4Values } from './lib/step4SampleCalc';
+import { buildSupplyValuesForSupplyKey, deriveSupplyColumnsFromFieldOptions, recomputeStep4Values } from './lib/step4SampleCalc';
+import {
+  validateColorAgainstBom,
+  validateStorageAgainstComponents,
+  validateUnitIdVsMbId,
+} from './lib/step4ValidationRules';
 import type { SplitOptionFieldId } from './types';
 
 export default function App() {
@@ -89,7 +94,13 @@ export default function App() {
     const savedHistory = localStorage.getItem('trial_production_history');
     if (savedHistory) {
       try {
-        setHistory(JSON.parse(savedHistory));
+        const parsed = JSON.parse(savedHistory) as HistoryEntry[];
+        const compatible = parsed.filter((entry) =>
+          entry.skuData.every((sku) =>
+            sku.supplies.every((sup) => typeof (sup as any).supplyKey === 'string')
+          )
+        );
+        setHistory(compatible);
       } catch (e) {
         console.error('Failed to parse history', e);
       }
@@ -282,7 +293,7 @@ export default function App() {
   const handleAddSupplyAt = (skuId: string, index?: number) => {
     setSkuData(prev => prev.map(sku => {
       if (sku.id === skuId) {
-        const newSup = { id: `s_${Date.now()}`, label: '新供应', values: {} };
+        const newSup = { id: `s_${Date.now()}`, supplyKey: '', label: '新供应', values: {} };
         const nextSupplies = [...sku.supplies];
         if (typeof index === 'number') nextSupplies.splice(index, 0, newSup);
         else nextSupplies.push(newSup);
@@ -299,7 +310,7 @@ export default function App() {
       stage: projectInfo.stage,
       orderNo: '',
       project: projectInfo.name,
-      supplies: [{ id: 's1', label: '一供', values: {} }]
+      supplies: [{ id: 's1', supplyKey: '一供', label: '一供', values: {} }]
     };
     setSkuData(prev => {
        const next = [...prev];
@@ -556,26 +567,18 @@ export default function App() {
           ...sampleOptions,
         };
 
-        // Serialize to initial text values
-        const initialValues: Record<string, string> = {};
-        for (const [fieldId, opts] of Object.entries(fieldOptions)) {
-          if (opts && opts.length > 0) {
-            initialValues[fieldId] = serializeSplitFieldOptions(opts);
-          }
-        }
-
         const supplyColumns = deriveSupplyColumnsFromFieldOptions(fieldOptions);
         const supplies = supplyColumns.map((col, colIndex) => {
-          const values: Record<string, string> = { storage: storageValue, band: bandValue };
-          // Fill per-supply field values from fieldOptions
-          for (const [fieldId, opts] of Object.entries(fieldOptions)) {
-            const hit = (opts ?? []).find((o) => (o.supply || '') === col.supply);
-            if (hit?.text) values[fieldId] = hit.text;
-          }
+          const values: Record<string, string> = {
+            storage: storageValue,
+            band: bandValue,
+            ...buildSupplyValuesForSupplyKey(fieldOptions, col.supplyKey),
+          };
           if (!values.customer_sample_req) values.customer_sample_req = '';
           const computed = recomputeStep4Values(values);
           return {
             id: `s_${Date.now()}_${idx}_${colIndex + 1}`,
+            supplyKey: col.supplyKey,
             label: col.label,
             values: computed,
           };
@@ -628,7 +631,6 @@ export default function App() {
         const color = String(vals['color'] || '').trim();
         const mbom = String(vals['mbom'] || '').trim();
         const pbom = String(vals['pbom'] || '').trim();
-        
         if (!color) {
           results.push({
             id: `RULE-COLOR-${sku.id}-${sup.id}`,
@@ -636,113 +638,72 @@ export default function App() {
             amReference: 'Rule-1',
             detail: `${prefix}未填写颜色，无法执行一致性校验。`,
             level: 'warn',
-            fieldId: 'color'
+            fieldId: 'color',
           });
         } else {
-          const mbomMatch = !mbom || mbom.includes(color);
-          const pbomMatch = !pbom || pbom.includes(color);
-          
-          if (!mbomMatch || !pbomMatch) {
-            results.push({
-              id: `RULE-COLOR-${sku.id}-${sup.id}`,
-              title: '颜色不一致',
-              amReference: 'Rule-1',
-              detail: `${prefix}颜色(${color})与 MBOM/PBOM 中的描述不匹配。`,
-              level: 'error',
-              fieldId: 'color'
-            });
-          } else {
-            results.push({
-              id: `RULE-COLOR-${sku.id}-${sup.id}`,
-              title: '颜色一致性核验通过',
-              amReference: 'Rule-1',
-              detail: `${prefix}颜色与物料清单描述匹配。`,
-              level: 'pass',
-              fieldId: 'color'
-            });
-          }
+          const colorCheck = validateColorAgainstBom({ color, mbom, pbom });
+          results.push({
+            id: `RULE-COLOR-${sku.id}-${sup.id}`,
+            title: colorCheck.ok ? '颜色一致性核验通过' : '颜色不一致',
+            amReference: 'Rule-1',
+            detail: colorCheck.ok
+              ? `${prefix}颜色与 MBOM/PBOM 任一描述匹配。`
+              : `${prefix}颜色(${color})与 MBOM/PBOM 均不匹配。`,
+            level: colorCheck.ok ? 'pass' : 'error',
+            fieldId: 'color',
+          });
         }
 
-        // --- Rule 2: Storage vs EBOM vs eMMC/DDR ---
-        const storage = String(vals['storage'] || '').toLowerCase(); // e.g. "4+128g"
-        const ebom = String(vals['ebom'] || '').toLowerCase();
-        const emmc = String(vals['emmc'] || '').toLowerCase();
-        const ddr = String(vals['ddr'] || '').toLowerCase();
-
-        const storageMatch = storage.match(/(\d+)\+(\d+)/);
-        if (!storageMatch) {
+        // --- Rule 2: Storage vs flash EMMC/flash DDR ---
+        const storage = String(vals['storage'] || '').trim();
+        const emmc = String(vals['emmc'] || '').trim();
+        const ddr = String(vals['ddr'] || '').trim();
+        if (!storage) {
           results.push({
             id: `RULE-STORAGE-${sku.id}-${sup.id}`,
-            title: '存储规则待核',
+            title: '存储字段待填',
             amReference: 'Rule-2',
-            detail: `${prefix}存储格式需为 "DDR+EMMC" (如 4+128)。`,
-            level: 'error',
-            fieldId: 'storage'
+            detail: `${prefix}未填写存储，无法执行存储核验。`,
+            level: 'warn',
+            fieldId: 'storage',
           });
         } else {
-          const expectedDDR = storageMatch[1];
-          const expectedEMMC = storageMatch[2];
-          
-          let storageIssues = [];
-          if (ebom && (!ebom.includes(expectedDDR) || !ebom.includes(expectedEMMC))) storageIssues.push('EBOM 不匹配');
-          if (emmc && !emmc.includes(expectedEMMC)) storageIssues.push('EMMC 字段值不符');
-          if (ddr && !ddr.includes(expectedDDR)) storageIssues.push('DDR 字段值不符');
-
-          if (storageIssues.length > 0) {
-            results.push({
-              id: `RULE-STORAGE-${sku.id}-${sup.id}`,
-              title: '存储配置冲突',
-              amReference: 'Rule-2',
-              detail: `${prefix}配置(${storage})与以下项冲突: ${storageIssues.join('、')}`,
-              level: 'error',
-              fieldId: 'storage'
-            });
-          } else {
-            results.push({
-              id: `RULE-STORAGE-${sku.id}-${sup.id}`,
-              title: '存储核验通过',
-              amReference: 'Rule-2',
-              detail: `${prefix}存储配置与 EBOM/芯片规格匹配。`,
-              level: 'pass',
-              fieldId: 'storage'
-            });
-          }
+          const storageCheck = validateStorageAgainstComponents({ storage, emmc, ddr });
+          results.push({
+            id: `RULE-STORAGE-${sku.id}-${sup.id}`,
+            title: storageCheck.ok ? '存储核验通过' : '存储配置冲突',
+            amReference: 'Rule-2',
+            detail: storageCheck.ok
+              ? `${prefix}存储与 flash EMMC/flash DDR 匹配。`
+              : `${prefix}存储(${storage})与${storageCheck.reasons.join('、')}冲突。`,
+            level: storageCheck.ok ? 'pass' : 'error',
+            fieldId: 'storage',
+          });
         }
 
-        // --- Rule 3: ID Suffix (Unit ID hyphen char vs MB ID vs EBOM) ---
+        // --- Rule 3: unit_id contains mb_id ---
         const unitId = String(vals['unit_id'] || '').trim();
         const mbId = String(vals['mb_id'] || '').trim();
-        
-        if (unitId && unitId.includes('-')) {
-          const suffix = unitId.split('-').pop() || '';
-          let suffixIssues = [];
-          if (mbId && mbId !== suffix) suffixIssues.push(`与主板标识(${mbId})不一致`);
-          if (ebom && !ebom.includes(suffix)) suffixIssues.push('EBOM 中未发现该标识');
-
-          if (suffixIssues.length > 0) {
-            results.push({
-              id: `RULE-SUFFIX-${sku.id}-${sup.id}`,
-              title: '整机标识异常',
-              amReference: 'Rule-3',
-              detail: `${prefix}后缀(${suffix}) ${suffixIssues.join('且')}`,
-              level: 'error'
-            });
-          } else {
-            results.push({
-              id: `RULE-SUFFIX-${sku.id}-${sup.id}`,
-              title: '标识后缀核验通过',
-              amReference: 'Rule-3',
-              detail: `${prefix}后缀与主板及 EBOM 确认一致。`,
-              level: 'pass'
-            });
-          }
-        } else {
+        if (!unitId || !mbId) {
           results.push({
             id: `RULE-SUFFIX-${sku.id}-${sup.id}`,
             title: '整机标识待完善',
             amReference: 'Rule-3',
-            detail: `${prefix}请填写带横杠的整机标识以执行后缀校验。`,
-            level: 'warn'
+            detail: `${prefix}请完善整机标识和主板标识后再校验。`,
+            level: 'warn',
+            fieldId: 'unit_id',
+          });
+        } else {
+          const idCheck = validateUnitIdVsMbId({ unitId, mbId });
+          results.push({
+            id: `RULE-SUFFIX-${sku.id}-${sup.id}`,
+            title: idCheck.ok ? '整机标识核验通过' : '整机标识冲突',
+            amReference: 'Rule-3',
+            detail: idCheck.ok
+              ? `${prefix}整机标识(${unitId})包含主板标识(${mbId})。`
+              : `${prefix}整机标识(${unitId})不包含主板标识(${mbId})。`,
+            level: idCheck.ok ? 'pass' : 'error',
+            fieldId: 'unit_id',
           });
         }
 
@@ -847,7 +808,7 @@ export default function App() {
       stage: projectInfo.stage,
       orderNo: '',
       project: projectInfo.name,
-      supplies: [{ id: 's1', label: '一供', values: {} }]
+      supplies: [{ id: 's1', supplyKey: '一供', label: '一供', values: {} }]
     };
     setSkuData(prev => [...prev, newSku]);
   };
@@ -855,10 +816,20 @@ export default function App() {
   const handleAddSupply = (skuId: string) => {
     setSkuData(prev => prev.map(sku => {
       if (sku.id === skuId) {
-        const newSup = { id: `s_${Date.now()}`, label: '新供应', values: {} };
+        const newSup = { id: `s_${Date.now()}`, supplyKey: '', label: '新供应', values: {} };
         return { ...sku, supplies: [...sku.supplies, newSup] };
       }
       return sku;
+    }));
+  };
+
+  const handleUpdateSupplyLabel = (skuId: string, supplyId: string, val: string) => {
+    setSkuData(prev => prev.map(sku => {
+      if (sku.id !== skuId) return sku;
+      return {
+        ...sku,
+        supplies: sku.supplies.map(s => (s.id === supplyId ? { ...s, label: val } : s)),
+      };
     }));
   };
 
@@ -880,6 +851,8 @@ export default function App() {
   const goBack = () => {
     if (currentStep > 1) setCurrentStep((currentStep - 1) as StepId);
   };
+
+  const disableNextToPreview = currentStep === 4 && isExportDisabled;
 
   return (
     <div className="flex flex-col h-screen bg-[#f5f7f9] text-slate-800 font-sans overflow-hidden">
@@ -1211,6 +1184,7 @@ export default function App() {
                     onUpdateEfuse={(id, val) => setProjectInfo(prev => ({ ...prev, efuseConfigs: { ...prev.efuseConfigs, [id]: val } }))}
                     onUpdateValue={handleUpdateValue}
                     onUpdateSkuHeader={handleUpdateSkuHeader}
+                    onUpdateSupplyLabel={handleUpdateSupplyLabel}
                     onAddSku={handleAddSkuAt}
                     onAddSupply={handleAddSupplyAt}
                     onDeleteSupply={handleDeleteSupply}
@@ -1313,9 +1287,18 @@ export default function App() {
                 完成并导出
               </button>
             ) : (
-              <button 
-                onClick={() => setCurrentStep((currentStep + 1) as StepId)}
-                className="px-6 py-2 bg-[#00897b] text-white rounded font-bold text-[13px] hover:bg-[#00796b] transition-all active:scale-95 flex items-center gap-2"
+              <button
+                disabled={disableNextToPreview}
+                onClick={() => {
+                  if (disableNextToPreview) return;
+                  setCurrentStep((currentStep + 1) as StepId);
+                }}
+                className={cn(
+                  "px-6 py-2 rounded font-bold text-[13px] transition-all flex items-center gap-2",
+                  disableNextToPreview
+                    ? "bg-slate-100 text-slate-400 cursor-not-allowed"
+                    : "bg-[#00897b] text-white hover:bg-[#00796b] active:scale-95"
+                )}
               >
                 下一步: {currentStep === 2 ? '要素补全' : currentStep === 3 ? '规则引擎核验' : '导出预览'}
               </button>
