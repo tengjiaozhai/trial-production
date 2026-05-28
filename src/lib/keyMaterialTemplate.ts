@@ -184,44 +184,32 @@ export async function matchCategory2WithLLM(
   const allowed = new Set(category2List);
   const out: Partial<Record<SplitOptionFieldId, string>> = {};
 
-  // Round 1: full set with enriched hints
-  const prompt1 = [
+  // Split TARGETS into two groups for concurrent LLM requests
+  const groupA = TARGETS.filter((_, i) => i % 2 === 0);
+  const groupB = TARGETS.filter((_, i) => i % 2 === 1);
+
+  const buildPrompt = (group: typeof TARGETS) => [
     '你是BOM物料匹配助手。',
     '我会给你分类2候选列表与目标物料名。',
     '请为每个目标物料返回最可能同一物料的分类2。',
     '返回必须是JSON对象，key是fieldId，value是候选列表中"完全一致"的分类2字符串或null。',
     '禁止返回候选列表外的值。',
     `候选分类2: ${JSON.stringify(category2List)}`,
-    `目标物料: ${JSON.stringify(TARGETS.map((x) => ({ fieldId: x.fieldId, materialName: `${x.materialName}（${x.hint}）` })))}`,
+    `目标物料: ${JSON.stringify(group.map((x) => ({ fieldId: x.fieldId, materialName: `${x.materialName}（${x.hint}）` })))}`,
   ].join('\n');
 
-  const raw1 = await requestJsonObjectFromLLM(prompt1);
+  const [rawA, rawB] = await Promise.all([
+    requestJsonObjectFromLLM(buildPrompt(groupA)),
+    requestJsonObjectFromLLM(buildPrompt(groupB)),
+  ]);
 
+  const merged = { ...rawA, ...rawB };
   for (const target of TARGETS) {
-    const value = pickAllowedName(raw1[target.fieldId], allowed);
+    const value = pickAllowedName(merged[target.fieldId], allowed);
     if (value) out[target.fieldId] = value;
   }
 
-  // Round 2: retry only missing fields
-  const missingTargets = TARGETS.filter((t) => !out[t.fieldId]);
-  if (missingTargets.length > 0) {
-    const prompt2 = [
-      '你是BOM物料匹配助手。',
-      '请仅针对下列缺失字段，从候选分类2中选出最相似且语义对应的一项；无匹配则返回 null。',
-      '返回值必须是候选列表中的原文字符串。',
-      `候选分类2: ${JSON.stringify(category2List)}`,
-      `缺失字段: ${JSON.stringify(missingTargets.map((x) => ({ fieldId: x.fieldId, materialName: `${x.materialName}（${x.hint}）` })))}`,
-      '只返回 JSON 对象。',
-    ].join('\n');
-
-    const raw2 = await requestJsonObjectFromLLM(prompt2);
-    for (const target of missingTargets) {
-      const value = pickAllowedName(raw2[target.fieldId], allowed);
-      if (value) out[target.fieldId] = value;
-    }
-  }
-
-  // Local fallback: for any still-missing field, use regex against category2List
+  // Local fallback for any still-missing field
   for (const target of TARGETS) {
     if (out[target.fieldId]) continue;
     const fallback = fallbackMatchCategory2(target.fieldId, category2List);
