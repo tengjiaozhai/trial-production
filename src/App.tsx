@@ -42,6 +42,8 @@ export default function App() {
 
   const [loading, setLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
+  const [loadingPhase, setLoadingPhase] = useState<'upload' | 'calc'>('calc');
+  const [isUploadResolving, setIsUploadResolving] = useState(false);
   const [skuData, setSkuData] = useState<SKUData[]>([]);
   const [activeFields, setActiveFields] = useState<FieldDefinition[]>(FIELD_DEFS);
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
@@ -330,81 +332,111 @@ export default function App() {
       files: [...prev.files, ...newFiles],
     }));
 
-    // 检测配置表文件，异步解析 PCBA 选项
-    let parsedPcbaOptions: import('./types').PcbaOption[] = [];
-    const configFiles = fileList.filter((f: File) => f.name.includes('配置'));
-    for (const configFile of configFiles) {
-      const options = await extractPcbaOptions(configFile as File);
-      if (options.length > 0) {
-        parsedPcbaOptions = options;
-        setProjectInfo(prev => ({
-          ...prev,
-          pcbaOptions: options,
-          checkedPcbaOptions: prev.checkedPcbaOptions && prev.checkedPcbaOptions.length > 0
-            ? prev.checkedPcbaOptions
-            : [],
-        }));
-        break; // 取第一个有效配置表
-      }
-    }
-
-    // 也尝试从当前 projectInfo 中获取已解析的 pcbaOptions（配置表可能在本次上传前已上传）
-    const allPcbaOptions = parsedPcbaOptions.length > 0
-      ? parsedPcbaOptions
-      : (projectInfo.pcbaOptions ?? []);
-    const emmcSizes: string[] = Array.from(new Set(allPcbaOptions.map(item => item.emmc.match(/\d+/)?.[0] ?? '').filter((s): s is string => s !== '')));
-    const ddrSizes: string[] = Array.from(new Set(allPcbaOptions.map(item => item.ddr.match(/\d+/)?.[0] ?? '').filter((s): s is string => s !== '')));
-
-    // 检测管控物料表，异步解析 LCD 选项 + 核心器件 LLM 匹配
-    const materialFiles = fileList.filter((f: File) => f.name.includes('管控物料表'));
-    for (const materialFile of materialFiles) {
-      const workbook = await extractManagedMaterialWorkbook(materialFile as File);
-      if (Object.keys(workbook.lcdBySheet).length > 0) {
-        setProjectInfo(prev => ({ ...prev, materialWorkbook: workbook }));
-      }
-
-      const coreRaw = await parseManagedMaterialCoreWorkbook(materialFile as File);
-      if (coreRaw) {
-        const coreMatch = await matchManagedMaterialNamesWithLLM({
-          materialNames: coreRaw.materialNames,
-          emmcSizes,
-          ddrSizes,
-        });
-        setProjectInfo(prev => ({
-          ...prev,
-          managedMaterialCore: {
-            sourceFileName: coreRaw.sourceFileName,
-            sourceSheetName: coreRaw.sourceSheetName,
-            rows: coreRaw.rows,
-            materialNames: coreRaw.materialNames,
-            materialNameByStaticField: coreMatch.materialNameByStaticField,
-            materialNameByEmmcSize: coreMatch.materialNameByEmmcSize,
-            materialNameByDdrSize: coreMatch.materialNameByDdrSize,
-          },
-        }));
-      }
-
-      break; // 取第一个有效物料表
-    }
-
-    // 检测关键物料选型模板，异步解析并调用 LLM 匹配分类2
-    const keyMaterialFile = fileList.find((f: File) =>
+    // 判断本次是否存在需要 LLM 的文件
+    const hasMaterialFile = fileList.some((f: File) => f.name.includes('管控物料表'));
+    const hasKeyMaterialFile = fileList.some((f: File) =>
       /关键物料选项模版|关键物料选项模板|关键物料选型模板/.test(f.name)
     );
-    if (keyMaterialFile) {
-      const parsed = await parseKeyMaterialTemplate(keyMaterialFile as File);
-      if (parsed) {
-        const category2ByField = await matchCategory2WithLLM(parsed.category2List);
-        const optionsByField = buildOptionsByField(parsed, category2ByField);
-        setProjectInfo(prev => ({
-          ...prev,
-          keyMaterialTemplate: {
-            sourceFileName: parsed.sourceFileName,
-            sourceSheetName: parsed.sourceSheetName,
-            category2ByField,
-            optionsByField,
-          },
-        }));
+    const hasAnyLLMFile = hasMaterialFile || hasKeyMaterialFile;
+
+    if (hasAnyLLMFile) {
+      setLoadingPhase('upload');
+      setLoading(true);
+      setIsUploadResolving(true);
+      setLoadingText('读取上传文件...');
+    }
+
+    try {
+      // 检测配置表文件，异步解析 PCBA 选项
+      let parsedPcbaOptions: import('./types').PcbaOption[] = [];
+      const configFiles = fileList.filter((f: File) => f.name.includes('配置'));
+      if (configFiles.length > 0) {
+        if (hasAnyLLMFile) setLoadingText('解析配置表并提取PCBA...');
+        for (const configFile of configFiles) {
+          const options = await extractPcbaOptions(configFile as File);
+          if (options.length > 0) {
+            parsedPcbaOptions = options;
+            setProjectInfo(prev => ({
+              ...prev,
+              pcbaOptions: options,
+              checkedPcbaOptions: prev.checkedPcbaOptions && prev.checkedPcbaOptions.length > 0
+                ? prev.checkedPcbaOptions
+                : [],
+            }));
+            break; // 取第一个有效配置表
+          }
+        }
+      }
+
+      // 也尝试从当前 projectInfo 中获取已解析的 pcbaOptions（配置表可能在本次上传前已上传）
+      const allPcbaOptions = parsedPcbaOptions.length > 0
+        ? parsedPcbaOptions
+        : (projectInfo.pcbaOptions ?? []);
+      const emmcSizes: string[] = Array.from(new Set(allPcbaOptions.map(item => item.emmc.match(/\d+/)?.[0] ?? '').filter((s): s is string => s !== '')));
+      const ddrSizes: string[] = Array.from(new Set(allPcbaOptions.map(item => item.ddr.match(/\d+/)?.[0] ?? '').filter((s): s is string => s !== '')));
+
+      // 检测管控物料表，异步解析 LCD 选项 + 核心器件 LLM 匹配
+      const materialFiles = fileList.filter((f: File) => f.name.includes('管控物料表'));
+      for (const materialFile of materialFiles) {
+        setLoadingText('解析管控物料表...');
+        const workbook = await extractManagedMaterialWorkbook(materialFile as File);
+        if (Object.keys(workbook.lcdBySheet).length > 0) {
+          setProjectInfo(prev => ({ ...prev, materialWorkbook: workbook }));
+        }
+
+        const coreRaw = await parseManagedMaterialCoreWorkbook(materialFile as File);
+        if (coreRaw) {
+          setLoadingText('核心器件大模型匹配中...');
+          const coreMatch = await matchManagedMaterialNamesWithLLM({
+            materialNames: coreRaw.materialNames,
+            emmcSizes,
+            ddrSizes,
+          });
+          setProjectInfo(prev => ({
+            ...prev,
+            managedMaterialCore: {
+              sourceFileName: coreRaw.sourceFileName,
+              sourceSheetName: coreRaw.sourceSheetName,
+              rows: coreRaw.rows,
+              materialNames: coreRaw.materialNames,
+              materialNameByStaticField: coreMatch.materialNameByStaticField,
+              materialNameByEmmcSize: coreMatch.materialNameByEmmcSize,
+              materialNameByDdrSize: coreMatch.materialNameByDdrSize,
+            },
+          }));
+        }
+
+        break; // 取第一个有效物料表
+      }
+
+      // 检测关键物料选型模板，异步解析并调用 LLM 匹配分类2
+      const keyMaterialFile = fileList.find((f: File) =>
+        /关键物料选项模版|关键物料选项模板|关键物料选型模板/.test(f.name)
+      );
+      if (keyMaterialFile) {
+        setLoadingText('关键物料大模型匹配中...');
+        const parsed = await parseKeyMaterialTemplate(keyMaterialFile as File);
+        if (parsed) {
+          const category2ByField = await matchCategory2WithLLM(parsed.category2List);
+          const optionsByField = buildOptionsByField(parsed, category2ByField);
+          setProjectInfo(prev => ({
+            ...prev,
+            keyMaterialTemplate: {
+              sourceFileName: parsed.sourceFileName,
+              sourceSheetName: parsed.sourceSheetName,
+              category2ByField,
+              optionsByField,
+            },
+          }));
+        }
+      }
+
+      if (hasAnyLLMFile) setLoadingText('写入解析结果...');
+    } finally {
+      if (hasAnyLLMFile) {
+        setLoading(false);
+        setIsUploadResolving(false);
+        setLoadingText('');
       }
     }
   };
@@ -437,6 +469,7 @@ export default function App() {
 
   // Step 2: Auto Calculation Logic
   const startAutoCalc = async () => {
+    setLoadingPhase('calc');
     setLoading(true);
     const timeline = [
       '读取数据源...',
@@ -969,7 +1002,8 @@ export default function App() {
                     <input 
                       type="file" 
                       multiple 
-                      className="absolute inset-0 opacity-0 cursor-pointer z-10"
+                      disabled={isUploadResolving}
+                      className={cn("absolute inset-0 opacity-0 z-10", isUploadResolving ? "cursor-not-allowed" : "cursor-pointer")}
                       onChange={handleFileUpload}
                     />
                     <div className="border border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center group-hover:bg-slate-50 group-hover:border-blue-400 transition-all">
@@ -1213,7 +1247,9 @@ export default function App() {
                 </div>
               </div>
               <div className="space-y-2">
-                <h3 className="text-xl font-black text-slate-900">AI 正在深度解析...</h3>
+                <h3 className="text-xl font-black text-slate-900">
+                  {loadingPhase === 'upload' ? '文件上传解析中...' : 'AI 正在深度解析...'}
+                </h3>
                 <p className="text-xs font-mono text-slate-400 h-4">{loadingText}</p>
               </div>
             </div>
@@ -1242,16 +1278,16 @@ export default function App() {
 
             {currentStep === 1 ? (
               <button
-                disabled={!isStep1Complete}
+                disabled={!isStep1Complete || isUploadResolving}
                 onClick={startAutoCalc}
                 className={cn(
                   "px-6 py-2 rounded font-bold text-[13px] text-white transition-all flex items-center gap-2",
-                  isStep1Complete 
+                  (isStep1Complete && !isUploadResolving)
                     ? "bg-[#0f2e4a] hover:bg-[#1a4269]" 
                     : "bg-slate-200 text-slate-400 cursor-not-allowed"
                 )}
               >
-                点此开始解析
+                {isUploadResolving ? '解析中...' : '点此开始解析'}
                 <Play size={16} fill="currentColor" />
               </button>
             ) : currentStep === 5 ? (
