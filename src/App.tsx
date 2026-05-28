@@ -29,6 +29,7 @@ import {
 import { cn, extractPcbaOptions, normalizeStorage, extractManagedMaterialWorkbook, resolveLcdOptionsForProject, serializeLcdOptions, resolveFrontCamOptionsForProject, resolveMainCamOptionsForProject, resolveSubCamOptionsForProject } from './lib/utils';
 import { parseKeyMaterialTemplate, matchCategory2WithLLM, buildOptionsByField, serializeSplitOptions } from './lib/keyMaterialTemplate';
 import { parseManagedMaterialCoreWorkbook, matchManagedMaterialNamesWithLLM, buildManagedMaterialCoreFieldOptions, serializeSplitFieldOptions } from './lib/managedMaterialCore';
+import { parseSampleCollectionWorkbook, matchSampleCollectionRowsWithLLM, buildSampleCollectionFieldOptions } from './lib/sampleCollectionWorkbook';
 import type { SplitOptionFieldId } from './types';
 
 export default function App() {
@@ -337,7 +338,8 @@ export default function App() {
     const hasKeyMaterialFile = fileList.some((f: File) =>
       /关键物料选项模版|关键物料选项模板|关键物料选型模板/.test(f.name)
     );
-    const hasAnyLLMFile = hasMaterialFile || hasKeyMaterialFile;
+    const hasSampleFile = fileList.some((f: File) => f.name.includes('样机收集表'));
+    const hasAnyLLMFile = hasMaterialFile || hasKeyMaterialFile || hasSampleFile;
 
     if (hasAnyLLMFile) {
       setLoadingPhase('upload');
@@ -431,6 +433,22 @@ export default function App() {
         }
       }
 
+      // 检测样机收集表，解析并调用 LLM 匹配负责团队行名
+      const sampleFile = fileList.find((f: File) => f.name.includes('样机收集表'));
+      if (sampleFile) {
+        setLoadingText('样机收集表大模型匹配中...');
+        const sampleRaw = await parseSampleCollectionWorkbook(sampleFile as File);
+        if (sampleRaw) {
+          // Collect all unique row names across sheets for LLM matching
+          const allRowNames = Array.from(new Set(sampleRaw.sheets.flatMap(s => s.rowNames)));
+          const rowNameByField = await matchSampleCollectionRowsWithLLM(allRowNames);
+          setProjectInfo(prev => ({
+            ...prev,
+            sampleCollection: { ...sampleRaw, rowNameByField },
+          }));
+        }
+      }
+
       if (hasAnyLLMFile) setLoadingText('写入解析结果...');
     } finally {
       if (hasAnyLLMFile) {
@@ -460,6 +478,10 @@ export default function App() {
       }
       if (deletedFile?.type === '关键物料选型模板' && !hasRemainingKeyMaterial) {
         next = { ...next, keyMaterialTemplate: undefined };
+      }
+      const hasRemainingSample = nextFiles.some(f => f.type === '样机收集表');
+      if (deletedFile?.type === '样机收集表' && !hasRemainingSample) {
+        next = { ...next, sampleCollection: undefined };
       }
       return next;
     });
@@ -513,6 +535,9 @@ export default function App() {
         const coreOptions = projectInfo.managedMaterialCore
           ? buildManagedMaterialCoreFieldOptions(projectInfo.managedMaterialCore, opt)
           : {};
+        const sampleOptions = projectInfo.sampleCollection
+          ? buildSampleCollectionFieldOptions(projectInfo.sampleCollection, projectInfo.stage, pcbaId)
+          : {};
 
         const fieldOptions: SKUData['fieldOptions'] = {
           lcd:       lcdRaw.length > 0 ? toLcdSplitOptions(lcdRaw, 'LCD') : keyMaterialOptions.lcd,
@@ -526,6 +551,8 @@ export default function App() {
               .map(k => [k, keyMaterialOptions[k]])
           ),
           ...coreOptions,
+          // Sample collection team fields (lowest priority, merged last for team fields)
+          ...sampleOptions,
         };
 
         // Serialize to initial text values
