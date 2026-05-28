@@ -30,6 +30,7 @@ import { cn, extractPcbaOptions, normalizeStorage, extractManagedMaterialWorkboo
 import { parseKeyMaterialTemplate, matchCategory2WithLLM, buildOptionsByField, serializeSplitOptions } from './lib/keyMaterialTemplate';
 import { parseManagedMaterialCoreWorkbook, matchManagedMaterialNamesWithLLM, buildManagedMaterialCoreFieldOptions, serializeSplitFieldOptions } from './lib/managedMaterialCore';
 import { parseSampleCollectionWorkbook, matchSampleCollectionRowsWithLLM, buildSampleCollectionFieldOptions } from './lib/sampleCollectionWorkbook';
+import { deriveSupplyColumnsFromFieldOptions, recomputeStep4Values } from './lib/step4SampleCalc';
 import type { SplitOptionFieldId } from './types';
 
 export default function App() {
@@ -563,19 +564,30 @@ export default function App() {
           }
         }
 
+        const supplyColumns = deriveSupplyColumnsFromFieldOptions(fieldOptions);
+        const supplies = supplyColumns.map((col, colIndex) => {
+          const values: Record<string, string> = { storage: storageValue, band: bandValue };
+          // Fill per-supply field values from fieldOptions
+          for (const [fieldId, opts] of Object.entries(fieldOptions)) {
+            const hit = (opts ?? []).find((o) => (o.supply || '') === col.supply);
+            if (hit?.text) values[fieldId] = hit.text;
+          }
+          if (!values.customer_sample_req) values.customer_sample_req = '';
+          const computed = recomputeStep4Values(values);
+          return {
+            id: `s_${Date.now()}_${idx}_${colIndex + 1}`,
+            label: col.label,
+            values: computed,
+          };
+        });
+
         return {
           id: `sku_${Date.now()}_${idx}`,
           stage: projectInfo.stage,
           orderNo: '',
           project: pcbaId,
           fieldOptions,
-          supplies: [
-            {
-              id: `s_${Date.now()}_${idx}_1`,
-              label: '主供',
-              values: { ...initialValues, storage: storageValue, band: bandValue },
-            },
-          ],
+          supplies,
         };
       });
     } else {
@@ -806,37 +818,8 @@ export default function App() {
           ...sku,
           supplies: sku.supplies.map(sup => {
             if (sup.id !== supplyId) return sup;
-            const newValues = { ...sup.values, [fieldId]: value };
-
-            // Step 4 Calculations & Dynamic Validation
-            const getNum = (fid: string) => Number(newValues[fid] || 0);
-
-            // 1. Customer Sample Demand = Reliability + Field Test + Fan + CE
-            const customerSampleReq = getNum('reliability') + getNum('field_test') + getNum('fan_sample') + getNum('ce_cert');
-            newValues['customer_sample_req'] = customerSampleReq > 0 ? customerSampleReq.toString() : (newValues['customer_sample_req'] || '');
-
-            // 2. T-Long R&D Total = Sum of responsible teams
-            const tLongFields = ['hw_eng', 'hw_test', 'sw_eng', 'sw_test', 'struct_eng', 'reliability_eng', 'pressure_test', 'image_eng', 'npm', 'ux', 'parts', 'pm'];
-            const tLongTotal = tLongFields.reduce((sum, fid) => sum + getNum(fid), 0);
-            newValues['t_long_rd_total'] = tLongTotal > 0 ? tLongTotal.toString() : (newValues['t_long_rd_total'] || '');
-
-            // 3. Total = Customer + T-Long
-            const totalQty = customerSampleReq + tLongTotal;
-            newValues['total_qty'] = totalQty > 0 ? totalQty.toString() : (newValues['total_qty'] || '');
-
-            // 4. Assembly Qty = Total / Yield
-            const yieldRate = Number(newValues['prod_yield'] || 0.98); 
-            const assemblyQty = totalQty > 0 ? Math.ceil(totalQty / yieldRate) : 0;
-            if (assemblyQty > 0) newValues['assembly_qty'] = assemblyQty.toString();
-
-            // 5. PCBA = strictly greater closest multiple of 4 > (board_adj + assembly)
-            const boardAdj = getNum('board_adj_qty');
-            if (boardAdj > 0 || assemblyQty > 0) {
-              const pcbaBase = boardAdj + assemblyQty;
-              const pcba = (Math.floor(pcbaBase / 4) + 1) * 4;
-              newValues['pcba'] = pcba.toString();
-              newValues['sub_board_qty'] = pcba.toString();
-            }
+            const withInput = { ...sup.values, [fieldId]: value };
+            const newValues = recomputeStep4Values(withInput);
 
             return { ...sup, values: newValues };
           })

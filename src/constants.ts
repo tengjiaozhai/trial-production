@@ -90,7 +90,7 @@ export const FIELD_DEFS: FieldDefinition[] = [
   { id: 'mbom', label: 'MBOM', group: 'BOM信息', behavior: 'manual' },
   { id: 'pbom', label: 'PBOM', group: 'BOM信息', behavior: 'manual' },
 
-  // 负责团队
+  // 内部样机需求
   { id: 'hw_eng', label: '硬件', group: '负责团队', behavior: 'auto' },
   { id: 'hw_test', label: '硬测', group: '负责团队', behavior: 'auto' },
   { id: 'sw_eng', label: '软件', group: '负责团队', behavior: 'auto' },
@@ -104,12 +104,12 @@ export const FIELD_DEFS: FieldDefinition[] = [
   { id: 'parts', label: '器件', group: '负责团队', behavior: 'auto' },
   { id: 'pm', label: '产品', group: '负责团队', behavior: 'auto' },
 
-  // 样机需求
+  // 客户样机需求
   { id: 'reliability', label: '可靠性（客户）', group: '样机需求', behavior: 'auto' },
   { id: 'field_test', label: '场测样机', group: '样机需求', behavior: 'auto' },
   { id: 'fan_sample', label: '粉丝样机', group: '样机需求', behavior: 'auto' },
   { id: 'ce_cert', label: 'CE认证样机', group: '样机需求', behavior: 'auto' },
-  { id: 'customer_sample_req', label: '客户样机需求', group: '样机需求', behavior: 'calc' },
+  { id: 'customer_sample_req', label: '客户样机需求', group: '样机需求', behavior: 'manual' },
   { id: 'backup_unit', label: '备料样机', group: '样机需求', behavior: 'manual' },
 
   // 统计汇总
