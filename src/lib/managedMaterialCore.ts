@@ -181,25 +181,47 @@ export async function matchManagedMaterialNamesWithLLM(args: {
   emmcSizes: string[];
   ddrSizes: string[];
 }): Promise<Pick<ManagedMaterialCoreMatch, 'materialNameByStaticField' | 'materialNameByEmmcSize' | 'materialNameByDdrSize'>> {
-  const targets = [
-    ...STATIC_TARGETS.map((item) => ({ key: item.key, label: formatTargetLabel(item.label, item.hint) })),
+  const staticTargets = STATIC_TARGETS.map((item) => ({
+    key: item.key,
+    label: formatTargetLabel(item.label, item.hint),
+  }));
+  const storageTargets = [
     ...args.emmcSizes.map((size) => ({ key: `emmc_${size}`, label: `flash EMMC ${size}G` })),
     ...args.ddrSizes.map((size) => ({ key: `ddr_${size}`, label: `flash DDR ${size}G` })),
   ];
 
-  const prompt = [
+  const staticPrompt = [
     '你是手机BOM物料匹配助手。',
     '我会给你一组目标字段和一组源表中的物料名称候选。',
     '请为每个目标字段返回一个"完全等于候选列表中某项"的物料名称，或者返回 null。',
-    '对于语义接近但词面不完全一致的情况（例如“无线发射”与“无线收发器”），应返回最接近且存在于候选中的物料名称。',
+    '对于语义接近但词面不完全一致的情况（例如"无线发射"与"无线收发器"），应返回最接近且存在于候选中的物料名称。',
     '禁止输出候选列表外的值。',
     `候选物料名称: ${JSON.stringify(args.materialNames)}`,
-    `目标字段: ${JSON.stringify(targets)}`,
-    '只返回 JSON 对象，例如：{"cpu":"CPU","tx":"无线收发器","emmc_128":"128GB EMMC","ddr_4":"LPD4X 4GB"}',
+    `目标字段: ${JSON.stringify(staticTargets)}`,
+    '只返回 JSON 对象，例如：{"cpu":"CPU","tx":"无线收发器"}',
   ].join('\n');
 
+  const storagePrompt = storageTargets.length > 0
+    ? [
+        '你是手机BOM物料匹配助手。',
+        '我会给你一组目标字段和一组源表中的物料名称候选。',
+        '请为每个目标字段返回一个"完全等于候选列表中某项"的物料名称，或者返回 null。',
+        '禁止输出候选列表外的值。',
+        `候选物料名称: ${JSON.stringify(args.materialNames)}`,
+        `目标字段: ${JSON.stringify(storageTargets)}`,
+        '只返回 JSON 对象，例如：{"emmc_128":"128GB EMMC","ddr_4":"LPD4X 4GB"}',
+      ].join('\n')
+    : null;
+
   try {
-    const raw = await requestJsonObjectFromLLM(prompt);
+    const storagePromise = storagePrompt
+      ? requestJsonObjectFromLLM(storagePrompt)
+      : Promise.resolve<Record<string, unknown>>({});
+    const [staticRaw, storageRaw] = await Promise.all([
+      requestJsonObjectFromLLM(staticPrompt),
+      storagePromise,
+    ]);
+
     const allowed = new Set(args.materialNames);
 
     const materialNameByStaticField: ManagedMaterialCoreMatch['materialNameByStaticField'] = {};
@@ -208,37 +230,17 @@ export async function matchManagedMaterialNamesWithLLM(args: {
     const staticMap = materialNameByStaticField as Record<string, string | undefined>;
 
     for (const item of STATIC_TARGETS) {
-      const value = pickAllowedName(raw[item.key], allowed);
+      const value = pickAllowedName(staticRaw[item.key], allowed);
       if (value) staticMap[item.key] = value;
     }
+
     for (const size of args.emmcSizes) {
-      const value = pickAllowedName(raw[`emmc_${size}`], allowed);
+      const value = pickAllowedName(storageRaw[`emmc_${size}`], allowed);
       if (value) materialNameByEmmcSize[size] = value;
     }
     for (const size of args.ddrSizes) {
-      const value = pickAllowedName(raw[`ddr_${size}`], allowed);
+      const value = pickAllowedName(storageRaw[`ddr_${size}`], allowed);
       if (value) materialNameByDdrSize[size] = value;
-    }
-
-    const missingStaticTargets = STATIC_TARGETS.filter((item) => !staticMap[item.key]);
-    if (missingStaticTargets.length > 0) {
-      const retryPrompt = [
-        '你是手机BOM物料匹配助手。',
-        '请仅针对下列缺失字段，从候选物料名称中选出最相似且语义对应的一项；无匹配则返回 null。',
-        '返回值必须是候选列表中的原文字符串。',
-        `候选物料名称: ${JSON.stringify(args.materialNames)}`,
-        `缺失字段: ${JSON.stringify(missingStaticTargets.map((item) => ({
-          key: item.key,
-          label: formatTargetLabel(item.label, item.hint),
-        })))}`,
-        '只返回 JSON 对象，例如：{"tx":"无线收发器"}',
-      ].join('\n');
-
-      const retryRaw = await requestJsonObjectFromLLM(retryPrompt);
-      for (const item of missingStaticTargets) {
-        const value = pickAllowedName(retryRaw[item.key], allowed);
-        if (value) staticMap[item.key] = value;
-      }
     }
 
     for (const item of STATIC_TARGETS) {
