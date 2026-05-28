@@ -96,7 +96,7 @@ export const FIELD_DEFS: FieldDefinition[] = [
   { id: 'sw_eng', label: '软件', group: '负责团队', behavior: 'auto' },
   { id: 'sw_test', label: '软测', group: '负责团队', behavior: 'auto' },
   { id: 'struct_eng', label: '结构', group: '负责团队', behavior: 'auto' },
-  { id: 'reliability_eng', label: '可靠性', group: '负责团队', behavior: 'auto' },
+  { id: 'reliability_eng', label: '可靠性（内部）', group: '负责团队', behavior: 'auto' },
   { id: 'pressure_test', label: '压测', group: '负责团队', behavior: 'auto' },
   { id: 'image_eng', label: '影像', group: '负责团队', behavior: 'auto' },
   { id: 'npm', label: 'NPM', group: '负责团队', behavior: 'auto' },
@@ -105,7 +105,7 @@ export const FIELD_DEFS: FieldDefinition[] = [
   { id: 'pm', label: '产品', group: '负责团队', behavior: 'auto' },
 
   // 样机需求
-  { id: 'reliability', label: '可靠性', group: '样机需求', behavior: 'auto' },
+  { id: 'reliability', label: '可靠性（客户）', group: '样机需求', behavior: 'auto' },
   { id: 'field_test', label: '场测样机', group: '样机需求', behavior: 'auto' },
   { id: 'fan_sample', label: '粉丝样机', group: '样机需求', behavior: 'auto' },
   { id: 'ce_cert', label: 'CE认证样机', group: '样机需求', behavior: 'auto' },

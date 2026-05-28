@@ -10,7 +10,15 @@ export type SplitOptionFieldId =
   | 'battery' | 'speaker' | 'receiver' | 'mic' | 'motor' | 'fingerprint'
   | 'spk_fpc' | 'sidekey_fpc' | 'ir_fpc' | 'lens' | 'housing'
   | 'battery_cover' | 'sim_tray' | 'side_key' | 'aux_material'
-  | 'cooling' | 'pcb' | 'sub_board';
+  | 'cooling' | 'pcb' | 'sub_board'
+  | 'hw_eng' | 'hw_test' | 'sw_eng' | 'sw_test' | 'struct_eng'
+  | 'reliability_eng' | 'pressure_test' | 'image_eng'
+  | 'npm' | 'ux' | 'parts' | 'pm';
+
+export type SampleCollectionFieldId =
+  | 'hw_eng' | 'hw_test' | 'sw_eng' | 'sw_test' | 'struct_eng'
+  | 'reliability_eng' | 'pressure_test' | 'image_eng'
+  | 'npm' | 'ux' | 'parts' | 'pm';
 
 export type SupplyTag = '一供' | '二供' | '三供' | '';
 
@@ -94,6 +102,26 @@ export interface ManagedMaterialCoreMatch {
   materialNameByDdrSize: Record<string, string>;
 }
 
+export interface SampleCollectionRow {
+  rowName: string;  // 原始行名（大ToB-原型列的值）
+  cells: Record<string, string>;  // colKey -> raw cell value，colKey 格式: "{stage}_{supply}_{pcba}"
+}
+
+export interface SampleCollectionSheet {
+  sheetName: string;
+  // 列头信息：colIndex -> { stage, supply, pcba }
+  colHeaders: Array<{ colIndex: number; stage: string; supply: string; pcba: string }>;
+  rows: SampleCollectionRow[];
+  rowNames: string[];  // 所有非空行名列表，供 LLM 匹配用
+}
+
+export interface SampleCollectionWorkbookData {
+  sourceFileName: string;
+  sheets: SampleCollectionSheet[];
+  // LLM 匹配结果：fieldId -> 命中的原始行名
+  rowNameByField: Partial<Record<SampleCollectionFieldId, string>>;
+}
+
 export interface ProjectInfo {
   name: string;
   mainboardId?: string;
@@ -102,6 +130,7 @@ export interface ProjectInfo {
   materialWorkbook?: ManagedMaterialWorkbook;
   keyMaterialTemplate?: KeyMaterialTemplateMatch;
   managedMaterialCore?: ManagedMaterialCoreMatch;
+  sampleCollection?: SampleCollectionWorkbookData;
   efuseConfigs?: Record<string, string>;
   isCopied?: boolean;
   customer: Template | '';
