@@ -1,8 +1,9 @@
 import * as XLSX from 'xlsx';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   parseManagedMaterialCoreWorkbook,
   buildManagedMaterialCoreFieldOptions,
+  matchManagedMaterialNamesWithLLM,
 } from './managedMaterialCore';
 
 function makeWorkbookFile(
@@ -57,6 +58,35 @@ describe('parseManagedMaterialCoreWorkbook', () => {
     expect(result!.rows.map((r) => r.materialName)).toContain('CPU');
     expect(result!.rows.map((r) => r.materialName)).toContain('128GB EMMC');
     expect(result!.rows).toHaveLength(4);
+  });
+
+  it('continues scanning when an earlier visible sheet has title text but no header', async () => {
+    const file = makeWorkbookFile('X6728传音管控物料表.xlsx', [
+      {
+        name: '保密级别',
+        hidden: 0,
+        rows: [
+          [''],
+          ['外研项目传音管控物料表'],
+          [''],
+        ],
+      },
+      {
+        name: 'X6728',
+        hidden: 0,
+        rows: [
+          ['传音管控物料表'],
+          ['序号', '物料名称', '传音编码', '物料描述', '供应商型号', '供应商', '用量', '物料颜色', '传音是否已封样', '物料通用性', '平台是否已认证', 'MOQ', 'MPQ', '试产LT', '量产LT', '一/二供'],
+          [1, 'CPU', '15600178', 'MTK主芯片', 'MT6769V/CBZA', 'MTK', 1, '/', '是', '标准件', '是', 3000, 3000, 28, 14, '一供'],
+        ],
+      },
+    ]);
+
+    const result = await parseManagedMaterialCoreWorkbook(file);
+    expect(result).not.toBeNull();
+    expect(result!.sourceSheetName).toBe('X6728');
+    expect(result!.rows).toHaveLength(1);
+    expect(result!.rows[0].materialName).toBe('CPU');
   });
 
   it('returns null when required header columns are missing', async () => {
@@ -140,5 +170,33 @@ describe('buildManagedMaterialCoreFieldOptions', () => {
     });
     expect(result.emmc ?? []).toHaveLength(0);
     expect(result.ddr ?? []).toHaveLength(0);
+  });
+});
+
+describe('matchManagedMaterialNamesWithLLM fallback', () => {
+  it('uses local fallback matching when LLM request fails', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch' as any).mockRejectedValue(new Error('network down'));
+    const result = await matchManagedMaterialNamesWithLLM({
+      materialNames: [
+        'CPU',
+        '电源管理',
+        '无线收发器',
+        '射频收发器',
+        'NFC',
+        '128GB EMMC',
+        'LPD4X 4GB',
+      ],
+      emmcSizes: ['128'],
+      ddrSizes: ['4'],
+    });
+    fetchSpy.mockRestore();
+
+    expect(result.materialNameByStaticField.cpu).toBe('CPU');
+    expect(result.materialNameByStaticField.pmu).toBe('电源管理');
+    expect(result.materialNameByStaticField.tx).toBe('无线收发器');
+    expect(result.materialNameByStaticField.rf_transceiver).toBe('射频收发器');
+    expect(result.materialNameByStaticField.nfc).toBe('NFC');
+    expect(result.materialNameByEmmcSize['128']).toBe('128GB EMMC');
+    expect(result.materialNameByDdrSize['4']).toBe('LPD4X 4GB');
   });
 });
