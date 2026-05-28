@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { recomputeStep4Values } from './step4SampleCalc';
+import {
+  buildSupplyValuesForSupplyKey,
+  deriveSupplyColumnsFromFieldOptions,
+  recomputeStep4Values,
+} from './step4SampleCalc';
 
 describe('recomputeStep4Values', () => {
   it('computes t_long_rd_total from internal fields only', () => {
@@ -33,22 +37,42 @@ describe('recomputeStep4Values', () => {
   });
 });
 
-import { deriveSupplyColumnsFromFieldOptions } from './step4SampleCalc';
-
 describe('deriveSupplyColumnsFromFieldOptions', () => {
-  it('derives supply columns from internal field options', () => {
+  it('derives supply columns from all split fields union', () => {
     const columns = deriveSupplyColumnsFromFieldOptions({
-      hw_eng: [
-        { supply: '一供', text: '12', sourceCategory2: '硬件' },
-        { supply: '二供', text: '8', sourceCategory2: '硬件' },
+      emmc: [
+        { supply: '一供', text: 'E1', sourceCategory2: 'EMMC' },
+        { supply: '三供', text: 'E3', sourceCategory2: 'EMMC' },
       ],
+      battery: [{ supply: '二供', text: 'B2', sourceCategory2: '电池' }],
     } as any);
-    expect(columns.map((c) => c.label)).toEqual(['一供', '二供']);
+
+    expect(columns.map((c) => c.label)).toEqual(['一供', '二供', '三供']);
+    expect(columns.map((c) => c.supplyKey)).toEqual(['一供', '二供', '三供']);
   });
 
-  it('falls back to single 主供 column when no supply info', () => {
-    const columns = deriveSupplyColumnsFromFieldOptions({});
-    expect(columns).toHaveLength(1);
-    expect(columns[0].label).toBe('主供');
+  it('falls back to 主供 when no supply tags exist', () => {
+    const columns = deriveSupplyColumnsFromFieldOptions({
+      pcb: [{ supply: '', text: 'qualcomm', sourceCategory2: 'PCB' }],
+    } as any);
+    expect(columns).toEqual([{ supplyKey: '', label: '主供' }]);
+  });
+});
+
+describe('buildSupplyValuesForSupplyKey', () => {
+  it('fills only matched supply and leaves unmatched field absent', () => {
+    const values = buildSupplyValuesForSupplyKey(
+      {
+        emmc: [
+          { supply: '一供', text: 'E1', sourceCategory2: 'EMMC' },
+          { supply: '二供', text: 'E2', sourceCategory2: 'EMMC' },
+        ],
+        ddr: [{ supply: '一供', text: 'D1', sourceCategory2: 'DDR' }],
+      } as any,
+      '二供',
+    );
+
+    expect(values).toEqual({ emmc: 'E2' });
+    expect(values.ddr).toBeUndefined();
   });
 });

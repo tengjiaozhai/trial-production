@@ -1,4 +1,4 @@
-import { FieldDefinition } from './types';
+import { FieldDefinition, SKUData } from './types';
 
 export const FIELD_GROUPS = [
   '基本信息',
@@ -8,8 +8,8 @@ export const FIELD_GROUPS = [
   '器件规格',
   '工艺辅料',
   'BOM信息',
-  '负责团队',
-  '样机需求',
+  '内部样机需求',
+  '客户样机需求',
   '统计汇总'
 ];
 
@@ -91,26 +91,26 @@ export const FIELD_DEFS: FieldDefinition[] = [
   { id: 'pbom', label: 'PBOM', group: 'BOM信息', behavior: 'manual' },
 
   // 内部样机需求
-  { id: 'hw_eng', label: '硬件', group: '负责团队', behavior: 'auto' },
-  { id: 'hw_test', label: '硬测', group: '负责团队', behavior: 'auto' },
-  { id: 'sw_eng', label: '软件', group: '负责团队', behavior: 'auto' },
-  { id: 'sw_test', label: '软测', group: '负责团队', behavior: 'auto' },
-  { id: 'struct_eng', label: '结构', group: '负责团队', behavior: 'auto' },
-  { id: 'reliability_eng', label: '可靠性（内部）', group: '负责团队', behavior: 'auto' },
-  { id: 'pressure_test', label: '压测', group: '负责团队', behavior: 'auto' },
-  { id: 'image_eng', label: '影像', group: '负责团队', behavior: 'auto' },
-  { id: 'npm', label: 'NPM', group: '负责团队', behavior: 'auto' },
-  { id: 'ux', label: '体验', group: '负责团队', behavior: 'auto' },
-  { id: 'parts', label: '器件', group: '负责团队', behavior: 'auto' },
-  { id: 'pm', label: '产品', group: '负责团队', behavior: 'auto' },
+  { id: 'hw_eng', label: '硬件', group: '内部样机需求', behavior: 'auto' },
+  { id: 'hw_test', label: '硬测', group: '内部样机需求', behavior: 'auto' },
+  { id: 'sw_eng', label: '软件', group: '内部样机需求', behavior: 'auto' },
+  { id: 'sw_test', label: '软测', group: '内部样机需求', behavior: 'auto' },
+  { id: 'struct_eng', label: '结构', group: '内部样机需求', behavior: 'auto' },
+  { id: 'reliability_eng', label: '可靠性（内部）', group: '内部样机需求', behavior: 'auto' },
+  { id: 'pressure_test', label: '压测', group: '内部样机需求', behavior: 'auto' },
+  { id: 'image_eng', label: '影像', group: '内部样机需求', behavior: 'auto' },
+  { id: 'npm', label: 'NPM', group: '内部样机需求', behavior: 'auto' },
+  { id: 'ux', label: '体验', group: '内部样机需求', behavior: 'auto' },
+  { id: 'parts', label: '器件', group: '内部样机需求', behavior: 'auto' },
+  { id: 'pm', label: '产品', group: '内部样机需求', behavior: 'auto' },
 
   // 客户样机需求
-  { id: 'reliability', label: '可靠性（客户）', group: '样机需求', behavior: 'auto' },
-  { id: 'field_test', label: '场测样机', group: '样机需求', behavior: 'auto' },
-  { id: 'fan_sample', label: '粉丝样机', group: '样机需求', behavior: 'auto' },
-  { id: 'ce_cert', label: 'CE认证样机', group: '样机需求', behavior: 'auto' },
-  { id: 'customer_sample_req', label: '客户样机需求', group: '样机需求', behavior: 'manual' },
-  { id: 'backup_unit', label: '备料样机', group: '样机需求', behavior: 'manual' },
+  { id: 'reliability', label: '可靠性（客户）', group: '客户样机需求', behavior: 'auto' },
+  { id: 'field_test', label: '场测样机', group: '客户样机需求', behavior: 'auto' },
+  { id: 'fan_sample', label: '粉丝样机', group: '客户样机需求', behavior: 'auto' },
+  { id: 'ce_cert', label: 'CE认证样机', group: '客户样机需求', behavior: 'auto' },
+  { id: 'customer_sample_req', label: '客户样机需求', group: '客户样机需求', behavior: 'manual' },
+  { id: 'backup_unit', label: '备料样机', group: '客户样机需求', behavior: 'manual' },
 
   // 统计汇总
   { id: 't_long_rd_total', label: '天珑研发样机总计', group: '统计汇总', behavior: 'calc' },
@@ -124,14 +124,14 @@ export const TEMPLATE_STAGES: Record<string, string[]> = {
   '中兴': ['T0', 'T1', 'T2', 'T3', 'NPI', 'MP'],
 };
 
-export const MOCK_COLUMNS = [
+export const MOCK_COLUMNS: SKUData[] = [
   { 
     id: 'sku1', 
     stage: 'EVT', 
     orderNo: '', 
     project: 'X6728 Standard',
     supplies: [
-      { id: 's1', label: '一供', values: { band: 'Full Band', storage: '4+64', lcd: 'BOE', cpu: 'MT8766', hw_eng: '5', reliability: '2' } }
+      { id: 's1', supplyKey: '一供', label: '一供', values: { band: 'Full Band', storage: '4+64', lcd: 'BOE', cpu: 'MT8766', hw_eng: '5', reliability: '2' } }
     ]
   },
   { 
@@ -140,8 +140,8 @@ export const MOCK_COLUMNS = [
     orderNo: '', 
     project: 'V633 Transsion',
     supplies: [
-      { id: 's1', label: '一供', values: { band: 'SSA', storage: '8+128', lcd: 'CSOT', cpu: 'MT8788', hw_eng: '8', reliability: '5' } },
-      { id: 's2', label: '二供', values: { band: 'LATAM', storage: '8+128', lcd: 'Tianma', cpu: 'MT8788', hw_eng: '8', reliability: '3' } }
+      { id: 's1', supplyKey: '一供', label: '一供', values: { band: 'SSA', storage: '8+128', lcd: 'CSOT', cpu: 'MT8788', hw_eng: '8', reliability: '5' } },
+      { id: 's2', supplyKey: '二供', label: '二供', values: { band: 'LATAM', storage: '8+128', lcd: 'Tianma', cpu: 'MT8788', hw_eng: '8', reliability: '3' } }
     ]
   },
 ];

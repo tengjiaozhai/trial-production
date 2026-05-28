@@ -447,7 +447,7 @@ export default function App() {
         }
       }
 
-      // 检测样机收集表，解析并调用 LLM 匹配负责团队行名
+      // 检测样机收集表，解析并调用 LLM 匹配内部样机需求行名
       const sampleFile = fileList.find((f: File) => f.name.includes('样机收集表'));
       if (sampleFile) {
         setLoadingText('样机收集表大模型匹配中...');
@@ -1279,12 +1279,8 @@ export default function App() {
               </button>
             ) : currentStep === 5 ? (
               <button 
-                disabled={isExportDisabled}
                 onClick={handleExport}
-                className={cn(
-                  "px-6 py-2 rounded flex items-center gap-2 font-bold text-[13px] transition-all",
-                  isExportDisabled ? "bg-slate-100 text-slate-400 cursor-not-allowed" : "bg-[#2e7d32] text-white hover:bg-[#1b5e20] active:scale-95"
-                )}
+                className="px-6 py-2 rounded flex items-center gap-2 font-bold text-[13px] transition-all bg-[#2e7d32] text-white hover:bg-[#1b5e20] active:scale-95"
               >
                 <Download size={16} />
                 完成并导出

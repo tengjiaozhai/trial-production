@@ -1,4 +1,4 @@
-import type { SplitFieldOption } from '../types';
+import type { SplitFieldOption, SupplyTag } from '../types';
 
 export const INTERNAL_IDS = [
   'hw_eng',
@@ -15,12 +15,10 @@ export const INTERNAL_IDS = [
   'pm',
 ] as const;
 
-const SUPPLY_ORDER = ['一供', '二供', '三供'] as const;
-
-type InternalId = (typeof INTERNAL_IDS)[number];
+const SUPPLY_ORDER: SupplyTag[] = ['一供', '二供', '三供'];
 
 export interface SupplyColumn {
-  supply: string;
+  supplyKey: SupplyTag | '';
   label: string;
 }
 
@@ -61,16 +59,14 @@ export function recomputeStep4Values(
 }
 
 /**
- * Derive unique supply columns from internal field options, ordered by SUPPLY_ORDER.
- * Falls back to [{ supply: '主供', label: '主供' }] when no supply info found.
+ * Derive unique supply columns from all split field options, ordered by SUPPLY_ORDER.
+ * Falls back to [{ supplyKey: '', label: '主供' }] when no supply info found.
  */
 export function deriveSupplyColumnsFromFieldOptions(
   fieldOptions: Partial<Record<string, SplitFieldOption[]>>,
 ): SupplyColumn[] {
-  const supplySet = new Set<string>();
-
-  for (const id of INTERNAL_IDS) {
-    const options = fieldOptions[id as InternalId];
+  const supplySet = new Set<SupplyTag>();
+  for (const options of Object.values(fieldOptions)) {
     if (!options) continue;
     for (const opt of options) {
       if (opt.supply) {
@@ -82,8 +78,20 @@ export function deriveSupplyColumnsFromFieldOptions(
   const ordered = SUPPLY_ORDER.filter((s) => supplySet.has(s));
 
   if (ordered.length === 0) {
-    return [{ supply: '主供', label: '主供' }];
+    return [{ supplyKey: '', label: '主供' }];
   }
 
-  return ordered.map((s) => ({ supply: s, label: s }));
+  return ordered.map((s) => ({ supplyKey: s, label: s }));
+}
+
+export function buildSupplyValuesForSupplyKey(
+  fieldOptions: Partial<Record<string, SplitFieldOption[]>>,
+  supplyKey: SupplyTag | ''
+): Record<string, string> {
+  const values: Record<string, string> = {};
+  for (const [fieldId, options] of Object.entries(fieldOptions)) {
+    const hit = (options ?? []).find((o) => o.supply === supplyKey);
+    if (hit?.text) values[fieldId] = hit.text;
+  }
+  return values;
 }

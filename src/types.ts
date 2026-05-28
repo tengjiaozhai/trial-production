@@ -69,11 +69,14 @@ export interface SKUData {
   orderNo: string;
   project: string;
   fieldOptions?: Partial<Record<SplitOptionFieldId, SplitFieldOption[]>>;
-  supplies: {
-    id: string;
-    label: string;
-    values: Record<string, string>;
-  }[];
+  supplies: SkuSupply[];
+}
+
+export interface SkuSupply {
+  id: string;
+  supplyKey: SupplyTag | '';
+  label: string;
+  values: Record<string, string>;
 }
 
 export interface PcbaOption {

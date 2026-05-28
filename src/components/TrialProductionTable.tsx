@@ -1,6 +1,6 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { FIELD_GROUPS, FIELD_DEFS } from '@/src/constants';
-import { SKUData, FieldDefinition, StepId, SplitOptionFieldId } from '@/src/types';
+import { SKUData, FieldDefinition, StepId } from '@/src/types';
 import { cn } from '@/src/lib/utils';
 import { Trash2, Plus, GripVertical, ChevronDown, X } from 'lucide-react';
 import { buildStep5TableModel } from '../lib/step5TableModel';
@@ -327,29 +327,7 @@ function SortableRow({
                         fieldLabel={field.label}
                       />
                     </div>
-                  ) : (() => {
-                    const options = sku.fieldOptions?.[field.id as SplitOptionFieldId];
-                    return options && options.length > 0 ? (
-                      <div
-                        style={{ minHeight: rowHeight ? rowHeight - 20 : 34 }}
-                        className={cn(
-                          'grid gap-1.5 w-full p-1',
-                          options.length === 1 && 'grid-cols-1',
-                          options.length === 2 && 'grid-cols-2',
-                          options.length >= 3 && 'grid-cols-3'
-                        )}
-                      >
-                        {options.slice(0, 3).map((option: any) => (
-                          <div
-                            key={`${field.id}-${option.supply}-${option.text}`}
-                            className="rounded border border-slate-200 bg-slate-50 px-2 py-1.5 text-[12px] text-slate-700 text-center leading-snug"
-                          >
-                            {option.text}
-                          </div>
-                        ))}
-                      </div>
-                    ) : null;
-                  })() ?? (
+                  ) : (
                     <input
                       style={{ height: rowHeight ? rowHeight - 20 : 34 }}
                       className={cn(
@@ -553,19 +531,19 @@ export function TrialProductionTable({
     }
   };
 
-  const handleColResize = useCallback((id: string, delta: number) => {
+  const handleColResize = (id: string, delta: number) => {
     setColWidths(prev => ({
       ...prev,
       [id]: Math.max(100, (prev[id] || 140) + delta)
     }));
-  }, []);
+  };
 
-  const handleRowResize = useCallback((id: string, delta: number) => {
+  const handleRowResize = (id: string, delta: number) => {
     setRowHeights(prev => ({
       ...prev,
       [id]: Math.max(32, (prev[id] || 40) + delta)
     }));
-  }, []);
+  };
 
   const handleScroll = (source: 'top' | 'bottom') => (e: React.UIEvent<HTMLDivElement>) => {
     if (source === 'top' && bottomTableRef.current) {
