@@ -6,6 +6,7 @@ import { Trash2, Plus, GripVertical, ChevronDown, X } from 'lucide-react';
 import { listSupplyKeys } from '../lib/supplyProjection';
 import { buildStep5TableModel } from '../lib/step5TableModel';
 import type { Step5Row } from '../lib/step5TableModel';
+import { buildTableViewportMetrics } from '../lib/tableViewport';
 
 function ProdLocDropdown({ value, onChange, disabled, hasConflict, fieldLabel }: any) {
   const options = ['宜宾', '南昌', '河源', '越南'];
@@ -459,6 +460,13 @@ export function TrialProductionTable({
     onStep5LayoutChange?.({ supplyWidths: colWidths, rowHeights });
   }, [currentStep, colWidths, rowHeights, onStep5LayoutChange]);
 
+  const viewport = buildTableViewportMetrics({ currentStep, skuData, colWidths });
+  const tableStyle: React.CSSProperties = {
+    tableLayout: 'fixed' as const,
+    width: `${viewport.totalTableWidthPx}px`,
+    minWidth: `${viewport.totalTableWidthPx}px`,
+  };
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -591,10 +599,15 @@ export function TrialProductionTable({
   };
 
   const handleScroll = (source: 'top' | 'bottom') => (e: React.UIEvent<HTMLDivElement>) => {
+    const scrollLeft = e.currentTarget.scrollLeft;
     if (source === 'top' && bottomTableRef.current) {
-      bottomTableRef.current.scrollLeft = (e.currentTarget as HTMLDivElement).scrollLeft;
+      if (bottomTableRef.current.scrollLeft !== scrollLeft) {
+        bottomTableRef.current.scrollLeft = scrollLeft;
+      }
     } else if (source === 'bottom' && topTableRef.current) {
-      topTableRef.current.scrollLeft = (e.currentTarget as HTMLDivElement).scrollLeft;
+      if (topTableRef.current.scrollLeft !== scrollLeft) {
+        topTableRef.current.scrollLeft = scrollLeft;
+      }
     }
   };
 
@@ -615,7 +628,7 @@ export function TrialProductionTable({
   );
 
   return (
-    <div className="relative border border-slate-200 rounded shadow-sm bg-white overflow-hidden flex flex-col h-[calc(100vh-280px)]">
+    <div className="relative border border-slate-200 rounded shadow-sm bg-white overflow-hidden flex flex-col h-[calc(100vh-280px)] min-w-0">
       <DndContext 
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -624,15 +637,15 @@ export function TrialProductionTable({
         <div 
           ref={topTableRef}
           onScroll={handleScroll('top')}
-          className="overflow-x-auto overflow-y-hidden shrink-0 z-20 border-b-2 border-slate-300 shadow-sm"
+          className="overflow-x-auto overflow-y-hidden shrink-0 z-20 border-b-2 border-slate-300 shadow-sm min-w-0"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          <table className="text-sm border-separate border-spacing-0" style={{ tableLayout: 'fixed' }}>
+          <table className="text-sm border-separate border-spacing-0" style={tableStyle}>
             {renderColGroup()}
             <thead className="bg-[#f1f5f9]">
               <tr>
-                <th 
-                  colSpan={3 + skuData.reduce((acc, sku) => acc + sku.supplies.length + (currentStep === 4 ? 1 : 0), 0)}
+                <th
+                  colSpan={viewport.basicInfoColSpan}
                   className="bg-[#f8fafc] border-b border-slate-200 px-3 py-3 text-[13px] font-bold text-slate-500 text-center uppercase tracking-wider relative"
                 >
                   基本信息
@@ -700,12 +713,12 @@ export function TrialProductionTable({
         <div 
           ref={bottomTableRef}
           onScroll={handleScroll('bottom')}
-          className="overflow-auto flex-1 z-0 scrollbar-thin scrollbar-thumb-slate-300 relative bg-white"
+          className="overflow-auto flex-1 z-0 scrollbar-thin scrollbar-thumb-slate-300 relative bg-white min-w-0"
         >
-          <table className="text-sm border-separate border-spacing-0" style={{ tableLayout: 'fixed' }}>
+          <table className="text-sm border-separate border-spacing-0" style={tableStyle}>
             {renderColGroup()}
             <tbody>
-              <SortableContext 
+              <SortableContext
                 items={otherFields.map(f => f.id)}
                 strategy={verticalListSortingStrategy}
               >
@@ -716,8 +729,8 @@ export function TrialProductionTable({
                   return (
                     <React.Fragment key={groupName}>
                       <tr className="bg-[#f8fafc] select-none">
-                        <td 
-                          colSpan={3 + skuData.reduce((acc, sku) => acc + sku.supplies.length + (currentStep === 4 ? 1 : 0), 0)}
+                        <td
+                          colSpan={viewport.bodyColSpan}
                           className="border-y border-slate-200 bg-[#f8fafc] px-3 py-3 text-[13px] font-bold text-slate-500 text-center uppercase tracking-wider relative"
                         >
                           {groupName}

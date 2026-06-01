@@ -65,6 +65,7 @@ export default function App() {
   const [createNewPrompt, setCreateNewPrompt] = useState(false);
   const [manualPcbaInput, setManualPcbaInput] = useState("");
   const [step5Layout, setStep5Layout] = useState<Step5LayoutSnapshot | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Compute step 2 conflicts based on activeFields and skuData
   const getStep2Conflicts = () => {
@@ -904,10 +905,10 @@ export default function App() {
       
       <StepsIndicator currentStep={currentStep} />
 
-      <div className="flex flex-1 overflow-hidden relative">
-        <Sidebar 
-          currentStep={currentStep} 
-          projectInfo={projectInfo} 
+      <div className="flex flex-1 overflow-hidden relative min-w-0">
+        <Sidebar
+          currentStep={currentStep}
+          projectInfo={projectInfo}
           skuData={skuData}
           validationResults={validationResults}
           onBackToEdit={() => setCurrentStep(3)}
@@ -916,9 +917,11 @@ export default function App() {
           setIsFlowComplete={setIsFlowComplete}
           onRunValidation={runValidation}
           step2Conflicts={step2Conflicts}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
         />
 
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 pb-24 scroll-smooth">
+        <main className="flex-1 min-w-0 overflow-y-auto p-4 md:p-6 pb-24 scroll-smooth transition-all duration-300 ease-out">
           <AnimatePresence mode="wait">
             {currentStep === 1 && (
               <motion.div

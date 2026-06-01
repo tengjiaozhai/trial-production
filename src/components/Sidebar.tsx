@@ -15,19 +15,23 @@ interface SidebarProps {
   setIsFlowComplete: (val: boolean) => void;
   onRunValidation: () => void;
   step2Conflicts?: { fieldId: string; fieldLabel: string; supplyLabel: string }[];
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
 }
 
-export function Sidebar({ 
-  currentStep, 
-  projectInfo, 
-  skuData, 
-  validationResults, 
-  onBackToEdit, 
+export function Sidebar({
+  currentStep,
+  projectInfo,
+  skuData,
+  validationResults,
+  onBackToEdit,
   onGoBack,
   isFlowComplete,
   setIsFlowComplete,
   onRunValidation,
-  step2Conflicts = []
+  step2Conflicts = [],
+  collapsed = false,
+  onToggleCollapsed
 }: SidebarProps) {
   
   const scrollToField = (id: string) => {
@@ -49,7 +53,22 @@ export function Sidebar({
   ];
 
   return (
-    <div className="w-80 h-full bg-white border-r border-slate-200 flex flex-col shrink-0 shadow-sm z-10">
+    <aside
+      className={cn(
+        "relative h-full bg-white border-r border-slate-200 flex flex-col shrink-0 shadow-sm z-10 transition-all duration-300 ease-out",
+        collapsed ? "w-12" : "w-80",
+      )}
+    >
+      <button
+        type="button"
+        onClick={onToggleCollapsed}
+        aria-label={collapsed ? '展开侧边栏' : '收起侧边栏'}
+        className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-500 hover:text-[#0f2e4a] hover:border-[#0f2e4a] transition-colors z-20"
+      >
+        <ArrowLeft size={12} className={cn("transition-transform duration-300", collapsed && "rotate-180")} />
+      </button>
+
+      <div className={cn("flex-1 flex flex-col overflow-hidden transition-opacity duration-200", collapsed && "opacity-0 pointer-events-none")}>
       <div className="flex-1 overflow-y-auto pt-6 px-4 space-y-8 scrollbar-thin">
         {currentStep === 1 && (
           <div className="space-y-6">
@@ -216,7 +235,14 @@ export function Sidebar({
         )}
 
       </div>
-    </div>
+      </div>
+
+      {collapsed && (
+        <div className="absolute inset-0 flex items-center justify-center text-slate-400 pointer-events-none">
+          <AlertCircle size={16} />
+        </div>
+      )}
+    </aside>
 
   );
 }
