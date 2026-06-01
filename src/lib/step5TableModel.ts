@@ -39,6 +39,7 @@ export function isSkuSpanningField(fieldId: string): boolean {
 export function buildStep5TableModel(args: {
   activeFields: FieldDefinition[];
   skuData: SKUData[];
+  includeSupplierRow?: boolean;
 }): Step5TableModel {
   const columns = args.skuData.flatMap((sku) =>
     sku.supplies.map((supply) => ({
@@ -83,6 +84,20 @@ export function buildStep5TableModel(args: {
         fieldId: field.id,
         fieldLabel: field.label,
         cells,
+      });
+      visibleIndex += 1;
+    }
+
+    if (args.includeSupplierRow && gi === 0) {
+      rows.push({
+        kind: 'field',
+        indexLabel: String(visibleIndex).padStart(2, '0'),
+        fieldId: '__supplier__',
+        fieldLabel: '供应商',
+        cells: args.skuData.map((sku) => ({
+          value: sku.selectedSupplyKey || '',
+          colSpan: 1,
+        })),
       });
       visibleIndex += 1;
     }

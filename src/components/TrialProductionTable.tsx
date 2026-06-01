@@ -3,6 +3,7 @@ import { FIELD_GROUPS, FIELD_DEFS } from '@/src/constants';
 import { SKUData, FieldDefinition, StepId } from '@/src/types';
 import { cn } from '@/src/lib/utils';
 import { Trash2, Plus, GripVertical, ChevronDown, X } from 'lucide-react';
+import { listSupplyKeys } from '../lib/supplyProjection';
 import { buildStep5TableModel } from '../lib/step5TableModel';
 import type { Step5Row } from '../lib/step5TableModel';
 
@@ -102,6 +103,8 @@ interface TrialProductionTableProps {
   onReorderSupplies?: (skuId: string, activeId: string, overId: string) => void;
   onInsertRowAt?: (index: number) => void;
   onStep5LayoutChange?: (layout: { supplyWidths: Record<string, number>; rowHeights: Record<string, number> }) => void;
+  onUpdateSelectedSupply?: (skuId: string, supplyKey: string) => void;
+  skuSupplyKeys?: Record<string, string[]>;
 }
 
 // Resize Handle Component
@@ -187,7 +190,9 @@ function SortableRow({
   onRowResize,
   efuseConfigs,
   onUpdateEfuse,
-  onUpdateSkuHeader
+  onUpdateSkuHeader,
+  onUpdateSelectedSupply,
+  skuSupplyKeys
 }: any) {
   const {
     attributes,
@@ -297,6 +302,33 @@ function SortableRow({
 
         return (
         <React.Fragment key={sku.id}>
+          {field.id === '__supplier__' ? (
+            <td
+              key={sku.id}
+              colSpan={sku.supplies.length + (currentStep === 4 ? 1 : 0)}
+              className="border-b border-r border-slate-200 p-3 align-top bg-white"
+            >
+              {currentStep === 3 ? (
+                <select
+                  className="w-full h-9 px-2 border border-slate-200 rounded bg-white text-[13px] text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 cursor-pointer"
+                  value={sku.selectedSupplyKey || ''}
+                  onChange={(e) => onUpdateSelectedSupply?.(sku.id, e.target.value)}
+                >
+                  {(skuSupplyKeys?.[sku.id] ?? []).map((k: string) => (
+                    <option key={k} value={k}>{k}</option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="w-full h-9 px-2 bg-transparent text-[13px] text-slate-700 text-center"
+                  value={sku.supplies[0]?.label || sku.selectedSupplyKey || ''}
+                  readOnly
+                  disabled
+                />
+              )}
+            </td>
+          ) : (
+          <React.Fragment>
           {sku.supplies.map((supply: any) => {
             const hasConflict = supply.values[field.id] === '' && field.behavior !== 'calc' && field.id !== 'prod_loc';
             return (
@@ -368,6 +400,8 @@ function SortableRow({
               </div>
             </td>
           )})}
+          </React.Fragment>
+          )}
           {currentStep === 4 && (
             <td className="bg-white border-b border-r border-slate-200 min-w-[40px] pointer-events-none"></td>
           )}
@@ -410,7 +444,9 @@ export function TrialProductionTable({
   activeFields,
   onReorderFields,
   onInsertRowAt,
-  onStep5LayoutChange
+  onStep5LayoutChange,
+  onUpdateSelectedSupply,
+  skuSupplyKeys
 }: TrialProductionTableProps) {
 
   const topTableRef = useRef<HTMLDivElement>(null);
@@ -453,7 +489,16 @@ export function TrialProductionTable({
   };
 
   const visibleFields = getVisibleFields();
-  const basicInfoFields = visibleFields.filter(f => f.group === '基本信息');
+  let basicInfoFields = visibleFields.filter(f => f.group === '基本信息');
+  if (currentStep >= 3) {
+    const supplierRow = { id: '__supplier__', label: '供应商', group: '基本信息', behavior: 'manual' as const };
+    const orderIdx = basicInfoFields.findIndex(f => f.id === 'order_no');
+    if (orderIdx >= 0) {
+      basicInfoFields = [...basicInfoFields.slice(0, orderIdx + 1), supplierRow, ...basicInfoFields.slice(orderIdx + 1)];
+    } else {
+      basicInfoFields = [...basicInfoFields, supplierRow];
+    }
+  }
   const otherFields = visibleFields.filter(f => f.group !== '基本信息');
   const otherGroups = Array.from(new Set(otherFields.map(f => f.group)));
 
@@ -627,7 +672,7 @@ export function TrialProductionTable({
             {basicInfoFields.length > 0 && (
               <tbody>
                 <SortableContext items={basicInfoFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                  {basicInfoFields.map((field) => (
+                   {basicInfoFields.map((field) => (
                     <SortableRow 
                       key={field.id}
                       field={field}
@@ -642,6 +687,8 @@ export function TrialProductionTable({
                       efuseConfigs={efuseConfigs}
                       onUpdateEfuse={onUpdateEfuse}
                       onUpdateSkuHeader={onUpdateSkuHeader}
+                      onUpdateSelectedSupply={onUpdateSelectedSupply}
+                      skuSupplyKeys={skuSupplyKeys}
                     />
                   ))}
                 </SortableContext>
@@ -693,6 +740,8 @@ export function TrialProductionTable({
                             efuseConfigs={efuseConfigs}
                             onUpdateEfuse={onUpdateEfuse}
                             onUpdateSkuHeader={onUpdateSkuHeader}
+                            onUpdateSelectedSupply={onUpdateSelectedSupply}
+                            skuSupplyKeys={skuSupplyKeys}
                           />
                         );
                       })}

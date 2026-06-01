@@ -39,6 +39,7 @@ import {
 import type { SplitOptionFieldId } from './types';
 import { buildTrialProductionWorkbook } from './lib/trialProductionWorkbook';
 import type { Step5LayoutSnapshot } from './lib/trialProductionWorkbook';
+import { normalizeSelectedSupplyKey, projectSkusForStep, listSupplyKeys } from './lib/supplyProjection';
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState<StepId>(1);
@@ -212,7 +213,7 @@ export default function App() {
 
   const loadHistoryItem = (item: HistoryEntry) => {
     setProjectInfo(item.projectInfo);
-    setSkuData(item.skuData);
+    setSkuData(item.skuData.map(normalizeSelectedSupplyKey));
     setCurrentStep(item.currentStep);
     setActiveFields(item.activeFields);
     setIsFlowComplete(item.isFlowComplete);
@@ -232,7 +233,7 @@ export default function App() {
         ...s,
         id: `s_copy_${Date.now()}_${i}_${j}`
       }))
-    })));
+    })).map(normalizeSelectedSupplyKey));
     setCurrentStep(1); // Set to step 1 so they can review and auto-fetch
     setActiveFields(item.activeFields);
     setIsFlowComplete(false);
@@ -615,7 +616,7 @@ export default function App() {
       })),
     }));
 
-    setSkuData(baseData);
+    setSkuData(baseData.map(normalizeSelectedSupplyKey));
     setLoading(false);
     setCurrentStep(2);
   };
@@ -623,8 +624,9 @@ export default function App() {
   // Step 4: Validation Engine
   const runValidation = () => {
     const results: ValidationResult[] = [];
+    const visibleForValidation = projectSkusForStep(skuData, currentStep);
     
-    skuData.forEach(sku => {
+    visibleForValidation.forEach(sku => {
       sku.supplies.forEach((sup) => {
         const prefix = `[${sku.project} · ${sup.label}] `;
         const vals = sup.values;
@@ -804,6 +806,13 @@ export default function App() {
     }));
   };
 
+  const handleUpdateSelectedSupply = (skuId: string, supplyKey: string) => {
+    if (currentStep !== 3) return;
+    setSkuData((prev) =>
+      prev.map((sku) => (sku.id === skuId ? normalizeSelectedSupplyKey({ ...sku, selectedSupplyKey: supplyKey }) : sku))
+    );
+  };
+
   const handleAddSku = () => {
     const newSku: SKUData = {
       id: `sku_${Date.now()}`,
@@ -855,6 +864,8 @@ export default function App() {
   };
 
   const disableNextToPreview = currentStep === 4 && isExportDisabled;
+  const visibleSkuData = projectSkusForStep(skuData, currentStep);
+  const skuSupplyKeys = Object.fromEntries(skuData.map(s => [s.id, listSupplyKeys(s)]));
 
   return (
     <div className="flex flex-col h-screen bg-[#f5f7f9] text-slate-800 font-sans overflow-hidden">
@@ -1181,7 +1192,7 @@ export default function App() {
                 <div className="bg-white rounded shadow-sm border border-slate-200 overflow-hidden min-h-[500px]">
                   <TrialProductionTable 
                     currentStep={currentStep}
-                    skuData={skuData}
+                    skuData={visibleSkuData}
                     efuseConfigs={projectInfo.efuseConfigs}
                     onUpdateEfuse={(id, val) => setProjectInfo(prev => ({ ...prev, efuseConfigs: { ...prev.efuseConfigs, [id]: val } }))}
                     onUpdateValue={handleUpdateValue}
@@ -1200,6 +1211,8 @@ export default function App() {
                         setActiveFields(prev => prev.filter(f => f.id !== id));
                      }}
                      onStep5LayoutChange={setStep5Layout}
+                     onUpdateSelectedSupply={handleUpdateSelectedSupply}
+                     skuSupplyKeys={skuSupplyKeys}
                   />
                 </div>
 

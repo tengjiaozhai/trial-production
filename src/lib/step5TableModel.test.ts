@@ -68,4 +68,12 @@ describe('buildStep5TableModel', () => {
     expect(emmcRow.cells[0].value).toBe('emmc-a-128G');
     expect(emmcRow.cells[1].value).toBe('emmc-b-128G');
   });
+
+  it('includes supplier row after basic info fields when includeSupplierRow is true', () => {
+    const model = buildStep5TableModel({ activeFields, skuData, includeSupplierRow: true });
+    const supplierRow = model.rows.find((r) => r.kind === 'field' && r.fieldId === '__supplier__');
+    expect(supplierRow).toBeDefined();
+    if (supplierRow?.kind !== 'field') throw new Error('expected field row');
+    expect(supplierRow.fieldLabel).toBe('供应商');
+  });
 });

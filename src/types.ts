@@ -70,6 +70,7 @@ export interface SKUData {
   project: string;
   fieldOptions?: Partial<Record<SplitOptionFieldId, SplitFieldOption[]>>;
   supplies: SkuSupply[];
+  selectedSupplyKey?: string;
 }
 
 export interface SkuSupply {
