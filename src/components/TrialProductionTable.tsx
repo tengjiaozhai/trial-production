@@ -2,11 +2,12 @@ import React, { useRef, useState, useEffect } from 'react';
 import { FIELD_GROUPS, FIELD_DEFS } from '@/src/constants';
 import { SKUData, FieldDefinition, StepId } from '@/src/types';
 import { cn } from '@/src/lib/utils';
-import { Trash2, Plus, GripVertical, ChevronDown, X } from 'lucide-react';
+import { Trash2, Plus, GripVertical, ChevronDown, X, Copy, ClipboardPaste } from 'lucide-react';
 import { listSupplyKeys } from '../lib/supplyProjection';
 import { buildStep5TableModel } from '../lib/step5TableModel';
 import type { Step5Row } from '../lib/step5TableModel';
-import { buildTableViewportMetrics } from '../lib/tableViewport';
+import { buildTableViewportMetrics, BASIC_INFO_BLOCK_HEIGHT_PX } from '../lib/tableViewport';
+import type { CopiedSku } from '../lib/tableOperations';
 
 function ProdLocDropdown({ value, onChange, disabled, hasConflict, fieldLabel }: any) {
   const options = ['宜宾', '南昌', '河源', '越南'];
@@ -93,19 +94,24 @@ interface TrialProductionTableProps {
   onUpdateSkuHeader?: (skuId: string, part: 'stage' | 'order' | 'project', val: string) => void;
   onUpdateSupplyLabel?: (skuId: string, supplyId: string, val: string) => void;
   onAddSupply?: (skuId: string, index?: number) => void;
-  onDeleteSupply?: (skuId: string, supplyId: string) => void;
   onAddSku?: (index?: number) => void;
   onDeleteSku?: (skuId: string) => void;
+  onInsertSkuAfter?: (afterSkuId: string) => void;
   selectedRows?: string[];
   onSelectRow?: (fieldId: string) => void;
   activeFields: FieldDefinition[];
   onReorderFields?: (activeId: string, overId: string) => void;
   onReorderSkus?: (activeId: string, overId: string) => void;
   onReorderSupplies?: (skuId: string, activeId: string, overId: string) => void;
-  onInsertRowAt?: (index: number) => void;
+  onInsertRowAt?: (afterFieldId: string) => void;
   onStep5LayoutChange?: (layout: { supplyWidths: Record<string, number>; rowHeights: Record<string, number> }) => void;
   onUpdateSelectedSupply?: (skuId: string, supplyKey: string) => void;
   skuSupplyKeys?: Record<string, string[]>;
+  selectedSkuId?: string | null;
+  onSelectSku?: (skuId: string) => void;
+  copiedSku?: CopiedSku | null;
+  onCopySelectedSku?: () => void;
+  onPasteIntoNewSku?: () => void;
 }
 
 // Resize Handle Component
@@ -140,13 +146,37 @@ function ResizeHandle({ onResize, direction = 'horizontal' }: { onResize: (delta
 }
 
 // Sortable Table Header Cell (for Supplies/Columns)
-function SortableHeader({ skuId, supply, onUpdateSupplyLabel, onDeleteSupply, onAddSupply, currentStep, supIdx, width, onResize }: any) {
+function SortableHeader({ skuId, supply, onUpdateSupplyLabel, onDeleteSku, onAddSupply, onInsertSkuAfter, currentStep, supIdx, width, onResize, isSelected, onSelectSku }: any) {
+  const isFirstOfSku = supIdx === 0;
   return (
-    <th 
+    <th
+      data-testid={isFirstOfSku ? 'sku-header-block' : undefined}
+      data-sku-id={isFirstOfSku ? skuId : undefined}
+      data-selected={isFirstOfSku ? (isSelected ? 'true' : 'false') : undefined}
       style={{ width, minWidth: width }}
-      className="border-b border-slate-200 border-r border-slate-200 p-3 text-left bg-[#f8fafc] relative group/th font-bold text-[13px] text-slate-700 hover:bg-slate-50 transition-colors"
+      className={cn(
+        "border-b border-slate-200 border-r border-slate-200 p-2 text-left bg-[#f8fafc] relative group/th font-bold text-[13px] text-slate-700 hover:bg-slate-50 transition-colors",
+        isFirstOfSku && isSelected && "border-2 border-blue-500 ring-2 ring-blue-200 bg-blue-50/30 z-10"
+      )}
     >
       <div className="flex items-center gap-1 group/sup h-full">
+        {isFirstOfSku && currentStep !== 5 && onSelectSku && (
+          <button
+            type="button"
+            data-testid="sku-select"
+            onClick={() => onSelectSku(skuId)}
+            className={cn(
+              "shrink-0 w-5 h-5 rounded border flex items-center justify-center transition-all",
+              isSelected
+                ? "bg-blue-500 border-blue-500 text-white"
+                : "bg-white border-slate-300 text-transparent hover:border-blue-400"
+            )}
+            title={isSelected ? "取消选中" : "选中此主板块"}
+            aria-label={isSelected ? "取消选中主板块" : "选中主板块"}
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" className="w-3 h-3"><path fillRule="evenodd" d="M16.7 5.3a1 1 0 010 1.4l-7.4 7.4a1 1 0 01-1.4 0L3.3 9.5a1 1 0 011.4-1.4l3.9 3.9 6.7-6.7a1 1 0 011.4 0z" clipRule="evenodd" /></svg>
+          </button>
+        )}
         {currentStep === 5 ? (
           <span className="w-full text-center px-1 font-bold text-slate-800 text-[13px]">{supply.label || '-'}</span>
         ) : (
@@ -158,20 +188,27 @@ function SortableHeader({ skuId, supply, onUpdateSupplyLabel, onDeleteSupply, on
           />
         )}
         {currentStep === 4 && (
-          <button onClick={() => onDeleteSupply?.(skuId, supply.id)} className="text-slate-400 hover:text-red-500 opacity-0 group-hover/sup:opacity-100 transition-opacity absolute right-2"><Trash2 size={12} /></button>
+          <button onClick={() => onDeleteSku?.(skuId)} className="text-slate-400 hover:text-red-500 opacity-0 group-hover/sup:opacity-100 transition-opacity absolute right-2"><Trash2 size={12} /></button>
         )}
       </div>
       {currentStep !== 5 && <ResizeHandle onResize={(delta) => onResize(supply.id, delta)} />}
       {/* Insert Column Button */}
-      {currentStep !== 5 && currentStep === 4 && (
-      <div className="absolute right-0 top-0 bottom-0 w-[2px] bg-blue-500 opacity-0 group-hover/th:opacity-100 transition-opacity pointer-events-none">
-         <button 
+      {currentStep >= 2 && currentStep <= 4 && (
+      <div className="absolute right-0 top-0 bottom-0 z-[60] w-[2px] bg-blue-500 opacity-0 group-hover/th:opacity-100 transition-opacity pointer-events-none">
+         <button
            type="button"
-           onClick={() => onAddSupply?.(skuId, supIdx + 1)}
-           className="pointer-events-auto absolute top-1/2 -translate-y-1/2 -right-2 w-5 h-5 bg-blue-500 rounded-full text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow z-50"
-         >
-           <Plus size={12} strokeWidth={3} />
-         </button>
+           data-testid="column-insert-after"
+           onClick={() => {
+             if (currentStep === 2) {
+               onAddSupply?.(skuId, supIdx + 1);
+               return;
+             }
+             onInsertSkuAfter?.(skuId);
+           }}
+           className="pointer-events-auto absolute top-1/2 -translate-y-1/2 -right-2 z-[70] w-5 h-5 bg-blue-500 rounded-full text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow"
+          >
+            <Plus size={12} strokeWidth={3} />
+          </button>
       </div>
       )}
     </th>
@@ -230,7 +267,7 @@ function SortableRow({
         </div>
         {currentStep !== 5 && <ResizeHandle direction="vertical" onResize={(delta) => onRowResize(field.id, delta)} />}
       </td>
-      <td className="sticky left-[32px] z-20 border-b border-slate-200 border-r-[2px] border-r-slate-300 bg-white p-2 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] align-top w-[120px] min-w-[120px]">
+      <td className="sticky left-[32px] z-20 border-b border-slate-200 border-r-[2px] border-r-slate-300 bg-white p-2 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] align-top w-[120px] min-w-[120px] relative">
         <div className="flex flex-col items-center justify-center h-full gap-1.5">
           <span className="text-[13px] font-bold text-[#1e293b] text-center">{field.label}</span>
           {['ce_cert', 'customer_sample_req', 'hw_eng', 'hw_test', 'sw_eng', 'sw_test', 'struct_eng', 'reliability', 'reliability_eng', 'image_eng', 'npm', 'ux', 'parts'].includes(field.id) && (
@@ -246,6 +283,17 @@ function SortableRow({
             </select>
           )}
         </div>
+        {currentStep >= 2 && currentStep <= 4 && (
+          <button
+            type="button"
+            data-testid="row-insert-after"
+            onClick={() => onInsertRowAt?.(field.id)}
+            className="absolute left-1/2 -translate-x-1/2 -bottom-2 z-50 w-4 h-4 bg-blue-500 rounded-full text-white flex items-center justify-center opacity-0 group-hover:opacity-100 hover:scale-125 active:scale-95 transition-all shadow-md"
+            title="在此行后插入"
+          >
+            <Plus size={10} strokeWidth={4} />
+          </button>
+        )}
       </td>
       {skuData.map((sku: any) => {
         const shouldSpanSku = ['band', 'storage', 'project', 'stage', 'mb_id'].includes(field.id);
@@ -256,9 +304,9 @@ function SortableRow({
           return (
             <td 
               key={sku.id} 
-              colSpan={sku.supplies.length + (currentStep === 4 ? 1 : 0)}
+              colSpan={sku.supplies.length}
               className={cn(
-                "border-b border-r border-slate-200 p-3 align-top transition-colors relative",
+                "border-b border-r border-slate-200 p-2 align-top transition-colors relative",
                 field.behavior === 'calc' ? "bg-[#f8fafc]" : "bg-white",
                 hasConflict && "bg-rose-50/50"
               )}
@@ -274,7 +322,7 @@ function SortableRow({
                   <input
                     style={{ height: rowHeight ? rowHeight - 20 : 34 }}
                     className={cn(
-                      "flex-1 min-w-0 px-3 focus:outline-none transition-all text-[13px] leading-none text-center",
+                      "flex-1 min-w-0 px-2 focus:outline-none transition-all text-[13px] leading-none text-center",
                       "bg-transparent text-slate-700",
                       field.behavior === 'calc' && "font-bold text-slate-500 cursor-default",
                       hasConflict && currentStep !== 5 && "text-rose-600 placeholder:text-rose-400 placeholder:font-bold"
@@ -307,7 +355,7 @@ function SortableRow({
             <td
               key={sku.id}
               colSpan={sku.supplies.length}
-              className="border-b border-r border-slate-200 p-3 align-top bg-white"
+              className="border-b border-r border-slate-200 p-2 align-top bg-white"
             >
               {currentStep === 3 ? (
                 <select
@@ -337,7 +385,7 @@ function SortableRow({
               key={supply.id} 
               style={{ width: colWidths[supply.id], minWidth: colWidths[supply.id] }}
               className={cn(
-                "border-b border-r border-slate-200 p-3 align-top transition-colors",
+                "border-b border-r border-slate-200 p-2 align-top transition-colors",
                 field.behavior === 'calc' ? "bg-[#f8fafc]" : "bg-white",
                 hasConflict && "bg-rose-50/50"
               )}
@@ -364,7 +412,7 @@ function SortableRow({
                     <input
                       style={{ height: rowHeight ? rowHeight - 20 : 34 }}
                       className={cn(
-                        "flex-1 min-w-0 px-3 focus:outline-none transition-all text-[13px] leading-none",
+                        "flex-1 min-w-0 px-2 focus:outline-none transition-all text-[13px] leading-none",
                         "bg-transparent text-slate-700",
                         field.behavior === 'calc' && "font-bold text-slate-500 cursor-default",
                         hasConflict && currentStep !== 5 && "text-rose-600 placeholder:text-rose-400 placeholder:font-bold"
@@ -403,25 +451,9 @@ function SortableRow({
           )})}
           </React.Fragment>
           )}
-          {currentStep === 4 && (
-            <td className="bg-white border-b border-r border-slate-200 min-w-[40px] pointer-events-none"></td>
-          )}
         </React.Fragment>
       )})}
-      <td className="p-0 border-b border-gray-200 relative w-0">
-        {currentStep !== 5 && (
-        <div className="absolute left-[-1000px] right-0 -bottom-[1px] h-[2px] z-50 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-          <button 
-            type="button"
-            onClick={() => onInsertRowAt?.(masterIdx + 1)}
-            className="pointer-events-auto absolute left-1/2 -translate-x-1/2 -top-2 w-4 h-4 bg-blue-500 rounded-full text-white flex items-center justify-center hover:scale-125 active:scale-95 transition-all shadow-md"
-            title="在此行后插入"
-          >
-            <Plus size={10} strokeWidth={4} />
-          </button>
-        </div>
-        )}
-      </td>
+      <td className="p-0 border-b border-gray-200 relative w-0"></td>
     </tr>
   );
 }
@@ -437,9 +469,9 @@ export function TrialProductionTable({
   onUpdateSkuHeader,
   onUpdateSupplyLabel,
   onAddSupply,
-  onDeleteSupply,
   onAddSku,
   onDeleteSku,
+  onInsertSkuAfter,
   selectedRows = [],
   onSelectRow,
   activeFields,
@@ -447,12 +479,18 @@ export function TrialProductionTable({
   onInsertRowAt,
   onStep5LayoutChange,
   onUpdateSelectedSupply,
-  skuSupplyKeys
+  skuSupplyKeys,
+  selectedSkuId = null,
+  onSelectSku,
+  copiedSku = null,
+  onCopySelectedSku,
+  onPasteIntoNewSku,
 }: TrialProductionTableProps) {
 
   const topTableRef = useRef<HTMLDivElement>(null);
   const bottomTableRef = useRef<HTMLDivElement>(null);
   const step5TableRef = useRef<HTMLDivElement>(null);
+  const canonicalFieldIds = new Set(FIELD_DEFS.map((field) => field.id));
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
   const [horizontalScrollLeft, setHorizontalScrollLeft] = useState(0);
@@ -525,7 +563,12 @@ export function TrialProductionTable({
         'cpu', 'emmc', 'ddr', 'pmu', 'tx', 'rf_transceiver', 'nfc', 'pcb', 'sub_board', 'reliability', 'field_test', 'fan_sample', 'ce_cert',
         'hw_eng', 'hw_test', 'sw_eng', 'sw_test', 'struct_eng', 'reliability_eng', 'pressure_test', 'image_eng', 'npm', 'ux', 'parts', 'pm'
       ];
-      return fields.filter(f => step2Ids.includes(f.id));
+      const step2Groups = new Set(
+        FIELD_DEFS.filter((field) => step2Ids.includes(field.id)).map((field) => field.group),
+      );
+      return fields.filter(
+        (field) => step2Ids.includes(field.id) || (!canonicalFieldIds.has(field.id) && step2Groups.has(field.group)),
+      );
     }
     if (currentStep === 3) {
       const step3Ids = [
@@ -534,7 +577,12 @@ export function TrialProductionTable({
         'pkg_process', 'copy_mold', 'underfill', 'thermal_gel_mb', 'usb_glue', 'solder_paste', 'thermal_gel_front', 'tp_hotmelt',
         'ebom', 'ebom_desc', 'sub_bom', 'sub_bom_desc', 'lda', 'mbom', 'pbom'
       ];
-      return fields.filter(f => step3Ids.includes(f.id));
+      const step3Groups = new Set(
+        FIELD_DEFS.filter((field) => step3Ids.includes(field.id)).map((field) => field.group),
+      );
+      return fields.filter(
+        (field) => step3Ids.includes(field.id) || (!canonicalFieldIds.has(field.id) && step3Groups.has(field.group)),
+      );
     }
     return fields;
   };
@@ -689,7 +737,6 @@ export function TrialProductionTable({
           {sku.supplies.map(sup => (
              <col key={sup.id} style={{ width: colWidths[sup.id] || 140, minWidth: colWidths[sup.id] || 140 }} />
           ))}
-          {currentStep === 4 && <col style={{ width: 40, minWidth: 40 }} />}
         </React.Fragment>
       ))}
       <col style={{ width: 0 }} />
@@ -697,7 +744,35 @@ export function TrialProductionTable({
   );
 
   return (
-    <div className="relative border border-slate-200 rounded shadow-sm bg-white overflow-hidden flex flex-col h-[calc(100vh-280px)] min-w-0">
+    <div className="relative border border-slate-200 rounded shadow-sm bg-white overflow-hidden flex flex-col h-full min-h-0 min-w-0">
+      {currentStep >= 2 && currentStep <= 4 && (
+        <div className="absolute top-3 right-3 z-[60] flex flex-col gap-2 items-end">
+          {selectedSkuId && onCopySelectedSku && (
+            <button
+              type="button"
+              data-testid="copy-selected-sku"
+              onClick={onCopySelectedSku}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-blue-300 text-blue-600 rounded-lg text-xs font-bold shadow-md hover:bg-blue-50 transition-all active:scale-95"
+              title="复制选中的主板块到剪贴板（页面内）"
+            >
+              <Copy size={14} />
+              复制选中主板块
+            </button>
+          )}
+          {selectedSkuId && copiedSku && onPasteIntoNewSku && (
+            <button
+              type="button"
+              data-testid="paste-into-new-sku"
+              onClick={onPasteIntoNewSku}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white border border-emerald-500 rounded-lg text-xs font-bold shadow-md transition-all active:scale-95"
+              title="在选中主板块之后插入新块并粘贴"
+            >
+              <ClipboardPaste size={14} />
+              粘贴到新块
+            </button>
+          )}
+        </div>
+      )}
       <DndContext 
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -706,7 +781,8 @@ export function TrialProductionTable({
         <div 
           ref={topTableRef}
           onScroll={handleScroll('top')}
-          className="overflow-x-auto overflow-y-hidden shrink-0 z-20 border-b-2 border-slate-300 shadow-sm min-w-0"
+          style={{ height: BASIC_INFO_BLOCK_HEIGHT_PX }}
+          className="overflow-auto shrink-0 z-20 border-b-2 border-slate-300 shadow-sm min-w-0"
         >
           <table className="text-sm border-separate border-spacing-0" style={tableStyle}>
             {renderColGroup()}
@@ -714,36 +790,36 @@ export function TrialProductionTable({
               <tr>
                 <th
                   colSpan={viewport.basicInfoColSpan}
-                  className="bg-[#f8fafc] border-b border-slate-200 px-3 py-3 text-[13px] font-bold text-slate-500 text-center uppercase tracking-wider relative"
+                  className="bg-[#f8fafc] border-b border-slate-200 px-3 py-2 text-[13px] font-bold text-slate-500 text-center uppercase tracking-wider relative"
                 >
                   基本信息
                 </th>
               </tr>
-              {currentStep === 4 && (
+              {currentStep >= 2 && currentStep <= 4 && (
                 <tr className="bg-[#f8fafc]">
                   <th className="sticky left-0 z-[70] border-b border-r border-slate-200 bg-[#f8fafc]"></th>
-                  <th className="sticky left-[32px] z-[70] border-b border-slate-200 border-r-[2px] border-r-slate-300 bg-[#f8fafc] px-3 py-4 text-center text-slate-700 text-[13px] font-bold shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)]">
+                  <th className="sticky left-[32px] z-[70] border-b border-slate-200 border-r-[2px] border-r-slate-300 bg-[#f8fafc] px-3 py-2 text-center text-slate-700 text-[13px] font-bold shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)]">
                     方案名称
                   </th>
                   {skuData.map((sku) => (
                     <React.Fragment key={sku.id}>
                       {sku.supplies.map((supply, supIdx) => (
-                        <SortableHeader 
-                          key={supply.id} 
-                          skuId={sku.id} 
-                          supply={supply} 
+                        <SortableHeader
+                          key={supply.id}
+                          skuId={sku.id}
+                          supply={supply}
                           supIdx={supIdx}
                           currentStep={currentStep}
                           onUpdateSupplyLabel={onUpdateSupplyLabel}
-                          onDeleteSupply={onDeleteSupply}
+                          onDeleteSku={onDeleteSku}
                           onAddSupply={onAddSupply}
+                          onInsertSkuAfter={onInsertSkuAfter}
                           width={colWidths[supply.id] || 140}
                           onResize={handleColResize}
+                          isSelected={supIdx === 0 && selectedSkuId === sku.id}
+                          onSelectSku={onSelectSku}
                         />
                       ))}
-                      <th className="bg-[#f8fafc] p-0 border-b border-slate-200 border-r border-slate-200 w-10">
-                         <button onClick={() => onAddSupply?.(sku.id)} className="w-full h-full flex items-center justify-center text-slate-300 hover:text-blue-500 transition-colors bg-white hover:bg-slate-50"><Plus size={14} /></button>
-                      </th>
                     </React.Fragment>
                   ))}
                   <th className="border-b border-slate-200 bg-[#f8fafc]"></th>
@@ -781,7 +857,7 @@ export function TrialProductionTable({
         <div 
           ref={bottomTableRef}
           onScroll={handleScroll('bottom')}
-          className="overflow-auto flex-1 z-0 scrollbar-thin scrollbar-thumb-slate-300 relative bg-white min-w-0"
+          className="overflow-auto flex-1 min-h-0 z-0 scrollbar-thin scrollbar-thumb-slate-300 relative bg-white min-w-0"
         >
           <table className="text-sm border-separate border-spacing-0" style={tableStyle}>
             {renderColGroup()}
@@ -799,7 +875,7 @@ export function TrialProductionTable({
                       <tr className="bg-[#f8fafc] select-none">
                         <td
                           colSpan={viewport.bodyColSpan}
-                          className="border-y border-slate-200 bg-[#f8fafc] px-3 py-3 text-[13px] font-bold text-slate-500 text-center uppercase tracking-wider relative"
+                          className="border-y border-slate-200 bg-[#f8fafc] px-3 py-2 text-[13px] font-bold text-slate-500 text-center uppercase tracking-wider relative"
                         >
                           {groupName}
                         </td>

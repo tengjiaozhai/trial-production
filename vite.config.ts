@@ -13,6 +13,7 @@ export default defineConfig(() => {
     },
     test: {
       environment: 'node',
+      setupFiles: ['./vitest.setup.ts'],
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.

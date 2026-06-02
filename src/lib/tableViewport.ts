@@ -2,7 +2,8 @@ import type { SKUData, StepId } from '../types';
 
 const INDEX_COL_WIDTH = 32;
 const FIELD_COL_WIDTH = 120;
-const STEP4_EXTRA_COL_WIDTH = 40;
+
+export const BASIC_INFO_BLOCK_HEIGHT_PX = 200;
 
 export interface TableViewportMetrics {
   totalTableWidthPx: number;
@@ -11,6 +12,8 @@ export interface TableViewportMetrics {
   totalValueColumns: number;
   basicInfoColSpan: number;
   bodyColSpan: number;
+  basicInfoBlockHeightPx: number;
+  hasBodyScrollableRegion: boolean;
 }
 
 export function buildTableViewportMetrics(args: {
@@ -19,8 +22,7 @@ export function buildTableViewportMetrics(args: {
   colWidths: Record<string, number>;
 }): TableViewportMetrics {
   const supplyColumns = args.skuData.reduce((acc, sku) => acc + sku.supplies.length, 0);
-  const step4ExtraColumns = args.currentStep === 4 ? args.skuData.length : 0;
-  const totalValueColumns = supplyColumns + step4ExtraColumns;
+  const totalValueColumns = supplyColumns;
   const supplyWidthPx = args.skuData.reduce(
     (acc, sku) => acc + sku.supplies.reduce((sum, supply) => sum + (args.colWidths[supply.id] ?? 140), 0),
     0,
@@ -29,8 +31,7 @@ export function buildTableViewportMetrics(args: {
   const totalTableWidthPx =
     INDEX_COL_WIDTH +
     FIELD_COL_WIDTH +
-    supplyWidthPx +
-    step4ExtraColumns * STEP4_EXTRA_COL_WIDTH;
+    supplyWidthPx;
 
   return {
     totalTableWidthPx,
@@ -39,5 +40,7 @@ export function buildTableViewportMetrics(args: {
     totalValueColumns,
     basicInfoColSpan: 2 + totalValueColumns,
     bodyColSpan: 2 + totalValueColumns,
+    basicInfoBlockHeightPx: BASIC_INFO_BLOCK_HEIGHT_PX,
+    hasBodyScrollableRegion: true,
   };
 }

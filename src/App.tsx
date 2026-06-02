@@ -39,7 +39,9 @@ import {
 import type { SplitOptionFieldId } from './types';
 import { buildTrialProductionWorkbook } from './lib/trialProductionWorkbook';
 import type { Step5LayoutSnapshot } from './lib/trialProductionWorkbook';
-import { normalizeSelectedSupplyKey, projectSkusForStep, listSupplyKeys } from './lib/supplyProjection';
+import { normalizeSelectedSupplyKey, projectSkuForStep, projectSkusForStep, listSupplyKeys } from './lib/supplyProjection';
+import { insertFieldAfter, createInsertedField, createBlankSkuFromTemplate, buildNewSkuId, captureCopyFromSku, pasteCopiedIntoTarget, buildNewSupplyId } from './lib/tableOperations';
+import type { CopiedSku } from './lib/tableOperations';
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState<StepId>(1);
@@ -66,6 +68,9 @@ export default function App() {
   const [manualPcbaInput, setManualPcbaInput] = useState("");
   const [step5Layout, setStep5Layout] = useState<Step5LayoutSnapshot | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [stepsCollapsed, setStepsCollapsed] = useState(false);
+  const [selectedSkuId, setSelectedSkuId] = useState<string | null>(null);
+  const [copiedSku, setCopiedSku] = useState<CopiedSku | null>(null);
 
   // Compute step 2 conflicts based on activeFields and skuData
   const getStep2Conflicts = () => {
@@ -275,53 +280,91 @@ export default function App() {
     }));
   };
 
-  // Insert Field at Position
-  const handleInsertFieldAt = (index: number) => {
-     const name = prompt('请输入新字段名：');
-     if (!name) return;
-     const newField: FieldDefinition = {
-       id: `custom_${Date.now()}`,
-       label: name,
-       group: index > 0 ? activeFields[index - 1].group : '基本信息',
-       behavior: 'manual'
-     };
-     setActiveFields(prev => {
-       const next = [...prev];
-       next.splice(index, 0, newField);
-       return next;
-     });
-     setIsExportDisabled(true);
+  // Insert Field after the given field id
+  const handleInsertFieldAt = (afterFieldId: string) => {
+    const title = window.prompt('请输入新增行标题：')?.trim();
+    if (!title) return;
+
+    setActiveFields(prev => {
+      const newField = createInsertedField(afterFieldId, prev, title);
+      return insertFieldAfter(prev, afterFieldId, newField);
+    });
+    setIsExportDisabled(true);
   };
 
-  // Insert Supply at Position
+  // Add a blank SKU cloned from the last SKU's structure; at end by default
+  const handleAddSkuAt = (index?: number) => {
+    setSkuData(prev => {
+      if (prev.length === 0) return prev;
+      const template = prev[prev.length - 1];
+      const newSku = createBlankSkuFromTemplate(template, buildNewSkuId());
+      const next = [...prev];
+      if (typeof index === 'number') next.splice(index, 0, newSku);
+      else next.push(newSku);
+      return next;
+    });
+  };
+
   const handleAddSupplyAt = (skuId: string, index?: number) => {
     setSkuData(prev => prev.map(sku => {
-      if (sku.id === skuId) {
-        const newSup = { id: `s_${Date.now()}`, supplyKey: '', label: '新供应', values: {} };
-        const nextSupplies = [...sku.supplies];
-        if (typeof index === 'number') nextSupplies.splice(index, 0, newSup);
-        else nextSupplies.push(newSup);
-        return { ...sku, supplies: nextSupplies };
-      }
-      return sku;
+      if (sku.id !== skuId) return sku;
+      const newSup = { id: `s_${Date.now()}`, supplyKey: '', label: '新供应', values: {} };
+      const nextSupplies = [...sku.supplies];
+      if (typeof index === 'number') nextSupplies.splice(index, 0, newSup);
+      else nextSupplies.push(newSup);
+      return { ...sku, supplies: nextSupplies };
     }));
+    setIsExportDisabled(true);
   };
 
-  // Add SKU at position (not explicitly handled in UI yet, but API should be there)
-  const handleAddSkuAt = (index?: number) => {
-    const newSku: SKUData = {
-      id: `sku_${Date.now()}`,
-      stage: projectInfo.stage,
-      orderNo: '',
-      project: projectInfo.name,
-      supplies: [{ id: 's1', supplyKey: '一供', label: '一供', values: {} }]
-    };
+  const handleInsertSkuAfter = (afterSkuId: string) => {
     setSkuData(prev => {
-       const next = [...prev];
-       if (typeof index === 'number') next.splice(index, 0, newSku);
-       else next.push(newSku);
-       return next;
+      if (prev.length === 0) return prev;
+      const anchorIdx = prev.findIndex(sku => sku.id === afterSkuId);
+      const anchor = anchorIdx === -1 ? prev[prev.length - 1] : prev[anchorIdx];
+      const projectedAnchor = projectSkuForStep(anchor, 4);
+      const newSku = createBlankSkuFromTemplate(projectedAnchor, buildNewSkuId());
+      const next = [...prev];
+      if (anchorIdx === -1) next.push(newSku);
+      else next.splice(anchorIdx + 1, 0, newSku);
+      return next;
     });
+    setIsExportDisabled(true);
+  };
+
+  const handleDeleteSku = (skuId: string) => {
+    setSkuData(prev => prev.filter(sku => sku.id !== skuId));
+    setSelectedSkuId(prev => (prev === skuId ? null : prev));
+    setIsExportDisabled(true);
+  };
+
+  // Toggle SKU selection
+  const handleSelectSku = (skuId: string) => {
+    setSelectedSkuId(prev => (prev === skuId ? null : skuId));
+  };
+
+  // Capture a copy of the currently selected SKU
+  const handleCopySelectedSku = () => {
+    if (!selectedSkuId) return;
+    const sku = skuData.find(s => s.id === selectedSkuId);
+    if (!sku) return;
+    setCopiedSku(captureCopyFromSku(sku));
+  };
+
+  // Insert a blank SKU right after the selected one, then paste the copied values in
+  const handlePasteIntoNewSku = () => {
+    if (!selectedSkuId || !copiedSku) return;
+    setSkuData(prev => {
+      const idx = prev.findIndex(s => s.id === selectedSkuId);
+      if (idx === -1) return prev;
+      const template = prev[idx];
+      const newId = buildNewSkuId();
+      const blank = createBlankSkuFromTemplate(template, newId);
+      const pasted = pasteCopiedIntoTarget(blank, copiedSku, newId, buildNewSupplyId);
+      const next = [...prev.slice(0, idx + 1), pasted, ...prev.slice(idx + 1)];
+      return next;
+    });
+    setIsExportDisabled(true);
   };
 
   // Step 1: Form Handlers
@@ -845,21 +888,6 @@ export default function App() {
     }));
   };
 
-  const handleDeleteSupply = (skuId: string, supplyId: string) => {
-    setSkuData(prev => prev.map(sku => {
-      if (sku.id === skuId) {
-        return { ...sku, supplies: sku.supplies.filter(s => s.id !== supplyId) };
-      }
-      return sku;
-    }));
-  };
-
-  const handleAddField = () => {
-    handleInsertFieldAt(activeFields.length);
-  };
-
-
-
   const goBack = () => {
     if (currentStep > 1) setCurrentStep((currentStep - 1) as StepId);
   };
@@ -903,7 +931,11 @@ export default function App() {
         </div>
       </header>
       
-      <StepsIndicator currentStep={currentStep} />
+      <StepsIndicator
+        currentStep={currentStep}
+        collapsed={stepsCollapsed}
+        onToggleCollapsed={() => setStepsCollapsed((prev) => !prev)}
+      />
 
       <div className="flex flex-1 overflow-hidden relative min-w-0">
         <Sidebar
@@ -921,7 +953,7 @@ export default function App() {
           onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
         />
 
-        <main className="flex-1 min-w-0 overflow-y-auto p-4 md:p-6 pb-24 scroll-smooth transition-all duration-300 ease-out">
+        <main className="flex flex-col flex-1 min-w-0 min-h-0 overflow-y-auto p-4 md:p-6 pb-24 scroll-smooth transition-all duration-300 ease-out">
           <AnimatePresence mode="wait">
             {currentStep === 1 && (
               <motion.div
@@ -1185,15 +1217,15 @@ export default function App() {
                 key="table-view"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="space-y-6"
+                className="flex flex-col flex-1 min-h-0 gap-6"
               >
-                <div className="flex justify-between items-end pb-4 border-b border-slate-200">
+                <div className="flex justify-between items-end pb-4 border-b border-slate-200 shrink-0">
                   <div className="flex items-center gap-3">
                   </div>
                 </div>
 
-                <div className="bg-white rounded shadow-sm border border-slate-200 overflow-hidden min-h-[500px]">
-                  <TrialProductionTable 
+                <div className="flex-1 min-h-0 bg-white rounded shadow-sm border border-slate-200 overflow-hidden">
+                  <TrialProductionTable
                     currentStep={currentStep}
                     skuData={visibleSkuData}
                     efuseConfigs={projectInfo.efuseConfigs}
@@ -1201,10 +1233,11 @@ export default function App() {
                     onUpdateValue={handleUpdateValue}
                     onUpdateSkuHeader={handleUpdateSkuHeader}
                     onUpdateSupplyLabel={handleUpdateSupplyLabel}
-                    onAddSku={handleAddSkuAt}
                     onAddSupply={handleAddSupplyAt}
-                    onDeleteSupply={handleDeleteSupply}
-                    activeFields={activeFields} 
+                    onAddSku={handleAddSkuAt}
+                    onDeleteSku={handleDeleteSku}
+                    onInsertSkuAfter={handleInsertSkuAfter}
+                    activeFields={activeFields}
                     onReorderFields={handleReorderFields}
                     onReorderSkus={handleReorderSkus}
                     onReorderSupplies={handleReorderSupplies}
@@ -1216,20 +1249,13 @@ export default function App() {
                      onStep5LayoutChange={setStep5Layout}
                      onUpdateSelectedSupply={handleUpdateSelectedSupply}
                      skuSupplyKeys={skuSupplyKeys}
+                     selectedSkuId={selectedSkuId}
+                     onSelectSku={handleSelectSku}
+                     copiedSku={copiedSku}
+                     onCopySelectedSku={handleCopySelectedSku}
+                     onPasteIntoNewSku={handlePasteIntoNewSku}
                   />
                 </div>
-
-                {currentStep === 4 && (
-                  <div className="flex justify-start">
-                    <button 
-                      onClick={handleAddField}
-                      className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-all shadow-sm active:scale-95"
-                    >
-                      <Plus size={18} />
-                      新增业务自定义行
-                    </button>
-                  </div>
-                )}
               </motion.div>
             )}
           </AnimatePresence>
