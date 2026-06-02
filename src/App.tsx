@@ -1193,15 +1193,7 @@ export default function App() {
                                   });
                                 }}
                               />
-                              <div className="flex flex-col items-center min-w-0">
-                                <span className="text-[13px] font-bold text-slate-800 truncate" title={opt.pcba}>{opt.pcba}</span>
-                                {opt.band && !opt.bandConflict && (
-                                  <span className="text-[10px] text-slate-400 font-medium">{opt.band}</span>
-                                )}
-                                {opt.bandConflict && (
-                                  <span className="text-[10px] text-amber-500 font-bold">多市场冲突</span>
-                                )}
-                              </div>
+                              <span className="text-[13px] font-bold text-slate-800 truncate" title={opt.pcba}>{opt.pcba}</span>
                             </label>
                           ))}
                         </div>

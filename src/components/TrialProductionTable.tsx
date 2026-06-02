@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { FIELD_GROUPS, FIELD_DEFS } from '@/src/constants';
 import { SKUData, FieldDefinition, StepId } from '@/src/types';
 import { cn } from '@/src/lib/utils';
-import { Trash2, Plus, GripVertical, ChevronDown, X, Copy, ClipboardPaste } from 'lucide-react';
+import { Trash2, Plus, GripVertical, ChevronDown, X, Copy, ClipboardPaste, Pencil } from 'lucide-react';
 import { listSupplyKeys } from '../lib/supplyProjection';
 import { buildStep5TableModel } from '../lib/step5TableModel';
 import type { Step5Row } from '../lib/step5TableModel';
@@ -155,11 +155,11 @@ function SortableHeader({ skuId, supply, onUpdateSupplyLabel, onDeleteSku, onAdd
       data-selected={isFirstOfSku ? (isSelected ? 'true' : 'false') : undefined}
       style={{ width, minWidth: width }}
       className={cn(
-        "border-b border-slate-200 border-r border-slate-200 p-2 text-left bg-[#f8fafc] relative group/th font-bold text-[13px] text-slate-700 hover:bg-slate-50 transition-colors",
-        isFirstOfSku && isSelected && "border-2 border-blue-500 ring-2 ring-blue-200 bg-blue-50/30 z-10"
+        "border-b border-slate-200 border-r border-slate-200 p-2.5 text-center bg-gradient-to-b from-slate-50/80 to-slate-100/50 relative group/th font-bold text-[13px] text-slate-700 hover:from-slate-100/80 hover:to-slate-150/50 transition-all duration-200 hover:z-20",
+        isFirstOfSku && isSelected && "bg-gradient-to-b from-blue-50/60 to-blue-50/10 shadow-[inset_0_-2px_0_0_#3b82f6] z-10"
       )}
     >
-      <div className="flex items-center gap-1 group/sup h-full">
+      <div className="flex items-center justify-center gap-1 group/sup h-full">
         {isFirstOfSku && currentStep !== 5 && onSelectSku && (
           <button
             type="button"
@@ -181,7 +181,7 @@ function SortableHeader({ skuId, supply, onUpdateSupplyLabel, onDeleteSku, onAdd
           <span className="w-full text-center px-1 font-bold text-slate-800 text-[13px]">{supply.label || '-'}</span>
         ) : (
           <input
-             className="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded text-[13px] font-bold text-slate-800 placeholder:text-slate-400 px-1 py-0.5"
+             className="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded text-[13px] font-bold text-slate-800 placeholder:text-slate-400 px-1 py-0.5 text-center"
              value={supply.label}
              placeholder="方案名称"
              onChange={(e) => onUpdateSupplyLabel?.(skuId, supply.id, e.target.value)}
@@ -267,9 +267,14 @@ function SortableRow({
         </div>
         {currentStep !== 5 && <ResizeHandle direction="vertical" onResize={(delta) => onRowResize(field.id, delta)} />}
       </td>
-      <td className="sticky left-[32px] z-20 border-b border-slate-200 border-r-[2px] border-r-slate-300 bg-white p-2 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] align-top w-[120px] min-w-[120px] relative">
-        <div className="flex flex-col items-center justify-center h-full gap-1.5">
-          <span className="text-[13px] font-bold text-[#1e293b] text-center">{field.label}</span>
+      <td className="sticky left-[32px] z-20 group-hover:z-30 border-b border-slate-200 border-r-[2px] border-r-slate-300 bg-white p-2 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] align-top w-[120px] min-w-[120px] relative">
+        <div className="flex flex-col items-center justify-center h-full gap-1.5 w-full">
+          <div className="flex items-center justify-between w-full px-1">
+            <span className="text-[13px] font-bold text-[#1e293b] text-center flex-1">{field.label}</span>
+            {currentStep !== 5 && field.behavior !== 'calc' && skuData.some((sku: any) => sku.supplies.some((sup: any) => sup.values[field.id] === '' && field.id !== 'prod_loc')) && (
+              <span className="bg-rose-50 text-rose-600 border border-rose-100 text-[10px] px-2 py-0.5 rounded-md font-bold ml-1 scale-90 shrink-0 shadow-sm shadow-rose-100">冲突</span>
+            )}
+          </div>
           {['ce_cert', 'customer_sample_req', 'hw_eng', 'hw_test', 'sw_eng', 'sw_test', 'struct_eng', 'reliability', 'reliability_eng', 'image_eng', 'npm', 'ux', 'parts'].includes(field.id) && (
             <select
               className="border border-slate-200 rounded bg-slate-50 text-[10px] font-bold text-slate-500 px-1 py-0.5 w-full outline-none hover:bg-slate-100 transition-colors text-center cursor-pointer disabled:cursor-not-allowed"
@@ -313,11 +318,11 @@ function SortableRow({
             >
               <div className="flex flex-col gap-1.5 relative h-full">
                 <div className={cn(
-                  "rounded flex items-center transition-all overflow-hidden w-full",
+                  "rounded-lg flex items-center transition-all duration-300 ease-out overflow-hidden w-full",
                   currentStep !== 5 ? "border bg-white" : "border-none bg-transparent",
                   hasConflict && currentStep !== 5 ? "border-rose-400 ring-1 ring-inset ring-rose-400 shadow-sm shadow-rose-200 bg-rose-50/10" : currentStep !== 5 ? "border-slate-200" : "",
-                  currentStep !== 5 && !hasConflict && "focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-400 hover:border-slate-300",
-                  field.behavior === 'calc' && "bg-[#f8fafc] border-transparent"
+                  currentStep !== 5 && !hasConflict && "focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 hover:border-slate-300 hover:shadow-sm focus-within:shadow-md focus-within:shadow-blue-500/5",
+                  field.behavior === 'calc' && "bg-slate-50/50 border-transparent text-slate-500"
                 )}>
                   <input
                     style={{ height: rowHeight ? rowHeight - 20 : 34 }}
@@ -392,11 +397,11 @@ function SortableRow({
             >
               <div className="flex flex-col gap-1.5 relative">
                 <div className={cn(
-                  "rounded flex items-center transition-all overflow-hidden",
+                  "rounded-lg flex items-center transition-all duration-300 ease-out overflow-hidden",
                   currentStep !== 5 ? "border bg-white" : "border-none bg-transparent",
                   hasConflict && currentStep !== 5 ? "border-rose-400 ring-1 ring-inset ring-rose-400 shadow-sm shadow-rose-200 bg-rose-50/10" : currentStep !== 5 ? "border-slate-200" : "",
-                  currentStep !== 5 && !hasConflict && "focus-within:border-blue-400 focus-within:ring-1 focus-within:ring-blue-400 hover:border-slate-300",
-                  field.behavior === 'calc' && "bg-[#f8fafc] border-transparent"
+                  currentStep !== 5 && !hasConflict && "focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 hover:border-slate-300 hover:shadow-sm focus-within:shadow-md focus-within:shadow-blue-500/5",
+                  field.behavior === 'calc' && "bg-slate-50/50 border-transparent text-slate-500"
                 )}>
                   {field.id === 'prod_loc' ? (
                     <div style={{ height: rowHeight ? rowHeight - 20 : 34 }} className="flex-1 min-w-0">
@@ -409,37 +414,44 @@ function SortableRow({
                       />
                     </div>
                   ) : (
-                    <input
-                      style={{ height: rowHeight ? rowHeight - 20 : 34 }}
-                      className={cn(
-                        "flex-1 min-w-0 px-2 focus:outline-none transition-all text-[13px] leading-none",
-                        "bg-transparent text-slate-700",
-                        field.behavior === 'calc' && "font-bold text-slate-500 cursor-default",
-                        hasConflict && currentStep !== 5 && "text-rose-600 placeholder:text-rose-400 placeholder:font-bold"
+                    <>
+                      <input
+                        style={{ height: rowHeight ? rowHeight - 20 : 34 }}
+                        className={cn(
+                          "flex-1 min-w-0 px-2 focus:outline-none transition-all text-[13px] leading-none",
+                          "bg-transparent text-slate-700",
+                          field.behavior === 'calc' && "font-bold text-slate-500 cursor-default",
+                          hasConflict && currentStep !== 5 && "text-rose-600 placeholder:text-rose-400 placeholder:font-bold"
+                        )}
+                        placeholder={hasConflict && currentStep !== 5 ? `⚠️ ${field.label}存在冲突` : "-"}
+                        value={
+                          supply.values[field.id] !== undefined ? supply.values[field.id] : ''
+                        }
+                        onChange={(e) => {
+                          onUpdateValue(sku.id, supply.id, field.id, e.target.value);
+                        }}
+                        readOnly={field.behavior === 'calc' || currentStep === 5}
+                        disabled={currentStep === 5}
+                      />
+                      {currentStep !== 5 && field.behavior !== 'calc' && (
+                        <div className="pr-2 text-slate-300 pointer-events-none">
+                          <Pencil size={12} />
+                        </div>
                       )}
-                      placeholder={hasConflict && currentStep !== 5 ? `⚠️ ${field.label}存在冲突` : "-"}
-                      value={
-                        supply.values[field.id] !== undefined ? supply.values[field.id] : ''
-                      }
-                      onChange={(e) => {
-                        onUpdateValue(sku.id, supply.id, field.id, e.target.value);
-                      }}
-                      readOnly={field.behavior === 'calc' || currentStep === 5}
-                      disabled={currentStep === 5}
-                    />
+                    </>
                   )}
                 </div>
                 {hasConflict && currentStep !== 5 && field.id === 'lcd' && (
-                  <div className="flex items-center gap-2 px-1 text-[11px] font-bold">
-                    <span className="text-rose-500/90 whitespace-nowrap">快速:</span>
+                  <div className="flex items-center gap-2 px-1 text-[11px] font-bold mt-1">
+                    <span className="bg-rose-600 text-white px-1.5 py-0.5 rounded-md scale-90 origin-left">冲突</span>
                     <button 
-                       className="text-slate-500 hover:text-rose-600 transition-colors border-b border-dashed border-slate-300 px-1"
+                       className="text-slate-500 hover:text-rose-600 transition-colors border border-slate-200 rounded px-2 py-0.5 hover:border-rose-300 hover:bg-rose-50 bg-white"
                        onClick={() => onUpdateValue(sku.id, supply.id, field.id, 'BOE')}
                     >
                        BOE
                     </button>
                     <button 
-                       className="text-slate-500 hover:text-rose-600 transition-colors border-b border-dashed border-slate-300 px-1"
+                       className="text-slate-500 hover:text-rose-600 transition-colors border border-slate-200 rounded px-2 py-0.5 hover:border-rose-300 hover:bg-rose-50 bg-white"
                        onClick={() => onUpdateValue(sku.id, supply.id, field.id, 'CSOT')}
                     >
                        CSOT
@@ -744,7 +756,7 @@ export function TrialProductionTable({
   );
 
   return (
-    <div className="relative border border-slate-200 rounded shadow-sm bg-white overflow-hidden flex flex-col h-full min-h-0 min-w-0">
+    <div className="relative border border-slate-100 rounded-2xl shadow-xl shadow-slate-200/50 bg-white/95 backdrop-blur-md overflow-hidden flex flex-col h-full min-h-0 min-w-0 transition-all duration-300">
       {currentStep >= 2 && currentStep <= 4 && (
         <div className="absolute top-3 right-3 z-[60] flex flex-col gap-2 items-end">
           {selectedSkuId && onCopySelectedSku && (
@@ -787,19 +799,10 @@ export function TrialProductionTable({
           <table className="text-sm border-separate border-spacing-0" style={tableStyle}>
             {renderColGroup()}
             <thead className="bg-[#f1f5f9]">
-              <tr>
-                <th
-                  colSpan={viewport.basicInfoColSpan}
-                  className="bg-[#f8fafc] border-b border-slate-200 px-3 py-2 text-[13px] font-bold text-slate-500 text-center uppercase tracking-wider relative"
-                >
-                  基本信息
-                </th>
-              </tr>
               {currentStep >= 2 && currentStep <= 4 && (
                 <tr className="bg-[#f8fafc]">
-                  <th className="sticky left-0 z-[70] border-b border-r border-slate-200 bg-[#f8fafc]"></th>
-                  <th className="sticky left-[32px] z-[70] border-b border-slate-200 border-r-[2px] border-r-slate-300 bg-[#f8fafc] px-3 py-2 text-center text-slate-700 text-[13px] font-bold shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)]">
-                    方案名称
+                  <th colSpan={2} className="sticky left-0 z-[70] border-b border-slate-200 border-r-[2px] border-r-slate-300 bg-[#f8fafc] px-3 py-2 text-center text-slate-700 text-[13px] font-bold shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)]">
+                    类别 / 编号
                   </th>
                   {skuData.map((sku) => (
                     <React.Fragment key={sku.id}>
@@ -828,6 +831,14 @@ export function TrialProductionTable({
             </thead>
             {basicInfoFields.length > 0 && (
               <tbody>
+                <tr className="bg-slate-50/80 select-none">
+                  <td
+                    colSpan={viewport.basicInfoColSpan}
+                    className="border-y border-slate-100 bg-slate-50/80 px-3 py-1.5 text-[11px] font-semibold text-slate-400 text-center tracking-[0.2em] uppercase relative"
+                  >
+                    基本信息
+                  </td>
+                </tr>
                 <SortableContext items={basicInfoFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
                    {basicInfoFields.map((field) => (
                     <SortableRow 
@@ -872,10 +883,10 @@ export function TrialProductionTable({
 
                   return (
                     <React.Fragment key={groupName}>
-                      <tr className="bg-[#f8fafc] select-none">
+                      <tr className="bg-slate-50/80 select-none">
                         <td
                           colSpan={viewport.bodyColSpan}
-                          className="border-y border-slate-200 bg-[#f8fafc] px-3 py-2 text-[13px] font-bold text-slate-500 text-center uppercase tracking-wider relative"
+                          className="border-y border-slate-100 bg-slate-50/80 px-3 py-1.5 text-[11px] font-semibold text-slate-400 text-center tracking-[0.2em] uppercase relative"
                         >
                           {groupName}
                         </td>
