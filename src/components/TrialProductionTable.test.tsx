@@ -46,7 +46,7 @@ describe('TrialProductionTable insert affordances', () => {
     expect(firstArg).toBe('project');
   });
 
-  it('uses per-column insert buttons in step 2 and routes them to onAddSupply', () => {
+  it('does not render column-insert-after buttons in step 2 (column header row removed)', () => {
     const onAddSupply = vi.fn();
     render(
       <TrialProductionTable
@@ -59,14 +59,11 @@ describe('TrialProductionTable insert affordances', () => {
     );
 
     expect(screen.queryByTestId('sku-insert-after')).toBeNull();
-
-    const buttons = screen.getAllByTestId('column-insert-after');
-    expect(buttons).toHaveLength(2);
-    fireEvent.click(buttons[0]);
-    expect(onAddSupply).toHaveBeenCalledWith('sku1', 1);
+    expect(screen.queryByTestId('column-insert-after')).toBeNull();
+    expect(onAddSupply).not.toHaveBeenCalled();
   });
 
-  it('uses per-column insert buttons in step 3 and routes them to onInsertSkuAfter', () => {
+  it('does not render column-insert-after buttons in step 3 (column header row removed)', () => {
     const onInsertSkuAfter = vi.fn();
     render(
       <TrialProductionTable
@@ -82,11 +79,8 @@ describe('TrialProductionTable insert affordances', () => {
     );
 
     expect(screen.queryByTestId('sku-insert-after')).toBeNull();
-
-    const buttons = screen.getAllByTestId('column-insert-after');
-    expect(buttons).toHaveLength(1);
-    fireEvent.click(buttons[0]);
-    expect(onInsertSkuAfter).toHaveBeenCalledWith('sku1');
+    expect(screen.queryByTestId('column-insert-after')).toBeNull();
+    expect(onInsertSkuAfter).not.toHaveBeenCalled();
   });
 
   it('renders a row-insert-after button in step 4 and fires onInsertRowAt(afterFieldId)', () => {
@@ -108,7 +102,7 @@ describe('TrialProductionTable insert affordances', () => {
     expect(onInsertRowAt).toHaveBeenCalledWith('project');
   });
 
-  it('uses per-column insert buttons in step 4 instead of the floating sku-insert-after button', () => {
+  it('does not render column-insert-after buttons in step 4 (column header row removed)', () => {
     const onInsertSkuAfter = vi.fn();
     render(
       <TrialProductionTable
@@ -124,12 +118,8 @@ describe('TrialProductionTable insert affordances', () => {
     );
 
     expect(screen.queryByTestId('sku-insert-after')).toBeNull();
-
-    const buttons = screen.getAllByTestId('column-insert-after');
-    expect(buttons).toHaveLength(2);
-
-    fireEvent.click(buttons[0]);
-    expect(onInsertSkuAfter).toHaveBeenCalledWith('sku1');
+    expect(screen.queryByTestId('column-insert-after')).toBeNull();
+    expect(onInsertSkuAfter).not.toHaveBeenCalled();
   });
 });
 
@@ -182,7 +172,7 @@ describe('TrialProductionTable sku selection', () => {
     expect(root!.className).not.toMatch(/100vh-280px/);
   });
 
-  it('shows a blue ring/border on the selected sku header when isSelected is true', () => {
+  it('does not render sku-header-block elements (column header row removed)', () => {
     const { container } = render(
       <TrialProductionTable
         currentStep={2}
@@ -194,18 +184,10 @@ describe('TrialProductionTable sku selection', () => {
       />
     );
 
-    const headers = container.querySelectorAll('[data-testid="sku-header-block"]');
-    expect(headers.length).toBe(2);
-    const selectedHeader = headers[1];
-    expect(selectedHeader.className).toMatch(/ring-2/);
-    expect(selectedHeader.className).toMatch(/border-blue-500/);
-
-    const unselectedHeader = headers[0];
-    expect(unselectedHeader.className).not.toMatch(/ring-2/);
-    expect(unselectedHeader.className).not.toMatch(/border-blue-500/);
+    expect(container.querySelectorAll('[data-testid="sku-header-block"]').length).toBe(0);
   });
 
-  it('fires onSelectSku with the sku id when its select button is clicked', () => {
+  it('does not render sku-select buttons (column header row removed)', () => {
     const onSelectSku = vi.fn();
     render(
       <TrialProductionTable
@@ -217,12 +199,8 @@ describe('TrialProductionTable sku selection', () => {
       />
     );
 
-    const selectButtons = screen.getAllByTestId('sku-select');
-    expect(selectButtons).toHaveLength(2);
-    fireEvent.click(selectButtons[0]);
-    expect(onSelectSku).toHaveBeenCalledWith('sku1');
-    fireEvent.click(selectButtons[1]);
-    expect(onSelectSku).toHaveBeenCalledWith('sku2');
+    expect(screen.queryAllByTestId('sku-select')).toHaveLength(0);
+    expect(onSelectSku).not.toHaveBeenCalled();
   });
 
   it('shows copy-selected-sku button only when selectedSkuId is provided', () => {
@@ -282,5 +260,50 @@ describe('TrialProductionTable sku selection', () => {
     expect(pasteButton).not.toBeNull();
     fireEvent.click(pasteButton!);
     expect(onPaste).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('TrialProductionTable horizontal slider', () => {
+  const wideSku: SKUData = {
+    id: 'sku1',
+    stage: 'PR1',
+    orderNo: '',
+    project: 'X6728',
+    supplies: Array.from({ length: 30 }, (_, i) => ({
+      id: `s${i}`,
+      supplyKey: '一供',
+      label: `一供${i}`,
+      values: {},
+    })),
+  };
+
+  it('renders a range input in step 2 with the throttled step size', () => {
+    render(
+      <TrialProductionTable
+        currentStep={2}
+        skuData={[wideSku]}
+        activeFields={[baseField]}
+        onUpdateValue={() => {}}
+        onSelectSku={() => {}}
+      />
+    );
+    const slider = screen.getByRole('slider') as HTMLInputElement;
+    expect(slider).toBeTruthy();
+    expect(slider.type).toBe('range');
+    expect(Number(slider.step)).toBe(8);
+  });
+
+  it('keeps the slider disabled when the table has no horizontal overflow', () => {
+    render(
+      <TrialProductionTable
+        currentStep={2}
+        skuData={[wideSku]}
+        activeFields={[baseField]}
+        onUpdateValue={() => {}}
+        onSelectSku={() => {}}
+      />
+    );
+    const slider = screen.getByRole('slider') as HTMLInputElement;
+    expect(slider.disabled).toBe(true);
   });
 });

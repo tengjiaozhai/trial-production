@@ -74,27 +74,7 @@ export default function App() {
 
   // Compute step 2 conflicts based on activeFields and skuData
   const getStep2Conflicts = () => {
-    if (currentStep !== 2) return [];
-    const step2Ids = [
-      'band', 'storage',
-      'lcd', 'front_cam', 'main_cam', 'sub_cam', 'fingerprint', 'battery', 'speaker', 'receiver', 'mic', 'motor', 'spk_fpc', 'sidekey_fpc', 'ir_fpc', 'lens', 'housing', 'battery_cover', 'sim_tray', 'side_key', 'aux_material', 'cooling',
-      'cpu', 'emmc', 'ddr', 'pmu', 'tx', 'rf_transceiver', 'nfc', 'pcb', 'sub_board', 'reliability', 'field_test', 'fan_sample', 'ce_cert',
-      'hw_eng', 'hw_test', 'sw_eng', 'sw_test', 'struct_eng', 'reliability_eng', 'pressure_test', 'image_eng', 'npm', 'ux', 'parts', 'pm'
-    ];
-    const conflicts: { fieldId: string; fieldLabel: string; supplyLabel: string }[] = [];
-    skuData.forEach(sku => {
-      sku.supplies.forEach(sup => {
-        step2Ids.forEach(fId => {
-          const field = activeFields.find(f => f.id === fId);
-          if (field && field.behavior !== 'calc') {
-            if (!sup.values[fId] || String(sup.values[fId]).trim() === '') {
-               conflicts.push({ fieldId: fId, fieldLabel: field.label, supplyLabel: `${sku.project}-${sup.label}` });
-            }
-          }
-        });
-      });
-    });
-    return conflicts;
+    return [];
   };
 
   const step2Conflicts = getStep2Conflicts();
@@ -679,16 +659,7 @@ export default function App() {
         const color = String(vals['color'] || '').trim();
         const mbom = String(vals['mbom'] || '').trim();
         const pbom = String(vals['pbom'] || '').trim();
-        if (!color) {
-          results.push({
-            id: `RULE-COLOR-${sku.id}-${sup.id}`,
-            title: '颜色冲突',
-            amReference: 'Rule-1',
-            detail: `${prefix}未填写颜色，判定为颜色冲突。`,
-            level: 'error',
-            fieldId: 'color',
-          });
-        } else {
+        if (color) {
           const colorCheck = validateColorAgainstBom({ color, mbom, pbom });
           results.push({
             id: `RULE-COLOR-${sku.id}-${sup.id}`,
@@ -706,16 +677,7 @@ export default function App() {
         const storage = String(vals['storage'] || '').trim();
         const emmc = String(vals['emmc'] || '').trim();
         const ddr = String(vals['ddr'] || '').trim();
-        if (!storage) {
-          results.push({
-            id: `RULE-STORAGE-${sku.id}-${sup.id}`,
-            title: '存储配置冲突',
-            amReference: 'Rule-2',
-            detail: `${prefix}未填写存储，判定为存储冲突。`,
-            level: 'error',
-            fieldId: 'storage',
-          });
-        } else {
+        if (storage) {
           const storageCheck = validateStorageAgainstComponents({ storage, emmc, ddr });
           results.push({
             id: `RULE-STORAGE-${sku.id}-${sup.id}`,
@@ -732,16 +694,7 @@ export default function App() {
         // --- Rule 3: unit_id contains mb_id ---
         const unitId = String(vals['unit_id'] || '').trim();
         const mbId = String(vals['mb_id'] || '').trim();
-        if (!unitId || !mbId) {
-          results.push({
-            id: `RULE-SUFFIX-${sku.id}-${sup.id}`,
-            title: '整机标识冲突',
-            amReference: 'Rule-3',
-            detail: `${prefix}整机标识或主板标识为空，判定为整机标识冲突。`,
-            level: 'error',
-            fieldId: 'unit_id',
-          });
-        } else {
+        if (unitId && mbId) {
           const idCheck = validateUnitIdVsMbId({ unitId, mbId });
           results.push({
             id: `RULE-SUFFIX-${sku.id}-${sup.id}`,
@@ -762,27 +715,7 @@ export default function App() {
         const ebomTokenMatch = ebomDesc.replace(/[gG]/g, '').match(/(\d+)\+(\d+)/);
         const ebomToken = ebomTokenMatch ? `${ebomTokenMatch[1]}+${ebomTokenMatch[2]}` : '';
 
-        if (!ebomDesc) {
-          // ebom_desc 未填写 —— 跳过（空字段由 Step 2 冲突检测负责）
-        } else if (!ebomToken) {
-          results.push({
-            id: `RULE-EBOM-STORAGE-${sku.id}-${sup.id}`,
-            title: 'EBOM描述无存储标识',
-            amReference: 'R-EBOM-STORAGE-001',
-            detail: `${prefix}EBOM描述中未找到 DDR+EMMC 数字格式（如 4+128），无法校验。`,
-            level: 'warn',
-            fieldId: 'ebom_desc',
-          });
-        } else if (!storageFld) {
-          results.push({
-            id: `RULE-EBOM-STORAGE-${sku.id}-${sup.id}`,
-            title: 'EBOM描述存储待校验',
-            amReference: 'R-EBOM-STORAGE-001',
-            detail: `${prefix}存储字段未填写，无法与 EBOM 描述校验。`,
-            level: 'warn',
-            fieldId: 'storage',
-          });
-        } else {
+        if (ebomDesc && storageFld && ebomToken) {
           const normalEbom    = normalizeStorage(ebomToken);
           const normalStorage = normalizeStorage(storageFld);
           if (normalEbom && normalStorage && normalEbom !== normalStorage) {
@@ -1237,6 +1170,7 @@ export default function App() {
                      onUpdateFieldLabel={(id, label) => setActiveFields(flds => flds.map(f => f.id === id ? { ...f, label } : f))}
                      onDeleteRow={id => {
                         setActiveFields(prev => prev.filter(f => f.id !== id));
+                        setIsExportDisabled(true);
                      }}
                      onStep5LayoutChange={setStep5Layout}
                      onUpdateSelectedSupply={handleUpdateSelectedSupply}

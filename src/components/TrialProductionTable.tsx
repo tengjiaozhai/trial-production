@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { FIELD_GROUPS, FIELD_DEFS } from '@/src/constants';
 import { SKUData, FieldDefinition, StepId } from '@/src/types';
 import { cn } from '@/src/lib/utils';
@@ -9,9 +9,9 @@ import type { Step5Row } from '../lib/step5TableModel';
 import { buildTableViewportMetrics, BASIC_INFO_BLOCK_HEIGHT_PX } from '../lib/tableViewport';
 import type { CopiedSku } from '../lib/tableOperations';
 
-function ProdLocDropdown({ value, onChange, disabled, hasConflict, fieldLabel }: any) {
+function ProdLocDropdown({ value, onChange, disabled, fieldLabel }: any) {
   const options = ['宜宾', '南昌', '河源', '越南'];
-  
+
   const isCustom = value === '__CUSTOM__' || (value && !options.includes(value));
 
   if (isCustom || disabled) {
@@ -19,17 +19,14 @@ function ProdLocDropdown({ value, onChange, disabled, hasConflict, fieldLabel }:
       <div className="flex w-full h-full relative items-center">
         <input
           autoFocus={!disabled && value === '__CUSTOM__'}
-          className={cn(
-            "flex-1 min-w-0 px-3 focus:outline-none transition-all text-[13px] leading-none h-full bg-transparent text-center",
-            (hasConflict && !disabled) ? "text-rose-600 placeholder:text-rose-400 placeholder:font-bold" : "text-slate-700"
-          )}
-          placeholder={value === '__CUSTOM__' ? "请输入..." : (hasConflict && !disabled ? `⚠️ ${fieldLabel}存在冲突` : "-")}
+          className="flex-1 min-w-0 px-3 focus:outline-none transition-all text-[13px] leading-none h-full bg-transparent text-slate-700 text-center"
+          placeholder={value === '__CUSTOM__' ? "请输入..." : "-"}
           value={value === '__CUSTOM__' ? '' : (value || '')}
           onChange={(e) => onChange(e.target.value)}
           disabled={disabled}
         />
         {!disabled && (
-          <button 
+          <button
             type="button"
             onClick={() => {
               onChange('');
@@ -45,10 +42,7 @@ function ProdLocDropdown({ value, onChange, disabled, hasConflict, fieldLabel }:
 
   return (
     <select
-      className={cn(
-        "flex-1 min-w-0 px-2 flex items-center justify-center bg-transparent focus:outline-none text-[13px] outline-none cursor-pointer appearance-none text-center h-full w-full",
-        hasConflict && !disabled ? "text-rose-600 font-bold" : "text-slate-700"
-      )}
+      className="flex-1 min-w-0 px-2 flex items-center justify-center bg-transparent focus:outline-none text-[13px] outline-none cursor-pointer appearance-none text-center h-full w-full text-slate-700"
       value={value || ''}
       onChange={(e) => {
         if (e.target.value === 'CUSTOM') {
@@ -187,7 +181,7 @@ function SortableHeader({ skuId, supply, onUpdateSupplyLabel, onDeleteSku, onAdd
              onChange={(e) => onUpdateSupplyLabel?.(skuId, supply.id, e.target.value)}
           />
         )}
-        {currentStep === 4 && (
+        {currentStep >= 2 && currentStep <= 4 && (
           <button onClick={() => onDeleteSku?.(skuId)} className="text-slate-400 hover:text-red-500 opacity-0 group-hover/sup:opacity-100 transition-opacity absolute right-2"><Trash2 size={12} /></button>
         )}
       </div>
@@ -230,7 +224,8 @@ function SortableRow({
   onUpdateEfuse,
   onUpdateSkuHeader,
   onUpdateSelectedSupply,
-  skuSupplyKeys
+  skuSupplyKeys,
+  onDeleteRow
 }: any) {
   const {
     attributes,
@@ -269,10 +264,15 @@ function SortableRow({
       </td>
       <td className="sticky left-[32px] z-20 group-hover:z-30 border-b border-slate-200 border-r-[2px] border-r-slate-300 bg-white p-2 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] align-top w-[120px] min-w-[120px] relative">
         <div className="flex flex-col items-center justify-center h-full gap-1.5 w-full">
-          <div className="flex items-center justify-between w-full px-1">
+          <div className="flex items-center justify-between w-full px-1 group/rowlabel relative">
             <span className="text-[13px] font-bold text-[#1e293b] text-center flex-1">{field.label}</span>
-            {currentStep !== 5 && field.behavior !== 'calc' && skuData.some((sku: any) => sku.supplies.some((sup: any) => sup.values[field.id] === '' && field.id !== 'prod_loc')) && (
-              <span className="bg-rose-50 text-rose-600 border border-rose-100 text-[10px] px-2 py-0.5 rounded-md font-bold ml-1 scale-90 shrink-0 shadow-sm shadow-rose-100">冲突</span>
+            {currentStep >= 2 && currentStep <= 4 && onDeleteRow && (
+              <button 
+                onClick={() => onDeleteRow(field.id)} 
+                className="text-slate-400 hover:text-red-500 opacity-0 group-hover/rowlabel:opacity-100 transition-opacity absolute right-0 bg-white"
+              >
+                <Trash2 size={12} />
+              </button>
             )}
           </div>
           {['ce_cert', 'customer_sample_req', 'hw_eng', 'hw_test', 'sw_eng', 'sw_test', 'struct_eng', 'reliability', 'reliability_eng', 'image_eng', 'npm', 'ux', 'parts'].includes(field.id) && (
@@ -305,23 +305,20 @@ function SortableRow({
         
         if (shouldSpanSku) {
           const supply = sku.supplies[0];
-          const hasConflict = supply.values[field.id] === '' && field.behavior !== 'calc';
           return (
-            <td 
-              key={sku.id} 
+            <td
+              key={sku.id}
               colSpan={sku.supplies.length}
               className={cn(
                 "border-b border-r border-slate-200 p-2 align-top transition-colors relative",
-                field.behavior === 'calc' ? "bg-[#f8fafc]" : "bg-white",
-                hasConflict && "bg-rose-50/50"
+                field.behavior === 'calc' ? "bg-[#f8fafc]" : "bg-white"
               )}
             >
               <div className="flex flex-col gap-1.5 relative h-full">
                 <div className={cn(
                   "rounded-lg flex items-center transition-all duration-300 ease-out overflow-hidden w-full",
                   currentStep !== 5 ? "border bg-white" : "border-none bg-transparent",
-                  hasConflict && currentStep !== 5 ? "border-rose-400 ring-1 ring-inset ring-rose-400 shadow-sm shadow-rose-200 bg-rose-50/10" : currentStep !== 5 ? "border-slate-200" : "",
-                  currentStep !== 5 && !hasConflict && "focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 hover:border-slate-300 hover:shadow-sm focus-within:shadow-md focus-within:shadow-blue-500/5",
+                  currentStep !== 5 && "border-slate-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 hover:border-slate-300 hover:shadow-sm focus-within:shadow-md focus-within:shadow-blue-500/5",
                   field.behavior === 'calc' && "bg-slate-50/50 border-transparent text-slate-500"
                 )}>
                   <input
@@ -329,10 +326,9 @@ function SortableRow({
                     className={cn(
                       "flex-1 min-w-0 px-2 focus:outline-none transition-all text-[13px] leading-none text-center",
                       "bg-transparent text-slate-700",
-                      field.behavior === 'calc' && "font-bold text-slate-500 cursor-default",
-                      hasConflict && currentStep !== 5 && "text-rose-600 placeholder:text-rose-400 placeholder:font-bold"
+                      field.behavior === 'calc' && "font-bold text-slate-500 cursor-default"
                     )}
-                    placeholder={hasConflict && currentStep !== 5 ? `⚠️ ${field.label}存在冲突` : "-"}
+                    placeholder="-"
                     value={
                       supply.values[field.id] !== undefined ? supply.values[field.id] : ''
                     }
@@ -384,23 +380,20 @@ function SortableRow({
           ) : (
           <React.Fragment>
           {sku.supplies.map((supply: any) => {
-            const hasConflict = supply.values[field.id] === '' && field.behavior !== 'calc' && field.id !== 'prod_loc';
             return (
-            <td 
-              key={supply.id} 
+            <td
+              key={supply.id}
               style={{ width: colWidths[supply.id], minWidth: colWidths[supply.id] }}
               className={cn(
                 "border-b border-r border-slate-200 p-2 align-top transition-colors",
-                field.behavior === 'calc' ? "bg-[#f8fafc]" : "bg-white",
-                hasConflict && "bg-rose-50/50"
+                field.behavior === 'calc' ? "bg-[#f8fafc]" : "bg-white"
               )}
             >
               <div className="flex flex-col gap-1.5 relative">
                 <div className={cn(
                   "rounded-lg flex items-center transition-all duration-300 ease-out overflow-hidden",
                   currentStep !== 5 ? "border bg-white" : "border-none bg-transparent",
-                  hasConflict && currentStep !== 5 ? "border-rose-400 ring-1 ring-inset ring-rose-400 shadow-sm shadow-rose-200 bg-rose-50/10" : currentStep !== 5 ? "border-slate-200" : "",
-                  currentStep !== 5 && !hasConflict && "focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 hover:border-slate-300 hover:shadow-sm focus-within:shadow-md focus-within:shadow-blue-500/5",
+                  currentStep !== 5 && "border-slate-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 hover:border-slate-300 hover:shadow-sm focus-within:shadow-md focus-within:shadow-blue-500/5",
                   field.behavior === 'calc' && "bg-slate-50/50 border-transparent text-slate-500"
                 )}>
                   {field.id === 'prod_loc' ? (
@@ -409,7 +402,6 @@ function SortableRow({
                         value={supply.values[field.id]}
                         onChange={(val: string) => onUpdateValue(sku.id, supply.id, field.id, val)}
                         disabled={currentStep === 5}
-                        hasConflict={hasConflict && currentStep !== 5}
                         fieldLabel={field.label}
                       />
                     </div>
@@ -420,10 +412,9 @@ function SortableRow({
                         className={cn(
                           "flex-1 min-w-0 px-2 focus:outline-none transition-all text-[13px] leading-none",
                           "bg-transparent text-slate-700",
-                          field.behavior === 'calc' && "font-bold text-slate-500 cursor-default",
-                          hasConflict && currentStep !== 5 && "text-rose-600 placeholder:text-rose-400 placeholder:font-bold"
+                          field.behavior === 'calc' && "font-bold text-slate-500 cursor-default"
                         )}
-                        placeholder={hasConflict && currentStep !== 5 ? `⚠️ ${field.label}存在冲突` : "-"}
+                        placeholder="-"
                         value={
                           supply.values[field.id] !== undefined ? supply.values[field.id] : ''
                         }
@@ -441,23 +432,6 @@ function SortableRow({
                     </>
                   )}
                 </div>
-                {hasConflict && currentStep !== 5 && field.id === 'lcd' && (
-                  <div className="flex items-center gap-2 px-1 text-[11px] font-bold mt-1">
-                    <span className="bg-rose-600 text-white px-1.5 py-0.5 rounded-md scale-90 origin-left">冲突</span>
-                    <button 
-                       className="text-slate-500 hover:text-rose-600 transition-colors border border-slate-200 rounded px-2 py-0.5 hover:border-rose-300 hover:bg-rose-50 bg-white"
-                       onClick={() => onUpdateValue(sku.id, supply.id, field.id, 'BOE')}
-                    >
-                       BOE
-                    </button>
-                    <button 
-                       className="text-slate-500 hover:text-rose-600 transition-colors border border-slate-200 rounded px-2 py-0.5 hover:border-rose-300 hover:bg-rose-50 bg-white"
-                       onClick={() => onUpdateValue(sku.id, supply.id, field.id, 'CSOT')}
-                    >
-                       CSOT
-                    </button>
-                  </div>
-                )}
               </div>
             </td>
           )})}
@@ -507,6 +481,11 @@ export function TrialProductionTable({
   const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
   const [horizontalScrollLeft, setHorizontalScrollLeft] = useState(0);
   const [horizontalScrollMax, setHorizontalScrollMax] = useState(0);
+  const horizontalScrollLeftRef = useRef(0);
+  const horizontalScrollMaxRef = useRef(0);
+  const isSliderDraggingRef = useRef(false);
+  const pendingSliderValueRef = useRef<number | null>(null);
+  const sliderRafIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (currentStep !== 5) return;
@@ -520,45 +499,75 @@ export function TrialProductionTable({
     minWidth: `${viewport.totalTableWidthPx}px`,
   };
 
-  const getActiveHorizontalContainers = (): HTMLDivElement[] => {
+  const getActiveHorizontalContainers = useCallback((): HTMLDivElement[] => {
     if (currentStep === 5) {
       return step5TableRef.current ? [step5TableRef.current] : [];
     }
     return [topTableRef.current, bottomTableRef.current].filter((n): n is HTMLDivElement => Boolean(n));
-  };
+  }, [currentStep]);
 
-  const syncHorizontalSliderState = () => {
-    const containers = getActiveHorizontalContainers();
-    if (containers.length === 0) {
-      setHorizontalScrollLeft(0);
-      setHorizontalScrollMax(0);
-      return;
-    }
-    const maxScroll = Math.max(...containers.map((el) => Math.max(0, el.scrollWidth - el.clientWidth)));
-    const current = containers[0].scrollLeft;
-    setHorizontalScrollMax(maxScroll);
-    setHorizontalScrollLeft(Math.min(current, maxScroll));
-  };
-
-  const applyHorizontalScroll = (nextLeft: number) => {
-    const clamped = Math.max(0, Math.min(nextLeft, horizontalScrollMax));
+  const writeHorizontalScroll = useCallback((nextLeft: number) => {
+    const clamped = Math.max(0, Math.min(nextLeft, horizontalScrollMaxRef.current));
+    horizontalScrollLeftRef.current = clamped;
     const containers = getActiveHorizontalContainers();
     containers.forEach((el) => {
       if (el.scrollLeft !== clamped) el.scrollLeft = clamped;
     });
+    return clamped;
+  }, [getActiveHorizontalContainers]);
+
+  const syncHorizontalSliderState = useCallback(() => {
+    const containers = getActiveHorizontalContainers();
+    if (containers.length === 0) {
+      horizontalScrollLeftRef.current = 0;
+      horizontalScrollMaxRef.current = 0;
+      setHorizontalScrollMax(0);
+      if (!isSliderDraggingRef.current) setHorizontalScrollLeft(0);
+      return;
+    }
+    const maxScroll = Math.max(...containers.map((el) => Math.max(0, el.scrollWidth - el.clientWidth)));
+    const current = containers[0].scrollLeft;
+    horizontalScrollMaxRef.current = maxScroll;
+    horizontalScrollLeftRef.current = Math.min(current, maxScroll);
+    setHorizontalScrollMax(maxScroll);
+    if (!isSliderDraggingRef.current) {
+      setHorizontalScrollLeft(Math.min(current, maxScroll));
+    }
+  }, [getActiveHorizontalContainers]);
+
+  const flushPendingSliderScroll = useCallback(() => {
+    if (pendingSliderValueRef.current === null) return;
+    const clamped = writeHorizontalScroll(pendingSliderValueRef.current);
+    pendingSliderValueRef.current = null;
     setHorizontalScrollLeft(clamped);
-  };
+  }, [writeHorizontalScroll]);
+
+  const applyHorizontalScroll = useCallback((nextLeft: number) => {
+    isSliderDraggingRef.current = true;
+    pendingSliderValueRef.current = nextLeft;
+    if (sliderRafIdRef.current !== null) return;
+    sliderRafIdRef.current = requestAnimationFrame(() => {
+      sliderRafIdRef.current = null;
+      if (pendingSliderValueRef.current === null) return;
+      writeHorizontalScroll(pendingSliderValueRef.current);
+    });
+  }, [writeHorizontalScroll]);
+
+  const endSliderDrag = useCallback(() => {
+    isSliderDraggingRef.current = false;
+    flushPendingSliderScroll();
+  }, [flushPendingSliderScroll]);
 
   useEffect(() => {
     const rafId = requestAnimationFrame(syncHorizontalSliderState);
     return () => cancelAnimationFrame(rafId);
-  }, [currentStep, skuData, colWidths, activeFields]);
+  }, [currentStep, skuData, colWidths, activeFields, syncHorizontalSliderState]);
 
   useEffect(() => {
     const handleResize = () => syncHorizontalSliderState();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [currentStep]);
+  }, [currentStep, syncHorizontalSliderState]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -621,9 +630,11 @@ export function TrialProductionTable({
           type="range"
           min={0}
           max={Math.max(0, horizontalScrollMax)}
-          step={1}
+          step={8}
           value={Math.min(horizontalScrollLeft, Math.max(0, horizontalScrollMax))}
           onChange={(e) => applyHorizontalScroll(Number(e.target.value))}
+          onPointerUp={endSliderDrag}
+          onKeyUp={endSliderDrag}
           disabled={horizontalScrollMax <= 0}
           className="w-full accent-[#0ea5a4] disabled:cursor-not-allowed disabled:opacity-40"
         />
@@ -726,7 +737,7 @@ export function TrialProductionTable({
     }));
   };
 
-  const handleScroll = (source: 'top' | 'bottom') => (e: React.UIEvent<HTMLDivElement>) => {
+  const handleScroll = useCallback((source: 'top' | 'bottom') => (e: React.UIEvent<HTMLDivElement>) => {
     const scrollLeft = e.currentTarget.scrollLeft;
     if (source === 'top' && bottomTableRef.current) {
       if (bottomTableRef.current.scrollLeft !== scrollLeft) {
@@ -737,8 +748,11 @@ export function TrialProductionTable({
         topTableRef.current.scrollLeft = scrollLeft;
       }
     }
-    setHorizontalScrollLeft(Math.min(scrollLeft, Math.max(0, horizontalScrollMax)));
-  };
+    horizontalScrollLeftRef.current = scrollLeft;
+    if (!isSliderDraggingRef.current) {
+      setHorizontalScrollLeft(Math.min(scrollLeft, Math.max(0, horizontalScrollMaxRef.current)));
+    }
+  }, []);
 
   const renderColGroup = () => (
     <colgroup>
@@ -799,35 +813,6 @@ export function TrialProductionTable({
           <table className="text-sm border-separate border-spacing-0" style={tableStyle}>
             {renderColGroup()}
             <thead className="bg-[#f1f5f9]">
-              {currentStep >= 2 && currentStep <= 4 && (
-                <tr className="bg-[#f8fafc]">
-                  <th colSpan={2} className="sticky left-0 z-[70] border-b border-slate-200 border-r-[2px] border-r-slate-300 bg-[#f8fafc] px-3 py-2 text-center text-slate-700 text-[13px] font-bold shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)]">
-                    类别 / 编号
-                  </th>
-                  {skuData.map((sku) => (
-                    <React.Fragment key={sku.id}>
-                      {sku.supplies.map((supply, supIdx) => (
-                        <SortableHeader
-                          key={supply.id}
-                          skuId={sku.id}
-                          supply={supply}
-                          supIdx={supIdx}
-                          currentStep={currentStep}
-                          onUpdateSupplyLabel={onUpdateSupplyLabel}
-                          onDeleteSku={onDeleteSku}
-                          onAddSupply={onAddSupply}
-                          onInsertSkuAfter={onInsertSkuAfter}
-                          width={colWidths[supply.id] || 140}
-                          onResize={handleColResize}
-                          isSelected={supIdx === 0 && selectedSkuId === sku.id}
-                          onSelectSku={onSelectSku}
-                        />
-                      ))}
-                    </React.Fragment>
-                  ))}
-                  <th className="border-b border-slate-200 bg-[#f8fafc]"></th>
-                </tr>
-              )}
             </thead>
             {basicInfoFields.length > 0 && (
               <tbody>
@@ -857,6 +842,7 @@ export function TrialProductionTable({
                       onUpdateSkuHeader={onUpdateSkuHeader}
                       onUpdateSelectedSupply={onUpdateSelectedSupply}
                       skuSupplyKeys={skuSupplyKeys}
+                      onDeleteRow={onDeleteRow}
                     />
                   ))}
                 </SortableContext>
@@ -910,6 +896,7 @@ export function TrialProductionTable({
                             onUpdateSkuHeader={onUpdateSkuHeader}
                             onUpdateSelectedSupply={onUpdateSelectedSupply}
                             skuSupplyKeys={skuSupplyKeys}
+                            onDeleteRow={onDeleteRow}
                           />
                         );
                       })}
