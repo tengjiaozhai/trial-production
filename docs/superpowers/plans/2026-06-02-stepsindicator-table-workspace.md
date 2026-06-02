@@ -1,181 +1,181 @@
-# StepsIndicator And Table Workspace Enhancement Implementation Plan
+# StepsIndicator 与表格工作台增强实现计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Let the step rail collapse upward to free vertical space, make the step 2-4 table denser and more readable, and support inserting and copying whole mainboard blocks without breaking alignment or export behavior.
+**目标：** 让步骤条可以向上收缩，给第 2/3/4 步表格腾出更多垂直空间；让表格更紧凑、能展示更多内容；支持按行插入自定义字段、按主板块插入空白块，并支持整块复制到新插入的空白主板块。
 
-**Architecture:** Keep the current React table shell and shared viewport math as the single layout source of truth. Put the collapse state and whole-block selection state in `App.tsx`, keep the step rail behavior isolated in `StepsIndicator.tsx`, and keep table sizing, insertion affordances, and copy/paste rendering inside `TrialProductionTable.tsx`. Avoid introducing a parallel data model; the canonical state remains `skuData` plus `activeFields`, because history, validation, and export already consume that path.
+**架构：** 继续沿用现有 React 表格外壳和共享 viewport 计算作为唯一布局来源。把步骤条收缩状态和整块选择状态放在 `App.tsx`，把步骤条自身的交互收在 `StepsIndicator.tsx`，把表格高度、插入入口和复制粘贴渲染收在 `TrialProductionTable.tsx`。不引入第二套数据模型，主状态仍然是 `skuData` + `activeFields`，因为历史、校验和导出都已经消费这条路径。
 
-**Tech Stack:** React 19, TypeScript, Tailwind CSS, lucide-react, Vitest
-
----
-
-## File Structure
-
-- Modify: `src/App.tsx`
-- Modify: `src/components/StepsIndicator.tsx`
-- Modify: `src/components/TrialProductionTable.tsx`
-- Modify: `src/lib/tableViewport.ts`
-- Modify: `src/lib/tableViewport.test.ts`
+**技术栈：** React 19、TypeScript、Tailwind CSS、lucide-react、Vitest
 
 ---
 
-### Phase 1: Collapsible Step Rail
+## 文件边界
 
-**Goal:** Add a toggle under `StepsIndicator` that collapses the step rail upward so the table gets more vertical space, while keeping the current step visible and preserving navigation behavior.
+- 修改：`src/App.tsx`
+- 修改：`src/components/StepsIndicator.tsx`
+- 修改：`src/components/TrialProductionTable.tsx`
+- 修改：`src/lib/tableViewport.ts`
+- 修改：`src/lib/tableViewport.test.ts`
 
-**Files:**
-- Modify: `src/App.tsx`
-- Modify: `src/components/StepsIndicator.tsx`
+---
 
-- [ ] **Step 1: Add failing coverage for the collapse state**
-  - Test the rendered step rail in both expanded and collapsed modes.
-  - Verify that the toggle button exists under the rail and flips the compact class set when clicked.
+### Phase 1: 步骤条可收缩
 
-- [ ] **Step 2: Wire the collapse state through the shell**
-  - Add a local `stepsCollapsed` state in `App.tsx`.
-  - Pass `collapsed` and `onToggleCollapsed` into `StepsIndicator`.
-  - Adjust the content shell so the main workspace gains height when the rail collapses.
-
-- [ ] **Step 3: Implement the compact rail UI**
-  - Keep the current step number/label behavior in the expanded view.
-  - In collapsed mode, reduce the rail to a narrow strip with an upward collapse affordance and a minimal active-step indicator.
-  - Do not persist the state to local storage.
-
-- [ ] **Step 4: Verify the behavior in the browser**
-  - Collapse the rail and confirm the table gains visible height.
-  - Expand it again and confirm the shell returns to the prior layout without losing step state.
-
-**Acceptance Criteria**
-- Clicking the arrow under the step rail collapses the rail upward and exposes more table viewport.
-- The current step remains readable in both states.
-- Collapsing and expanding do not reset project data, table edits, or validation results.
-
-### Phase 2: Dense Table Viewport
-
-**Goal:** Make the step 2-4 table show more content without shrinking other sections, especially by fixing the basic info block height and keeping horizontal scrolling usable.
+**目标：** 在 `StepsIndicator` 下方增加一个收缩箭头，点击后把步骤条向上收起，让表格获得更多垂直空间，同时保留当前步骤可见和原有导航行为。
 
 **Files:**
-- Modify: `src/components/TrialProductionTable.tsx`
-- Modify: `src/lib/tableViewport.ts`
-- Modify: `src/lib/tableViewport.test.ts`
+- 修改：`src/App.tsx`
+- 修改：`src/components/StepsIndicator.tsx`
 
-- [ ] **Step 1: Extend viewport tests for the new layout rules**
-  - Keep the shared width metrics covered.
-  - Add coverage that verifies the basic info block and the lower groups derive from the same width model.
+- [ ] **步骤 1：补上步骤条收缩状态的测试**
+  - 覆盖步骤条展开态与收缩态两种渲染结果。
+  - 验证箭头按钮出现在步骤条下方，并且点击后会切换到收缩态 class。
 
-- [ ] **Step 2: Split the table into a fixed top band and a flexible lower band**
-  - Give the basic info area a fixed visible height with its own internal scroll.
-  - Let the lower groups consume the remaining height.
-  - Keep the existing synchronized horizontal scrolling path as the only horizontal scroll behavior.
+- [ ] **步骤 2：把收缩状态接到应用外壳**
+  - 在 `App.tsx` 增加本地 `stepsCollapsed` 状态。
+  - 将 `collapsed` 和 `onToggleCollapsed` 传给 `StepsIndicator`。
+  - 调整主内容区布局，使步骤条收起后主工作区能获得更多高度。
 
-- [ ] **Step 3: Tighten the visual density**
-  - Reduce wasted cell padding where the current layout leaves empty space.
-  - Move the `+` affordances to more stable positions so they do not compete with input content.
-  - Keep the sticky index/label columns intact.
+- [ ] **步骤 3：实现收缩态 UI**
+  - 展开态保持现有步骤数字和步骤文案。
+  - 收缩态把步骤条压缩到一条约 `28px` 高的窄带，保留向上/向下的收起提示和最小当前步骤标识。
+  - 状态不写入 `localStorage`，刷新后默认仍是展开。
 
-- [ ] **Step 4: Re-check the wide-table scenarios**
-  - Use a dataset with multiple mainboard blocks and multiple supplies per block.
-  - Confirm the basic info block does not collapse or get compressed when more columns are added.
+- [ ] **步骤 4：浏览器里验证行为**
+  - 收起步骤条后，确认表格视口明显变大。
+  - 再次展开后，确认布局恢复且不会丢失当前步骤状态。
 
-**Acceptance Criteria**
-- The basic info block keeps a fixed height even when more columns are inserted.
-- Additional columns do not squeeze the lower groups out of view.
-- The top and bottom table bands stay aligned and horizontally synchronized.
-- The table still supports reading right-side columns through visible horizontal scrolling.
+**验收标准**
+- 点击步骤条下方箭头后，步骤条会向上收起，表格视口变大。
+- 展开态和收缩态下，当前步骤仍然能看清。
+- 收起/展开不会重置项目数据、表格编辑结果或校验结果。
 
-### Phase 3: Insert Rows And Mainboard Blocks
+### Phase 2: 紧凑表格视口
 
-**Goal:** Let users insert a new row under any existing row and insert a blank mainboard block to the right of an existing block in steps 2-4.
+**目标：** 让第 2/3/4 步表格显示更多内容，但不挤压其他区域，重点是固定“基本信息”块高度，并保持横向滚动可用。
 
 **Files:**
-- Modify: `src/App.tsx`
-- Modify: `src/components/TrialProductionTable.tsx`
+- 修改：`src/components/TrialProductionTable.tsx`
+- 修改：`src/lib/tableViewport.ts`
+- 修改：`src/lib/tableViewport.test.ts`
 
-- [ ] **Step 1: Add test coverage for row insertion and block insertion**
-  - Verify a new row is inserted into the correct group and lands immediately after the target row.
-  - Verify a new mainboard block is created with the expected supply structure but empty values.
+- [ ] **步骤 1：扩展 viewport 测试，覆盖新的布局规则**
+  - 保留共享宽度计算的测试。
+  - 增加测试，验证“基本信息”区和下方分组区都来自同一份宽度模型。
 
-- [ ] **Step 2: Implement row insertion as a canonical `activeFields` change**
-  - Insert the new field into the same group as the row above it.
-  - Keep the new field editable in step 2-4 and visible in history/export paths.
+- [ ] **步骤 2：把表格拆成固定上区和弹性下区**
+  - 给“基本信息”区固定 `200px` 可见高度，并保留它自己的内部滚动。
+  - 让下方其他分组吃掉剩余高度。
+  - 保持现有的同步横向滚动作为唯一横向滚动路径。
 
-- [ ] **Step 3: Implement mainboard block insertion as a canonical `skuData` change**
-  - Insert a blank block to the right of the current block.
-  - Reuse the current block's supply count and structure so the table remains aligned.
-  - Leave values empty so the user can fill the new block explicitly.
+- [ ] **步骤 3：收紧视觉密度**
+  - 减少当前布局里浪费掉的单元格内边距。
+  - 把 `+` 的位置放到更稳定的位置，不要和输入内容抢空间。
+  - 保留左侧索引列和字段名列的 sticky 行为。
 
-- [ ] **Step 4: Reposition the `+` controls**
-  - Make row insertion controls appear on the row boundary in a consistent place.
-  - Make block insertion controls appear at the block edge, not inside the data cells.
+- [ ] **步骤 4：重新检查宽表场景**
+  - 使用多个主板块、每个主板块又包含多个供方列的数据集。
+  - 确认在新增更多列后，“基本信息”区不会塌掉或被压扁。
 
-**Acceptance Criteria**
-- Clicking the row `+` inserts a new editable row in the intended group.
-- Clicking the block `+` inserts a blank block to the right without breaking the table structure.
-- Newly inserted rows and blocks participate in the same state path as existing data.
-- The controls remain usable in the denser layout and do not obscure input values.
+**验收标准**
+- 即使继续插入更多列，“基本信息”区的高度也保持固定（`200px`）。
+- 新增列不会把下方分组挤到看不见。
+- 上下两块表格仍然严格对齐，并且横向滚动同步。
+- 右侧列仍然可以通过可见的横向滚动查看。
 
-### Phase 4: Whole-Block Select, Copy, And Paste
+### Phase 3: 插入行和主板块
 
-**Goal:** Allow a user to select a whole mainboard block and copy its contents into a newly inserted blank block.
-
-**Files:**
-- Modify: `src/App.tsx`
-- Modify: `src/components/TrialProductionTable.tsx`
-
-- [ ] **Step 1: Add selection and copy-state coverage**
-  - Verify a block can be marked as selected.
-  - Verify a copied block can be pasted into a blank inserted target.
-
-- [ ] **Step 2: Add whole-block selection state**
-  - Track the currently selected block in `App.tsx`.
-  - Render a selected style on the block header and the matching columns.
-
-- [ ] **Step 3: Implement copy into a blank target block**
-  - Copy the source block's visible values, supply labels, and structural metadata into the target block.
-  - Regenerate ids so the copied block does not collide with the source block.
-  - Keep the target editable after paste.
-
-- [ ] **Step 4: Keep validation and export on the canonical data**
-  - Ensure validation still runs against the updated `skuData`.
-  - Ensure the step 5 preview and workbook export reflect the copied block exactly.
-
-**Acceptance Criteria**
-- A whole mainboard block can be selected clearly from the table UI.
-- A copied block pastes into an inserted blank target block with matching content.
-- The copied target gets unique ids and remains editable.
-- Validation, step 5 preview, and export all reflect the copied data path without special cases.
-
-### Phase 5: Verification And Regression
-
-**Goal:** Prove the feature works end to end and does not regress the existing step flow, validation, or export behavior.
+**目标：** 让用户在第 2/3/4 步里，可以在任意行下方新增一行，也可以在现有主板块右侧新增一个空白主板块。
 
 **Files:**
-- Modify: `src/lib/tableViewport.test.ts`
-- Run: `npm run test`
-- Run: `npm run lint`
+- 修改：`src/App.tsx`
+- 修改：`src/components/TrialProductionTable.tsx`
 
-- [ ] **Step 1: Run the focused tests**
-  - Run `npm run test -- src/lib/tableViewport.test.ts`.
-  - Run any added insertion/copy tests for the new state helpers.
+- [ ] **步骤 1：补上插入行和插入主板块的测试**
+  - 验证新行会插入到正确分组里，并且紧跟在目标行后面。
+  - 验证新主板块会带着预期的供方结构生成，但值是空的。
 
-- [ ] **Step 2: Run the full repo checks**
-  - Run `npm run test`.
-  - Run `npm run lint`.
+- [ ] **步骤 2：把新增行做成权威的 `activeFields` 变化**
+  - 新字段插入到它上面那一行所在的同一分组里。
+  - 新字段在第 2/3/4 步里可编辑，并且会进入历史和导出路径。
 
-- [ ] **Step 3: Verify the UI in the browser**
-  - Confirm the step rail collapse increases table viewport.
-  - Confirm step 2-4 can show more content without height compression.
-  - Confirm inserted rows, inserted blocks, and whole-block copy all behave in a representative multi-block dataset.
+- [ ] **步骤 3：把新增主板块做成权威的 `skuData` 变化**
+  - 在当前主板块右侧插入一个空白块。
+  - 复用当前主板块的供方数量和结构，保证表格继续对齐。
+  - 所有值保持为空，交给用户显式填写。
 
-**Acceptance Criteria**
-- The focused tests pass.
-- The full test suite and typecheck/lint pass.
-- Manual browser verification confirms the compact rail, denser table, insert controls, and whole-block copy flow all work together.
+- [ ] **步骤 4：重放 `+` 控件位置**
+  - 行插入的 `+` 放到行边界上的固定位置。
+  - 主板块插入的 `+` 放到主板块边缘，不要进到数据单元格里。
+
+**验收标准**
+- 点击行 `+` 后，会在目标分组里插入一条可编辑的新行。
+- 点击主板块 `+` 后，会在右侧插入一个空白块，并且不会破坏表格结构。
+- 新插入的行和块仍然走同一套状态路径。
+- 这些控件在更紧凑的布局下依然可用，不会遮挡输入值。
+
+### Phase 4: 整块选择、复制和粘贴
+
+**目标：** 允许用户选中整个主板块，并把它的内容复制到新插入的空白块里。
+
+**Files:**
+- 修改：`src/App.tsx`
+- 修改：`src/components/TrialProductionTable.tsx`
+
+- [ ] **步骤 1：补上选择态和复制态测试**
+  - 验证主板块可以被标记为已选中。
+  - 验证复制后的主板块可以粘贴到一个新插入的空白目标里。
+
+- [ ] **步骤 2：增加整块选择状态**
+  - 在 `App.tsx` 中记录当前选中的主板块。
+  - 在主板块头部和对应列上渲染选中态样式。
+
+- [ ] **步骤 3：实现复制到空白目标块**
+  - 把源主板块的可见值、供方标签和结构元数据复制到目标块。
+  - 重新生成 id，避免和源块冲突。
+  - 粘贴完成后，目标块仍然保持可编辑。
+
+- [ ] **步骤 4：让校验和导出继续消费权威数据**
+  - 确保校验仍然基于更新后的 `skuData` 运行。
+  - 确保第 5 步预览和工作簿导出都能完整反映复制后的主板块。
+
+**验收标准**
+- 可以在表格 UI 里清楚地选中整块主板块。
+- 复制后的内容可以粘贴到插入出的空白目标块里，并且内容匹配。
+- 复制后的目标块拥有唯一 id，且仍可编辑。
+- 校验、第 5 步预览和导出都沿用同一条复制后的数据路径，不需要特殊分支。
+
+### Phase 5: 验证与回归
+
+**目标：** 证明这套改造能端到端工作，并且不会回退现有步骤流、校验和导出行为。
+
+**Files:**
+- 修改：`src/lib/tableViewport.test.ts`
+- 运行：`npm run test`
+- 运行：`npm run lint`
+
+- [ ] **步骤 1：运行聚焦测试**
+  - 执行 `npm run test -- src/lib/tableViewport.test.ts`。
+  - 执行新增的插入/复制相关测试，覆盖新加的状态辅助函数。
+
+- [ ] **步骤 2：跑完整仓库检查**
+  - 执行 `npm run test`。
+  - 执行 `npm run lint`。
+
+- [ ] **步骤 3：在浏览器里验证 UI**
+  - 确认步骤条收起后，表格视口明显变大。
+  - 确认第 2/3/4 步能展示更多内容，而不会因为高度压缩导致错位。
+  - 确认插入行、插入主板块和整块复制在一个多主板块数据集上都能正常工作。
+
+**验收标准**
+- 聚焦测试通过。
+- 全量测试和 `lint` 通过。
+- 浏览器手工验证确认：步骤条可收缩、表格更紧凑、插入控件可用、整块复制流程可联动工作。
 
 ## Assumptions
 
-- This plan does not add a backend or persistence layer.
-- The canonical state remains `skuData` and `activeFields`; no duplicate data model is introduced.
-- Whole-block copy is limited to the step 2-4 editing flow.
-- The step rail collapse is session-only and does not need to survive a refresh.
+- 本计划不新增后端，也不新增持久化层。
+- 主状态仍然只保留 `skuData` 和 `activeFields`，不引入重复数据模型。
+- 整块复制只作用于第 2/3/4 步的编辑流程。
+- 步骤条收缩只保留会话态，刷新后不需要继续记住收缩状态。
