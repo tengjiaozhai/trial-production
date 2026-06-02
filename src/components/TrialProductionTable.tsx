@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { FIELD_GROUPS, FIELD_DEFS } from '@/src/constants';
 import { SKUData, FieldDefinition, StepId } from '@/src/types';
 import { cn } from '@/src/lib/utils';
-import { Trash2, Plus, GripVertical, ChevronDown, X, Copy, ClipboardPaste, Pencil } from 'lucide-react';
+import { Trash2, Plus, GripVertical, ChevronDown, X, Copy, ClipboardPaste } from 'lucide-react';
 import { listSupplyKeys } from '../lib/supplyProjection';
 import { buildStep5TableModel } from '../lib/step5TableModel';
 import type { Step5Row } from '../lib/step5TableModel';
@@ -424,11 +424,6 @@ function SortableRow({
                         readOnly={field.behavior === 'calc' || currentStep === 5}
                         disabled={currentStep === 5}
                       />
-                      {currentStep !== 5 && field.behavior !== 'calc' && (
-                        <div className="pr-2 text-slate-300 pointer-events-none">
-                          <Pencil size={12} />
-                        </div>
-                      )}
                     </>
                   )}
                 </div>
@@ -611,7 +606,7 @@ export function TrialProductionTable({
   const visibleFields = getVisibleFields();
   let basicInfoFields = visibleFields.filter(f => f.group === '基本信息');
   if (currentStep >= 3) {
-    const supplierRow = { id: '__supplier__', label: '供应商', group: '基本信息', behavior: 'manual' as const };
+    const supplierRow = { id: '__supplier__', label: '一供/二供', group: '基本信息', behavior: 'manual' as const };
     const orderIdx = basicInfoFields.findIndex(f => f.id === 'order_no');
     if (orderIdx >= 0) {
       basicInfoFields = [...basicInfoFields.slice(0, orderIdx + 1), supplierRow, ...basicInfoFields.slice(orderIdx + 1)];
@@ -804,11 +799,11 @@ export function TrialProductionTable({
         collisionDetection={closestCenter}
         onDragEnd={handleDragEndRows}
       >
-        <div 
+        <div
           ref={topTableRef}
           onScroll={handleScroll('top')}
           style={{ height: BASIC_INFO_BLOCK_HEIGHT_PX }}
-          className="overflow-auto shrink-0 z-20 border-b-2 border-slate-300 shadow-sm min-w-0"
+          className="shrink-0 z-20 shadow-sm min-w-0 overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           <table className="text-sm border-separate border-spacing-0" style={tableStyle}>
             {renderColGroup()}

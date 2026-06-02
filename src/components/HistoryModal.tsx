@@ -52,7 +52,7 @@ export function HistoryModal({ isOpen, onClose, history, onLoad, onCopy, onDelet
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl bg-white rounded-xl shadow-2xl z-[101] overflow-hidden flex flex-col h-[85vh]"
           >
-            <div className="flex items-center justify-between p-4 border-b bg-gray-50/80 backdrop-blur-md sticky top-0 z-10 shrink-0">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100/70 bg-gray-50/80 backdrop-blur-md sticky top-0 z-10 shrink-0">
               <div className="flex items-center gap-2">
                 <Clock className="text-blue-500" size={20} />
                 <h2 className="text-lg font-bold">试产历史记录</h2>
@@ -62,7 +62,7 @@ export function HistoryModal({ isOpen, onClose, history, onLoad, onCopy, onDelet
               </button>
             </div>
 
-            <div className="p-4 border-b bg-white shrink-0">
+            <div className="p-4 border-b border-gray-100/70 bg-white shrink-0">
               <div className="relative">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
@@ -159,7 +159,7 @@ export function HistoryModal({ isOpen, onClose, history, onLoad, onCopy, onDelet
               )}
             </div>
 
-            <div className="p-4 border-t bg-gray-50 flex justify-between items-center shrink-0">
+            <div className="p-4 border-t border-gray-100/70 bg-gray-50 flex justify-between items-center shrink-0">
               <div className="flex items-center gap-4">
                  <span className="text-[12px] text-gray-500 font-bold">
                    共 {filteredHistory.length} 条记录
