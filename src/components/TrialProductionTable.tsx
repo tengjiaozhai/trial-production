@@ -306,7 +306,7 @@ function SortableRow({
           {field.id === '__supplier__' ? (
             <td
               key={sku.id}
-              colSpan={sku.supplies.length + (currentStep === 4 ? 1 : 0)}
+              colSpan={sku.supplies.length}
               className="border-b border-r border-slate-200 p-3 align-top bg-white"
             >
               {currentStep === 3 ? (
@@ -452,8 +452,11 @@ export function TrialProductionTable({
 
   const topTableRef = useRef<HTMLDivElement>(null);
   const bottomTableRef = useRef<HTMLDivElement>(null);
+  const step5TableRef = useRef<HTMLDivElement>(null);
   const [colWidths, setColWidths] = useState<Record<string, number>>({});
   const [rowHeights, setRowHeights] = useState<Record<string, number>>({});
+  const [horizontalScrollLeft, setHorizontalScrollLeft] = useState(0);
+  const [horizontalScrollMax, setHorizontalScrollMax] = useState(0);
 
   useEffect(() => {
     if (currentStep !== 5) return;
@@ -466,6 +469,46 @@ export function TrialProductionTable({
     width: `${viewport.totalTableWidthPx}px`,
     minWidth: `${viewport.totalTableWidthPx}px`,
   };
+
+  const getActiveHorizontalContainers = (): HTMLDivElement[] => {
+    if (currentStep === 5) {
+      return step5TableRef.current ? [step5TableRef.current] : [];
+    }
+    return [topTableRef.current, bottomTableRef.current].filter((n): n is HTMLDivElement => Boolean(n));
+  };
+
+  const syncHorizontalSliderState = () => {
+    const containers = getActiveHorizontalContainers();
+    if (containers.length === 0) {
+      setHorizontalScrollLeft(0);
+      setHorizontalScrollMax(0);
+      return;
+    }
+    const maxScroll = Math.max(...containers.map((el) => Math.max(0, el.scrollWidth - el.clientWidth)));
+    const current = containers[0].scrollLeft;
+    setHorizontalScrollMax(maxScroll);
+    setHorizontalScrollLeft(Math.min(current, maxScroll));
+  };
+
+  const applyHorizontalScroll = (nextLeft: number) => {
+    const clamped = Math.max(0, Math.min(nextLeft, horizontalScrollMax));
+    const containers = getActiveHorizontalContainers();
+    containers.forEach((el) => {
+      if (el.scrollLeft !== clamped) el.scrollLeft = clamped;
+    });
+    setHorizontalScrollLeft(clamped);
+  };
+
+  useEffect(() => {
+    const rafId = requestAnimationFrame(syncHorizontalSliderState);
+    return () => cancelAnimationFrame(rafId);
+  }, [currentStep, skuData, colWidths, activeFields]);
+
+  useEffect(() => {
+    const handleResize = () => syncHorizontalSliderState();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [currentStep]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -510,69 +553,94 @@ export function TrialProductionTable({
   const otherFields = visibleFields.filter(f => f.group !== '基本信息');
   const otherGroups = Array.from(new Set(otherFields.map(f => f.group)));
 
+  const renderHorizontalSlider = () => {
+    if (currentStep < 2) return null;
+    return (
+      <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-3 py-1.5">
+        <input
+          type="range"
+          min={0}
+          max={Math.max(0, horizontalScrollMax)}
+          step={1}
+          value={Math.min(horizontalScrollLeft, Math.max(0, horizontalScrollMax))}
+          onChange={(e) => applyHorizontalScroll(Number(e.target.value))}
+          disabled={horizontalScrollMax <= 0}
+          className="w-full accent-[#0ea5a4] disabled:cursor-not-allowed disabled:opacity-40"
+        />
+      </div>
+    );
+  };
+
   if (currentStep === 5) {
     const step5Model = buildStep5TableModel({ activeFields, skuData });
     const totalValueCols = step5Model.columns.length;
+    const step5TableWidthPx = 36 + 120 + step5Model.columns.reduce((sum, col) => sum + (colWidths[col.supplyId] ?? 160), 0);
 
     return (
-      <div className="overflow-auto h-full border border-slate-200 rounded shadow-sm bg-white">
-        <table className="border-collapse text-[13px]" style={{ tableLayout: 'fixed', width: '100%' }}>
-          <colgroup>
-            <col style={{ width: 36 }} />
-            <col style={{ width: 120 }} />
-            {step5Model.columns.map((col) => (
-              <col key={col.supplyId} style={{ width: colWidths[col.supplyId] ?? 160 }} />
-            ))}
-          </colgroup>
-          <tbody>
-            {step5Model.rows.map((row: Step5Row, rowIdx: number) => {
-              if (row.kind === 'title') {
+      <div className="h-full border border-slate-200 rounded shadow-sm bg-white overflow-hidden flex flex-col">
+        <div ref={step5TableRef} onScroll={syncHorizontalSliderState} className="overflow-auto flex-1">
+          <table
+            className="border-collapse text-[13px]"
+            style={{ tableLayout: 'fixed', width: `${step5TableWidthPx}px`, minWidth: '100%' }}
+          >
+            <colgroup>
+              <col style={{ width: 36 }} />
+              <col style={{ width: 120 }} />
+              {step5Model.columns.map((col) => (
+                <col key={col.supplyId} style={{ width: colWidths[col.supplyId] ?? 160 }} />
+              ))}
+            </colgroup>
+            <tbody>
+              {step5Model.rows.map((row: Step5Row, rowIdx: number) => {
+                if (row.kind === 'title') {
+                  return (
+                    <tr key={rowIdx}>
+                      <td
+                        colSpan={2 + totalValueCols}
+                        className="bg-[#e8f5e9] font-bold text-slate-700 px-3 py-2 border border-slate-200 text-center"
+                      >
+                        {row.title}
+                      </td>
+                    </tr>
+                  );
+                }
+                if (row.kind === 'group') {
+                  return (
+                    <tr key={rowIdx}>
+                      <td
+                        colSpan={2 + totalValueCols}
+                        className="bg-[#f1f8e9] font-semibold text-slate-600 px-3 py-1.5 border border-slate-200"
+                      >
+                        {row.title}
+                      </td>
+                    </tr>
+                  );
+                }
+                // field row
                 return (
-                  <tr key={rowIdx}>
-                    <td
-                      colSpan={2 + totalValueCols}
-                      className="bg-[#e8f5e9] font-bold text-slate-700 px-3 py-2 border border-slate-200 text-center"
-                    >
-                      {row.title}
+                  <tr key={rowIdx} style={{ height: rowHeights[row.fieldId] ?? 36 }}>
+                    <td className="text-center text-slate-400 text-[11px] border border-slate-200 px-1">
+                      {row.indexLabel}
                     </td>
+                    <td className="px-3 text-slate-600 border border-slate-200 whitespace-nowrap">
+                      {row.fieldLabel}
+                    </td>
+                    {row.cells.map((cell, ci) => (
+                      <td
+                        key={ci}
+                        colSpan={cell.colSpan}
+                        className="px-3 text-slate-700 border border-slate-200"
+                      >
+                        {cell.value}
+                      </td>
+                    ))}
                   </tr>
                 );
-              }
-              if (row.kind === 'group') {
-                return (
-                  <tr key={rowIdx}>
-                    <td
-                      colSpan={2 + totalValueCols}
-                      className="bg-[#f1f8e9] font-semibold text-slate-600 px-3 py-1.5 border border-slate-200"
-                    >
-                      {row.title}
-                    </td>
-                  </tr>
-                );
-              }
-              // field row
-              return (
-                <tr key={rowIdx} style={{ height: rowHeights[row.fieldId] ?? 36 }}>
-                  <td className="text-center text-slate-400 text-[11px] border border-slate-200 px-1">
-                    {row.indexLabel}
-                  </td>
-                  <td className="px-3 text-slate-600 border border-slate-200 whitespace-nowrap">
-                    {row.fieldLabel}
-                  </td>
-                  {row.cells.map((cell, ci) => (
-                    <td
-                      key={ci}
-                      colSpan={cell.colSpan}
-                      className="px-3 text-slate-700 border border-slate-200"
-                    >
-                      {cell.value}
-                    </td>
-                  ))}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+              })}
+            </tbody>
+          </table>
+        </div>
+        {renderHorizontalSlider()}
       </div>
     );
   }
@@ -609,6 +677,7 @@ export function TrialProductionTable({
         topTableRef.current.scrollLeft = scrollLeft;
       }
     }
+    setHorizontalScrollLeft(Math.min(scrollLeft, Math.max(0, horizontalScrollMax)));
   };
 
   const renderColGroup = () => (
@@ -638,7 +707,6 @@ export function TrialProductionTable({
           ref={topTableRef}
           onScroll={handleScroll('top')}
           className="overflow-x-auto overflow-y-hidden shrink-0 z-20 border-b-2 border-slate-300 shadow-sm min-w-0"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           <table className="text-sm border-separate border-spacing-0" style={tableStyle}>
             {renderColGroup()}
@@ -765,6 +833,7 @@ export function TrialProductionTable({
             </tbody>
           </table>
         </div>
+        {renderHorizontalSlider()}
       </DndContext>
     </div>
   );
