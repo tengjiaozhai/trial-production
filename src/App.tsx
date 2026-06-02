@@ -849,7 +849,12 @@ export default function App() {
         <div className="flex items-center gap-3">
           <button 
             onClick={handleCreateNew}
-            className="flex items-center gap-1.5 px-4 py-2 text-white bg-[#2563EB] hover:bg-[#1d4ed8] rounded transition-all text-xs font-bold"
+            className={cn(
+              "flex items-center gap-1.5 px-4 py-2 text-white rounded transition-all text-xs font-bold",
+              currentStep > 1
+                ? "bg-[#06B6D4] hover:bg-[#0891B2]"
+                : "bg-[#2563EB] hover:bg-[#1d4ed8]"
+            )}
           >
             <Plus size={16} />
             <span>新建试产阶段</span>
