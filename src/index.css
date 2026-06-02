@@ -7,7 +7,7 @@
 }
 
 body {
-  @apply font-sans bg-gray-50 text-gray-900;
+  @apply font-sans bg-[#F6F9FF] text-[#0B1F33];
 }
 
 /* Custom scrollbar for enterprise look */

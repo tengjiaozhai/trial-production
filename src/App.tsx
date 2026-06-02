@@ -836,8 +836,8 @@ export default function App() {
   const skuSupplyKeys = Object.fromEntries(skuData.map(s => [s.id, listSupplyKeys(s)]));
 
   return (
-    <div className="flex flex-col h-screen bg-[#f5f7f9] text-slate-800 font-sans overflow-hidden">
-      <header className="h-[60px] bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 z-[110]">
+    <div className="flex flex-col h-screen bg-[#f5f7f9] text-[#0B1F33] font-sans overflow-hidden">
+      <header className="h-[60px] bg-white border-b border-[#DDE7F3] flex items-center justify-between px-6 shrink-0 z-[110]">
         <div className="flex items-center gap-6">
           <div className="font-black text-xl tracking-tight text-[#0f2e4a] flex items-center gap-2">
             <div className="w-6 h-6 rounded bg-[#0f2e4a] flex items-center justify-center text-white shrink-0">
@@ -849,20 +849,20 @@ export default function App() {
         <div className="flex items-center gap-3">
           <button 
             onClick={handleCreateNew}
-            className="flex items-center gap-1.5 px-4 py-2 text-white bg-[#0f2e4a] hover:bg-[#1a4269] rounded transition-all text-xs font-bold"
+            className="flex items-center gap-1.5 px-4 py-2 text-white bg-[#2563EB] hover:bg-[#1d4ed8] rounded transition-all text-xs font-bold"
           >
             <Plus size={16} />
             <span>新建试产阶段</span>
           </button>
           <div className="w-[1px] h-4 bg-slate-200 mx-1" />
-          <button 
+           <button 
             onClick={() => setShowHistory(true)}
-            className="group flex items-center gap-1.5 px-3 py-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded transition-all text-xs font-medium"
+            className="group flex items-center gap-1.5 px-3 py-1.5 text-[#64748B] hover:text-[#2563EB] hover:bg-[#EEF6FF] rounded transition-all text-xs font-medium"
           >
             <History size={16} className="group-hover:rotate-12 transition-transform" />
             <span>历史记录</span>
             {history.length > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] rounded-full font-black">
+              <span className="ml-1 px-1.5 py-0.5 bg-[#EEF6FF] text-[#2563EB] text-[9px] rounded-full font-black">
                 {history.length}
               </span>
             )}
@@ -902,32 +902,32 @@ export default function App() {
                 exit={{ opacity: 0, y: -10 }}
                 className="max-w-6xl mx-auto space-y-6"
               >
-                <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200">
-                  <div className="flex items-center gap-3 mb-4 border-b border-slate-100 pb-4">
-                    <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                <div className="bg-white p-6 rounded-2xl shadow-xl shadow-[#DDE7F3]/50 border border-[#DDE7F3]">
+                  <div className="flex items-center gap-3 mb-4 border-b border-[#DDE7F3] pb-4">
+                    <div className="w-10 h-10 rounded-full bg-[#EEF6FF] flex items-center justify-center text-[#2563EB]">
                       <FileText size={20} />
                     </div>
                     <div>
-                      <h2 className="text-xl font-black text-slate-800">项目基本信息</h2>
-                      <p className="text-xs text-slate-400">设置项目的基本信息和阶段</p>
+                      <h2 className="text-xl font-black text-[#0B1F33]">项目基本信息</h2>
+                      <p className="text-xs text-[#64748B]">设置项目的基本信息和阶段</p>
                     </div>
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-slate-400">项目名称 <span className="text-rose-500">*</span></label>
+                      <label className="text-xs font-black text-[#64748B]">项目名称 <span className="text-rose-500">*</span></label>
                       <input
                         type="text"
                         placeholder="例如: X6728"
-                        className="w-full h-12 px-4 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none transition-all text-sm font-bold bg-slate-50/30"
+                        className="w-full h-12 px-4 rounded-xl border border-[#DDE7F3] focus:ring-4 focus:ring-[#2563EB]/10 focus:border-[#2563EB] outline-none transition-all text-sm font-bold bg-[#F6F9FF]/30"
                         value={projectInfo.name}
                         onChange={e => setProjectInfo(prev => ({ ...prev, name: e.target.value }))}
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-slate-400">模板选择 <span className="text-rose-500">*</span></label>
+                      <label className="text-xs font-black text-[#64748B]">模板选择 <span className="text-rose-500">*</span></label>
                       <select
-                        className="w-full h-12 px-4 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none bg-slate-50/30 transition-all text-sm font-bold appearance-none cursor-pointer"
+                        className="w-full h-12 px-4 rounded-xl border border-[#DDE7F3] focus:ring-4 focus:ring-[#2563EB]/10 focus:border-[#2563EB] outline-none bg-[#F6F9FF]/30 transition-all text-sm font-bold appearance-none cursor-pointer"
                         value={projectInfo.customer}
                         onChange={e => {
                           const customer = e.target.value as Template;
@@ -941,9 +941,9 @@ export default function App() {
                       </select>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-xs font-black text-slate-400">试产阶段 <span className="text-rose-500">*</span></label>
+                      <label className="text-xs font-black text-[#64748B]">试产阶段 <span className="text-rose-500">*</span></label>
                       <select
-                        className="w-full h-12 px-4 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none bg-slate-50/30 transition-all text-sm font-bold appearance-none cursor-pointer"
+                        className="w-full h-12 px-4 rounded-xl border border-[#DDE7F3] focus:ring-4 focus:ring-[#2563EB]/10 focus:border-[#2563EB] outline-none bg-[#F6F9FF]/30 transition-all text-sm font-bold appearance-none cursor-pointer"
                         value={projectInfo.stage}
                         disabled={!projectInfo.customer}
                         onChange={e => setProjectInfo(prev => ({ ...prev, stage: e.target.value as Stage }))}
@@ -957,14 +957,14 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-2xl shadow-xl shadow-slate-200/50 border border-slate-200">
-                  <div className="flex items-center gap-3 mb-4 border-b border-slate-100 pb-4">
-                    <div className="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                <div className="bg-white p-6 rounded-2xl shadow-xl shadow-[#DDE7F3]/50 border border-[#DDE7F3]">
+                  <div className="flex items-center gap-3 mb-4 border-b border-[#DDE7F3] pb-4">
+                    <div className="w-10 h-10 rounded-full bg-[#10B981] flex items-center justify-center text-[#10B981]">
                       <Upload size={20} />
                     </div>
                     <div>
-                      <h2 className="text-xl font-black text-slate-800">数据源上传</h2>
-                      <p className="text-xs text-slate-400">上传配置表、物料表等核心文件执行解析</p>
+                      <h2 className="text-xl font-black text-[#0B1F33]">数据源上传</h2>
+                      <p className="text-xs text-[#64748B]">上传配置表、物料表等核心文件执行解析</p>
                     </div>
                   </div>
 
@@ -976,19 +976,19 @@ export default function App() {
                       className={cn("absolute inset-0 opacity-0 z-10", isUploadResolving ? "cursor-not-allowed" : "cursor-pointer")}
                       onChange={handleFileUpload}
                     />
-                    <div className="border border-dashed border-slate-300 rounded-xl p-8 flex flex-col items-center justify-center group-hover:bg-slate-50 group-hover:border-blue-400 transition-all">
-                      <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 group-hover:text-blue-500 group-hover:bg-blue-50 transition-all mb-3">
+                    <div className="border border-dashed border-[#DDE7F3] rounded-xl p-8 flex flex-col items-center justify-center group-hover:bg-[#F6F9FF] group-hover:border-[#2563EB] transition-all">
+                      <div className="w-12 h-12 rounded-xl bg-[#F6F9FF] flex items-center justify-center text-[#64748B] group-hover:text-[#2563EB] group-hover:bg-[#EEF6FF] transition-all mb-3">
                         <Upload size={24} />
                       </div>
-                      <p className="text-sm font-bold text-slate-800 tracking-tight">点击或拖拽文件至此</p>
-                      <p className="text-[11px] text-slate-500 mt-1 font-medium">可上传物料表、样机收集表、配置表或关键物料选型模板</p>
+                      <p className="text-sm font-bold text-[#0B1F33] tracking-tight">点击或拖拽文件至此</p>
+                      <p className="text-[11px] text-[#64748B] mt-1 font-medium">可上传物料表、样机收集表、配置表或关键物料选型模板</p>
                     </div>
                   </div>
 
                   {projectInfo.files.length > 0 && (
                     <div className="mt-4 space-y-3">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-[10px] font-black text-slate-500">已解析文件列表 ({projectInfo.files.length})</h4>
+                        <h4 className="text-[10px] font-black text-[#64748B]">已解析文件列表 ({projectInfo.files.length})</h4>
                       </div>
                       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
                         {projectInfo.files.map((file) => (
@@ -997,20 +997,20 @@ export default function App() {
                              initial={{ opacity: 0, scale: 0.9 }}
                              animate={{ opacity: 1, scale: 1 }}
                              key={file.id} 
-                             className="flex items-center justify-between p-2.5 bg-slate-50 rounded-lg border border-slate-200 group/file hover:bg-white hover:border-blue-200 hover:shadow-md transition-all"
+                             className="flex items-center justify-between p-2.5 bg-[#F6F9FF] rounded-lg border border-[#DDE7F3] group/file hover:bg-white hover:border-[#DDE7F3] hover:shadow-md transition-all"
                            >
                             <div className="flex items-center gap-2 overflow-hidden">
-                              <div className="w-7 h-7 rounded bg-white border border-slate-200 flex items-center justify-center text-slate-400 shadow-sm shrink-0">
+                              <div className="w-7 h-7 rounded bg-white border border-[#DDE7F3] flex items-center justify-center text-[#64748B] shadow-sm shrink-0">
                                 <FileText size={14} />
                               </div>
                               <div className="flex flex-col min-w-0">
-                                <span className="text-[11px] font-bold text-slate-700 truncate">{file.name}</span>
-                                <span className="text-[9px] font-black text-blue-500">{file.type}</span>
+                                <span className="text-[11px] font-bold text-[#0B1F33] truncate">{file.name}</span>
+                                <span className="text-[9px] font-black text-[#2563EB]">{file.type}</span>
                               </div>
                             </div>
                             <button 
                               onClick={() => handleDeleteFile(file.id)}
-                              className="w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-all opacity-0 group-hover/file:opacity-100"
+                              className="w-6 h-6 shrink-0 rounded-full flex items-center justify-center text-[#DDE7F3] hover:text-rose-500 hover:bg-rose-50 transition-all opacity-0 group-hover/file:opacity-100"
                             >
                               <X size={14} />
                             </button>
@@ -1021,14 +1021,14 @@ export default function App() {
                   )}
 
                   {(!projectInfo.pcbaOptions || projectInfo.pcbaOptions.length === 0) ? (
-                    <div className="mt-6 border border-blue-100 bg-blue-50/30 rounded-xl p-4">
-                      <h4 className="text-sm font-bold text-slate-800 mb-3">请添加主板标识 <span className="text-rose-500">*</span></h4>
-                      <p className="text-[11px] text-slate-500 mb-4">未检测到配置表，请手动添加或上传相关文件</p>
+                    <div className="mt-6 border border-[#DDE7F3] bg-[#EEF6FF]/30 rounded-xl p-4">
+                      <h4 className="text-sm font-bold text-[#0B1F33] mb-3">请添加主板标识 <span className="text-rose-500">*</span></h4>
+                      <p className="text-[11px] text-[#64748B] mb-4">未检测到配置表，请手动添加或上传相关文件</p>
                       
                       <div className="flex gap-2 mb-4">
                         <input 
                           type="text" 
-                          className="flex-1 h-10 px-3 rounded-lg border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none text-sm transition-all"
+                          className="flex-1 h-10 px-3 rounded-lg border border-[#DDE7F3] focus:ring-4 focus:ring-[#2563EB]/10 focus:border-[#2563EB] outline-none text-sm transition-all"
                           placeholder="输入主板标识并按回车或点击添加"
                           value={manualPcbaInput}
                           onChange={(e) => setManualPcbaInput(e.target.value)}
@@ -1059,7 +1059,7 @@ export default function App() {
                               setManualPcbaInput('');
                             }
                           }}
-                          className="px-4 h-10 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-lg transition-all text-xs"
+                          className="px-4 h-10 bg-[#2563EB] hover:bg-[#1d4ed8] text-white font-bold rounded-lg transition-all text-xs"
                         >
                           添加
                         </button>
@@ -1067,8 +1067,8 @@ export default function App() {
 
                       <div className="flex flex-wrap gap-2">
                         {projectInfo.checkedPcbaOptions?.map(pcba => (
-                          <div key={pcba} className="flex items-center gap-1.5 bg-white px-3 py-1.5 border border-slate-200 rounded-lg shadow-sm">
-                            <span className="text-xs font-bold text-slate-700">{pcba}</span>
+                          <div key={pcba} className="flex items-center gap-1.5 bg-white px-3 py-1.5 border border-[#DDE7F3] rounded-lg shadow-sm">
+                            <span className="text-xs font-bold text-[#0B1F33]">{pcba}</span>
                             <button 
                               type="button"
                               onClick={() => {
@@ -1077,7 +1077,7 @@ export default function App() {
                                   checkedPcbaOptions: prev.checkedPcbaOptions?.filter(c => c !== pcba)
                                 }));
                               }}
-                              className="w-4 h-4 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded transition-all"
+                              className="w-4 h-4 flex items-center justify-center text-[#64748B] hover:text-rose-500 hover:bg-rose-50 rounded transition-all"
                             >
                               <X size={12} />
                             </button>
@@ -1086,16 +1086,16 @@ export default function App() {
                       </div>
                     </div>
                   ) : (
-                    <div className="mt-6 border border-blue-100 bg-blue-50/30 rounded-xl p-4 flex flex-col h-full max-h-[400px]">
+                    <div className="mt-6 border border-[#DDE7F3] bg-[#EEF6FF]/30 rounded-xl p-4 flex flex-col h-full max-h-[400px]">
                       <div className="flex items-center justify-between mb-3 shrink-0">
                         <div>
-                          <h4 className="text-sm font-bold text-slate-800">请选择主板标识 <span className="text-rose-500">*</span></h4>
-                          <p className="text-[11px] text-slate-500 mt-1">从配置表中提取到以下 PCBA 规格，将根据勾选进行生成</p>
+                          <h4 className="text-sm font-bold text-[#0B1F33]">请选择主板标识 <span className="text-rose-500">*</span></h4>
+                          <p className="text-[11px] text-[#64748B] mt-1">从配置表中提取到以下 PCBA 规格，将根据勾选进行生成</p>
                         </div>
-                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-blue-600 px-3 py-1.5 bg-white border border-slate-200 rounded-lg shadow-sm text-xs font-bold transition-all hover:border-blue-300">
+                        <label className="flex items-center gap-1.5 cursor-pointer hover:text-[#2563EB] px-3 py-1.5 bg-white border border-[#DDE7F3] rounded-lg shadow-sm text-xs font-bold transition-all hover:border-[#2563EB]">
                           <input 
                             type="checkbox"
-                            className="rounded text-blue-600 w-3.5 h-3.5"
+                            className="rounded text-[#2563EB] w-3.5 h-3.5"
                             checked={
                               projectInfo.pcbaOptions.length > 0 &&
                               projectInfo.checkedPcbaOptions?.length === projectInfo.pcbaOptions.length
@@ -1116,13 +1116,13 @@ export default function App() {
                             <label 
                               key={opt.pcba} 
                               className={cn(
-                                "flex items-center justify-center gap-2 bg-white px-3 py-2 cursor-pointer hover:bg-blue-50 transition-colors relative border border-slate-200 rounded-lg shadow-sm min-w-[60px]",
-                                projectInfo.checkedPcbaOptions?.includes(opt.pcba) ? 'bg-blue-50/50 border-blue-400' : ''
+                                "flex items-center justify-center gap-2 bg-white px-3 py-2 cursor-pointer hover:bg-[#EEF6FF] transition-colors relative border border-[#DDE7F3] rounded-lg shadow-sm min-w-[60px]",
+                                projectInfo.checkedPcbaOptions?.includes(opt.pcba) ? 'bg-[#EEF6FF]/50 border-[#2563EB]' : ''
                               )}
                             >
                               <input 
                                 type="checkbox" 
-                                className="w-3.5 h-3.5 text-blue-600 rounded shrink-0"
+                                className="w-3.5 h-3.5 text-[#2563EB] rounded shrink-0"
                                 checked={projectInfo.checkedPcbaOptions?.includes(opt.pcba)}
                                 onChange={(e) => {
                                   setProjectInfo(prev => {
@@ -1132,7 +1132,7 @@ export default function App() {
                                   });
                                 }}
                               />
-                              <span className="text-[13px] font-bold text-slate-800 truncate" title={opt.pcba}>{opt.pcba}</span>
+                              <span className="text-[13px] font-bold text-[#0B1F33] truncate" title={opt.pcba}>{opt.pcba}</span>
                             </label>
                           ))}
                         </div>
@@ -1150,12 +1150,12 @@ export default function App() {
                 animate={{ opacity: 1 }}
                 className="flex flex-col flex-1 min-h-0 gap-6"
               >
-                <div className="flex justify-between items-end pb-4 border-b border-slate-200 shrink-0">
+                <div className="flex justify-between items-end pb-4 border-b border-[#DDE7F3] shrink-0">
                   <div className="flex items-center gap-3">
                   </div>
                 </div>
 
-                <div className="flex-1 min-h-0 bg-white rounded shadow-sm border border-slate-200 overflow-hidden">
+                <div className="flex-1 min-h-0 bg-white rounded shadow-sm border border-[#DDE7F3] overflow-hidden">
                   <TrialProductionTable
                     currentStep={currentStep}
                     skuData={visibleSkuData}
@@ -1194,43 +1194,43 @@ export default function App() {
         </main>
 
         {loading && (
-          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex flex-col items-center justify-center p-12">
+          <div className="fixed inset-0 bg-[#0B1F33]/60 backdrop-blur-sm z-[200] flex flex-col items-center justify-center p-12">
             <div className="w-full max-w-sm bg-white p-8 rounded-3xl shadow-2xl space-y-6 text-center">
               <div className="relative w-24 h-24 mx-auto">
-                <div className="absolute inset-0 border-4 border-slate-100 rounded-full" />
+                <div className="absolute inset-0 border-4 border-[#DDE7F3] rounded-full" />
                 <motion.div 
-                  className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent"
+                  className="absolute inset-0 border-4 border-[#2563EB] rounded-full border-t-transparent"
                   animate={{ rotate: 360 }}
                   transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
                 />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Play size={32} className="text-blue-600 animate-pulse ml-1" />
+                  <Play size={32} className="text-[#2563EB] animate-pulse ml-1" />
                 </div>
               </div>
               <div className="space-y-2">
-                <h3 className="text-xl font-black text-slate-900">
+                <h3 className="text-xl font-black text-[#0B1F33]">
                   {loadingPhase === 'upload' ? '文件上传解析中...' : 'AI 正在深度解析...'}
                 </h3>
-                <p className="text-xs font-mono text-slate-400 h-4">{loadingText}</p>
+                <p className="text-xs font-mono text-[#64748B] h-4">{loadingText}</p>
               </div>
             </div>
           </div>
         )}
 
         {/* Fixed Footer Actions */}
-        <div className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-slate-200 flex items-center justify-end px-8 z-[105] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <div className="fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-[#DDE7F3] flex items-center justify-end px-8 z-[105] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
           <div className="flex items-center gap-4">
             {currentStep > 1 && (
               <>
                 <button
                   onClick={goBack}
-                  className="px-6 py-2 border border-slate-300 text-slate-600 rounded font-bold text-[13px] hover:bg-slate-50 transition-all active:scale-95 flex items-center gap-2"
+                  className="px-6 py-2 border border-[#DDE7F3] text-[#64748B] rounded font-bold text-[13px] hover:bg-[#F6F9FF] transition-all active:scale-95 flex items-center gap-2"
                 >
                   上一步
                 </button>
                 <button
                   onClick={() => handleIntendSave(false)}
-                  className="px-6 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded font-bold text-[13px] hover:bg-amber-100 transition-all active:scale-95 flex items-center gap-2"
+                  className="px-6 py-2 bg-[#F59E0B] text-white border border-[#F59E0B] rounded font-bold text-[13px] transition-all active:scale-95 flex items-center gap-2"
                 >
                   暂存
                 </button>
@@ -1244,8 +1244,8 @@ export default function App() {
                 className={cn(
                   "px-6 py-2 rounded font-bold text-[13px] text-white transition-all flex items-center gap-2",
                   (isStep1Complete && !isUploadResolving)
-                    ? "bg-[#0f2e4a] hover:bg-[#1a4269]" 
-                    : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                    ? "bg-[#2563EB] hover:bg-[#1d4ed8]"
+                    : "bg-[#DDE7F3] text-[#64748B] cursor-not-allowed"
                 )}
               >
                 {isUploadResolving ? '解析中...' : '点此开始解析'}
@@ -1269,8 +1269,8 @@ export default function App() {
                 className={cn(
                   "px-6 py-2 rounded font-bold text-[13px] transition-all flex items-center gap-2",
                   disableNextToPreview
-                    ? "bg-slate-100 text-slate-400 cursor-not-allowed"
-                    : "bg-[#00897b] text-white hover:bg-[#00796b] active:scale-95"
+                    ? "bg-[#DDE7F3] text-[#64748B] cursor-not-allowed"
+                    : "bg-[#06B6D4] text-white hover:bg-[#0891B2] active:scale-95"
                 )}
               >
                 下一步: {currentStep === 2 ? '要素补全' : currentStep === 3 ? '规则引擎核验' : '导出预览'}
@@ -1292,17 +1292,17 @@ export default function App() {
       <AnimatePresence>
         {createNewPrompt && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
-             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setCreateNewPrompt(false)} className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" />
+             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setCreateNewPrompt(false)} className="absolute inset-0 bg-[#0B1F33]/40 backdrop-blur-sm" />
              <motion.div initial={{ scale: 0.95, opacity: 0, y: 10 }} animate={{ scale: 1, opacity: 1, y: 0 }} className="relative bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-6">
-                <h3 className="text-lg font-black text-slate-800">新建试产配置</h3>
-                <p className="text-sm text-slate-600 font-medium">
+                <h3 className="text-lg font-black text-[#0B1F33]">新建试产配置</h3>
+                <p className="text-sm text-[#64748B] font-medium">
                    当前页面包含未保存的内容，是否在新建前进行保存？
                 </p>
-                <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <div className="flex justify-end gap-3 pt-4 border-t border-[#DDE7F3]">
                    <button onClick={() => {
                      setCreateNewPrompt(false);
                      doResetForNew();
-                   }} className="px-5 py-2.5 text-sm text-slate-500 font-bold hover:bg-slate-50 rounded-xl transition-all">
+                   }} className="px-5 py-2.5 text-sm text-[#64748B] font-bold hover:bg-[#F6F9FF] rounded-xl transition-all">
                      不保存直接新建
                    </button>
                    <button onClick={() => {
@@ -1310,7 +1310,7 @@ export default function App() {
                       handleIntendSave(false, () => {
                         doResetForNew();
                       });
-                   }} className="px-5 py-2.5 text-sm text-white bg-blue-600 hover:bg-blue-700 font-bold rounded-xl shadow-lg shadow-blue-500/20 transition-all">
+                   }} className="px-5 py-2.5 text-sm text-white bg-[#2563EB] hover:bg-[#1d4ed8] font-bold rounded-xl shadow-lg shadow-[#2563EB]/20 transition-all">
                      保存并新建
                    </button>
                 </div>

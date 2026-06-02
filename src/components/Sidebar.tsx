@@ -83,7 +83,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "relative h-full bg-white border-r border-slate-200 flex flex-col shrink-0 shadow-sm z-10 transition-all duration-300 ease-out",
+        "relative h-full bg-white border-r border-[#DDE7F3] flex flex-col shrink-0 shadow-sm z-10 transition-all duration-300 ease-out",
         collapsed ? "w-12" : "w-80",
       )}
     >
@@ -91,7 +91,7 @@ export function Sidebar({
         type="button"
         onClick={onToggleCollapsed}
         aria-label={collapsed ? '展开侧边栏' : '收起侧边栏'}
-        className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-slate-200 shadow-sm flex items-center justify-center text-slate-500 hover:text-[#0f2e4a] hover:border-[#0f2e4a] transition-colors z-20"
+        className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-[#DDE7F3] shadow-sm flex items-center justify-center text-[#64748B] hover:text-[#0B1F33] hover:border-[#0B1F33] transition-colors z-20"
       >
         <ArrowLeft size={12} className={cn("transition-transform duration-300", collapsed && "rotate-180")} />
       </button>
@@ -101,20 +101,20 @@ export function Sidebar({
         {currentStep === 1 && (
           <div className="space-y-6">
             <div>
-              <h3 className="text-sm font-black text-[#0f2e4a] flex items-center gap-2 mb-4">
-                <CheckCircle2 size={18} className="text-[#0f2e4a]" /> 准备就绪核对
+              <h3 className="text-sm font-black text-[#0B1F33] flex items-center gap-2 mb-4">
+                <CheckCircle2 size={18} className="text-[#0B1F33]" /> 准备就绪核对
               </h3>
               <ul className="space-y-3">
                 {checklist.map((item, idx) => (
-                  <li key={idx} className="flex items-center gap-3 text-[13px] font-bold p-2 hover:bg-slate-50 rounded transition-all">
+                  <li key={idx} className="flex items-center gap-3 text-[13px] font-bold p-2 hover:bg-[#F6F9FF] rounded transition-all">
                     {item.done ? (
-                      <div className="w-5 h-5 rounded border-2 border-[#00897b] text-[#00897b] flex items-center justify-center">
+                      <div className="w-5 h-5 rounded border-2 border-[#06B6D4] text-[#06B6D4] flex items-center justify-center">
                         <Check size={14} strokeWidth={4} />
                       </div>
                     ) : (
                       <div className="w-5 h-5 rounded border-2 border-slate-300" />
                     )}
-                    <span className={cn(item.done ? "text-slate-800" : "text-slate-400")}>{item.label}</span>
+                    <span className={cn(item.done ? "text-[#0B1F33]" : "text-[#64748B]")}>{item.label}</span>
                   </li>
                 ))}
               </ul>
@@ -166,7 +166,7 @@ export function Sidebar({
             <h3 className="text-sm font-black text-[#0f2e4a] flex items-center gap-2">
               <AlertCircle size={18} className="text-[#0f2e4a]" /> 待完善要素
             </h3>
-            <p className="text-[13px] text-slate-500 font-medium leading-relaxed italic opacity-80">系统检测到以下关键要素配置不全，请在右侧表格中进行手动补充：</p>
+               <p className="text-[13px] text-[#64748B] font-medium leading-relaxed italic opacity-80">系统检测到以下关键要素配置不全，请在右侧表格中进行手动补充：</p>
             
             <div className="space-y-3">
               {[
@@ -174,14 +174,14 @@ export function Sidebar({
                 { title: '关键交付属性', items: ['软件版本', '上线时间', '颜色/整机标识'] },
                 { title: '工艺辅料与BOM', items: ['锡膏', '导热凝胶', 'EBOM/小板BOM（料号+描述）', 'MBOM/PBOM'] }
               ].map((group, i) => (
-                <div key={i} className="bg-white p-4 rounded border border-slate-200 space-y-3 hover:border-[#00897b] transition-all">
+                <div key={i} className="bg-white p-4 rounded border border-[#DDE7F3] space-y-3 hover:border-[#06B6D4] transition-all">
                   <div className="flex items-center gap-2">
-                    <div className="w-1 h-4 bg-[#00897b] rounded-full" />
-                    <span className="text-[13px] font-black text-slate-800">{group.title}</span>
+                    <div className="w-1 h-4 bg-[#06B6D4] rounded-full" />
+                    <span className="text-[13px] font-black text-[#0B1F33]">{group.title}</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {group.items.map(it => (
-                      <span key={it} className="px-3 py-1 bg-slate-50 text-[12px] font-bold text-slate-500 border border-slate-100 rounded transition-all">
+                      <span key={it} className="px-3 py-1 bg-[#F6F9FF] text-[12px] font-bold text-[#64748B] border border-[#DDE7F3] rounded transition-all">
                         {it}
                       </span>
                     ))}
@@ -194,13 +194,13 @@ export function Sidebar({
 
         {currentStep === 4 && (
           <div className="space-y-6">
-            <div className="bg-white p-5 rounded border border-[#00897b]/30 shadow-sm space-y-4">
-              <h3 className="text-[13px] font-black text-[#0f2e4a] flex items-center gap-2">
-                <ShieldCheck size={18} className="text-[#0f2e4a]" /> 核验控制器
+            <div className="bg-white p-5 rounded border border-[#06B6D4]/30 shadow-sm space-y-4">
+              <h3 className="text-[13px] font-black text-[#0B1F33] flex items-center gap-2">
+                <ShieldCheck size={18} className="text-[#0B1F33]" /> 核验控制器
               </h3>
               <button 
                 onClick={onRunValidation}
-                className="w-full py-3 bg-white border border-[#00897b] text-[#00897b] text-[13px] font-bold rounded hover:bg-[#00897b] hover:text-white transition-all flex items-center justify-center gap-2 group"
+                className="w-full py-3 bg-white border border-[#06B6D4] text-[#06B6D4] text-[13px] font-bold rounded hover:bg-[#06B6D4] hover:text-white transition-all flex items-center justify-center gap-2 group"
               >
                 <RotateCw size={16} className="group-active:rotate-180 transition-transform duration-500" />
                 重新执行
@@ -208,7 +208,7 @@ export function Sidebar({
             </div>
 
             <div className="space-y-3">
-              <h3 className="text-[13px] font-black text-slate-800">校验结果</h3>
+              <h3 className="text-[13px] font-black text-[#0B1F33]">校验结果</h3>
               <div className="space-y-3 select-none">
                 {[...validationResults]
                   .sort((a, b) => {
@@ -223,29 +223,29 @@ export function Sidebar({
                     "p-4 rounded border-l-4 space-y-1 transition-all cursor-pointer hover:shadow-sm",
                     result.level === 'error' ? "bg-rose-50 border-rose-500" :
                     result.level === 'warn' ? "bg-amber-50 border-amber-500" :
-                    result.level === 'skip' ? "bg-slate-50 border-slate-300" :
-                    "bg-[#e0f2f1]/50 border-[#00897b]"
+                    result.level === 'skip' ? "bg-[#F6F9FF] border-slate-300" :
+                    "bg-[#EEF6FF]/50 border-[#06B6D4]"
                   )}>
                     <div className="flex justify-between items-start">
-                       <span className="font-bold text-slate-400 text-[11px] font-mono tracking-tighter">#{result.amReference || 'REF'}</span>
+                       <span className="font-bold text-[#64748B] text-[11px] font-mono tracking-tighter">#{result.amReference || 'REF'}</span>
                        <div className="flex items-center gap-2">
-                         {result.fieldId && result.level !== 'pass' && <span className="text-[10px] font-bold text-blue-500 underline">定位</span>}
+                          {result.fieldId && result.level !== 'pass' && <span className="text-[10px] font-bold text-[#2563EB] underline">定位</span>}
                          <span className={cn(
                           "font-bold text-[11px] px-1.5 py-0.5 rounded",
                           result.level === 'error' ? "bg-rose-100 text-rose-700" :
                           result.level === 'warn' ? "bg-amber-100 text-amber-700" :
-                          "bg-[#4db6ac]/20 text-[#00897b]"
+                           "bg-[#06B6D4]/20 text-[#06B6D4]"
                         )}>{result.level === 'error' ? '错误' : result.level === 'warn' ? '警告' : '通过'}</span>
                        </div>
                     </div>
                     <div>
-                      <p className="font-bold text-slate-800 text-[13px]">{result.title}</p>
-                      <p className="text-slate-600 text-[12px] font-medium leading-relaxed mt-1">{result.detail}</p>
+                      <p className="font-bold text-[#0B1F33] text-[13px]">{result.title}</p>
+                      <p className="text-[#64748B] text-[12px] font-medium leading-relaxed mt-1">{result.detail}</p>
                     </div>
                   </div>
                 ))}
                 {validationResults.length === 0 && (
-                  <div className="text-[13px] font-bold text-slate-400 text-center py-10 border border-dashed border-slate-200 rounded bg-slate-50">
+                  <div className="text-[13px] font-bold text-[#64748B] text-center py-10 border border-dashed border-[#DDE7F3] rounded bg-[#F6F9FF]">
                     正在等待初始化核验...
                   </div>
                 )}
@@ -255,10 +255,10 @@ export function Sidebar({
         )}
         {currentStep === 5 && (
           <div className="space-y-6">
-            <h3 className="text-sm font-black text-[#0f2e4a] flex items-center gap-2">
-              <CheckCircle2 size={18} className="text-[#0f2e4a]" /> 预览模式
+            <h3 className="text-sm font-black text-[#0B1F33] flex items-center gap-2">
+              <CheckCircle2 size={18} className="text-[#0B1F33]" /> 预览模式
             </h3>
-            <p className="text-[13px] text-slate-500 font-medium leading-relaxed">
+            <p className="text-[13px] text-[#64748B] font-medium leading-relaxed">
               试产表构建完成，处于最终确认阶段。您可以进行整体预览，确认各列数据无误。
             </p>
           </div>
@@ -268,7 +268,7 @@ export function Sidebar({
       </div>
 
       {collapsed && (
-        <div className="absolute inset-0 flex items-center justify-center text-slate-400 pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-center text-[#64748B] pointer-events-none">
           <AlertCircle size={16} />
         </div>
       )}

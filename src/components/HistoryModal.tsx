@@ -52,23 +52,23 @@ export function HistoryModal({ isOpen, onClose, history, onLoad, onCopy, onDelet
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-3xl bg-white rounded-xl shadow-2xl z-[101] overflow-hidden flex flex-col h-[85vh]"
           >
-            <div className="flex items-center justify-between p-4 border-b border-gray-100/70 bg-gray-50/80 backdrop-blur-md sticky top-0 z-10 shrink-0">
+            <div className="flex items-center justify-between p-4 border-b border-[#DDE7F3]/70 bg-[#F6F9FF]/80 backdrop-blur-md sticky top-0 z-10 shrink-0">
               <div className="flex items-center gap-2">
-                <Clock className="text-blue-500" size={20} />
+                <Clock className="text-[#2563EB]" size={20} />
                 <h2 className="text-lg font-bold">试产历史记录</h2>
               </div>
-              <button onClick={onClose} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+              <button onClick={onClose} className="p-2 hover:bg-[#EEF6FF] rounded-full transition-colors">
                 <X size={20} />
               </button>
             </div>
 
-            <div className="p-4 border-b border-gray-100/70 bg-white shrink-0">
+            <div className="p-4 border-b border-[#DDE7F3]/70 bg-white shrink-0">
               <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#64748B]" />
                 <input
                   type="text"
                   placeholder="仅支持搜索项目名称..."
-                  className="w-full pl-10 pr-4 py-2 bg-gray-100 border-none rounded-lg text-sm font-bold focus:ring-2 focus:ring-blue-400 outline-none transition-all"
+                  className="w-full pl-10 pr-4 py-2 bg-[#F6F9FF] border-none rounded-lg text-sm font-bold focus:ring-2 focus:ring-[#2563EB] outline-none transition-all"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -77,8 +77,8 @@ export function HistoryModal({ isOpen, onClose, history, onLoad, onCopy, onDelet
 
             <div className="flex-1 overflow-auto p-4 space-y-3">
               {currentData.length === 0 ? (
-                <div className="text-center py-20 text-gray-400 h-full flex flex-col items-center justify-center">
-                  <div className="flex justify-center mb-4 text-gray-200">
+                <div className="text-center py-20 text-[#64748B] h-full flex flex-col items-center justify-center">
+                  <div className="flex justify-center mb-4 text-[#DDE7F3]">
                     <FileCode size={64} />
                   </div>
                   <p className="font-bold">{searchTerm ? '未找到相关项目记录' : '暂无试产记录'}</p>
@@ -87,15 +87,15 @@ export function HistoryModal({ isOpen, onClose, history, onLoad, onCopy, onDelet
                 currentData.map((item) => (
                   <div 
                     key={item.id}
-                    className="p-4 rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md hover:bg-blue-50/20 transition-all group flex items-center justify-between cursor-pointer"
+                    className="p-4 rounded-xl border border-[#DDE7F3] hover:border-[#2563EB]/50 hover:shadow-md hover:bg-[#EEF6FF]/20 transition-all group flex items-center justify-between cursor-pointer"
                     onClick={() => onLoad(item)}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3">
-                        <h3 className="font-black text-[15px] text-gray-900 truncate">
+                        <h3 className="font-black text-[15px] text-[#0B1F33] truncate">
                           {item.name}
                         </h3>
-                        <span className="flex items-center gap-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-[11px] font-black rounded uppercase">
+                        <span className="flex items-center gap-1 px-2 py-0.5 bg-[#EEF6FF] text-[#2563EB] text-[11px] font-black rounded uppercase">
                           <Tag size={10} />
                           V{item.version || 1}
                         </span>
@@ -110,12 +110,12 @@ export function HistoryModal({ isOpen, onClose, history, onLoad, onCopy, onDelet
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-4 mt-2 text-[12px] text-gray-500 font-medium">
+                      <div className="flex items-center gap-4 mt-2 text-[12px] text-[#64748B] font-medium">
                         <span className="flex items-center gap-1.5">
                           <Calendar size={14} />
                           {new Date(item.timestamp).toLocaleString()}
                         </span>
-                        <span className="bg-gray-100 px-2 py-0.5 rounded text-[11px] uppercase font-black text-gray-600">
+                        <span className="bg-[#F6F9FF] px-2 py-0.5 rounded text-[11px] uppercase font-black text-[#64748B]">
                           停留步骤 {item.currentStep}
                         </span>
                       </div>
@@ -127,7 +127,7 @@ export function HistoryModal({ isOpen, onClose, history, onLoad, onCopy, onDelet
                             e.stopPropagation();
                             onCopy(item);
                           }}
-                          className="px-4 py-2 text-[13px] font-bold text-slate-600 bg-white border border-slate-200 hover:border-blue-400 hover:text-blue-600 shadow-sm rounded-lg transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 whitespace-nowrap"
+                           className="px-4 py-2 text-[13px] font-bold text-[#64748B] bg-white border border-[#DDE7F3] hover:border-[#2563EB] hover:text-[#2563EB] shadow-sm rounded-lg transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 whitespace-nowrap"
                          >
                           复制为新项目
                          </button>
@@ -137,7 +137,7 @@ export function HistoryModal({ isOpen, onClose, history, onLoad, onCopy, onDelet
                           e.stopPropagation();
                           onLoad(item);
                         }}
-                        className="px-4 py-2 text-[13px] font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-sm shadow-blue-500/20 rounded-lg transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 whitespace-nowrap"
+                        className="px-4 py-2 text-[13px] font-bold text-white bg-[#2563EB] hover:bg-[#1d4ed8] shadow-sm shadow-[#2563EB]/20 rounded-lg transition-all opacity-0 group-hover:opacity-100 translate-x-2 group-hover:translate-x-0 whitespace-nowrap"
                       >
                         加载此记录
                       </button>
@@ -159,29 +159,29 @@ export function HistoryModal({ isOpen, onClose, history, onLoad, onCopy, onDelet
               )}
             </div>
 
-            <div className="p-4 border-t border-gray-100/70 bg-gray-50 flex justify-between items-center shrink-0">
+            <div className="p-4 border-t border-[#DDE7F3]/70 bg-[#F6F9FF] flex justify-between items-center shrink-0">
               <div className="flex items-center gap-4">
-                 <span className="text-[12px] text-gray-500 font-bold">
+                 <span className="text-[12px] text-[#64748B] font-bold">
                    共 {filteredHistory.length} 条记录
                  </span>
                  {totalPages > 1 && (
                    <div className="flex items-center gap-2">
-                     <button
-                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                       disabled={currentPage === 1}
-                       className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 transition-colors"
-                     >
-                       <ChevronLeft size={16} />
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="p-1 rounded hover:bg-[#EEF6FF] disabled:opacity-50 transition-colors"
+                      >
+                        <ChevronLeft size={16} />
                      </button>
-                     <span className="text-[12px] font-bold text-gray-600">
+                      <span className="text-[12px] font-bold text-[#64748B]">
                        {currentPage} / {totalPages}
                      </span>
                      <button
                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                        disabled={currentPage === totalPages}
-                       className="p-1 rounded hover:bg-gray-200 disabled:opacity-50 transition-colors"
-                     >
-                       <ChevronRight size={16} />
+                        className="p-1 rounded hover:bg-[#EEF6FF] disabled:opacity-50 transition-colors"
+                      >
+                        <ChevronRight size={16} />
                      </button>
                    </div>
                  )}
@@ -189,7 +189,7 @@ export function HistoryModal({ isOpen, onClose, history, onLoad, onCopy, onDelet
               
               <button 
                 onClick={onClose}
-                className="px-6 py-2 bg-white border border-gray-300 rounded text-[13px] font-bold shadow-sm hover:bg-gray-100 transition-all active:scale-95"
+                className="px-6 py-2 bg-white border border-[#DDE7F3] rounded text-[13px] font-bold shadow-sm hover:bg-[#F6F9FF] transition-all active:scale-95"
               >
                 关闭界面
               </button>

@@ -19,7 +19,7 @@ function ProdLocDropdown({ value, onChange, disabled, fieldLabel }: any) {
       <div className="flex w-full h-full relative items-center">
         <input
           autoFocus={!disabled && value === '__CUSTOM__'}
-          className="flex-1 min-w-0 px-3 focus:outline-none transition-all text-[13px] leading-none h-full bg-transparent text-slate-700 text-center"
+          className="flex-1 min-w-0 px-3 focus:outline-none transition-all text-[13px] leading-none h-full bg-transparent text-[#0B1F33] text-center"
           placeholder={value === '__CUSTOM__' ? "请输入..." : "-"}
           value={value === '__CUSTOM__' ? '' : (value || '')}
           onChange={(e) => onChange(e.target.value)}
@@ -31,7 +31,7 @@ function ProdLocDropdown({ value, onChange, disabled, fieldLabel }: any) {
             onClick={() => {
               onChange('');
             }}
-            className="absolute right-2 text-slate-300 hover:text-slate-500"
+            className="absolute right-2 text-slate-300 hover:text-[#64748B]"
           >
             <X size={14} />
           </button>
@@ -42,7 +42,7 @@ function ProdLocDropdown({ value, onChange, disabled, fieldLabel }: any) {
 
   return (
     <select
-      className="flex-1 min-w-0 px-2 flex items-center justify-center bg-transparent focus:outline-none text-[13px] outline-none cursor-pointer appearance-none text-center h-full w-full text-slate-700"
+      className="flex-1 min-w-0 px-2 flex items-center justify-center bg-transparent focus:outline-none text-[13px] outline-none cursor-pointer appearance-none text-center h-full w-full text-[#0B1F33]"
       value={value || ''}
       onChange={(e) => {
         if (e.target.value === 'CUSTOM') {
@@ -52,9 +52,9 @@ function ProdLocDropdown({ value, onChange, disabled, fieldLabel }: any) {
         }
       }}
     >
-      <option value="" disabled className="text-slate-400">- 试产地点 -</option>
-      {options.map(o => <option key={o} value={o} className="text-slate-700">{o}</option>)}
-      <option value="CUSTOM" className="text-blue-600 font-bold">自定义...</option>
+      <option value="" disabled className="text-[#64748B]">- 试产地点 -</option>
+      {options.map(o => <option key={o} value={o} className="text-[#0B1F33]">{o}</option>)}
+      <option value="CUSTOM" className="text-[#2563EB] font-bold">自定义...</option>
     </select>
   );
 }
@@ -132,7 +132,7 @@ function ResizeHandle({ onResize, direction = 'horizontal' }: { onResize: (delta
     <div 
       onMouseDown={onMouseDown}
       className={cn(
-        "absolute z-50 bg-transparent hover:bg-blue-400/50 transition-colors cursor-col-resize",
+        "absolute z-50 bg-transparent hover:bg-[#2563EB]/50 transition-colors cursor-col-resize",
         direction === 'horizontal' ? "right-0 top-0 bottom-0 w-1.5 cursor-col-resize" : "bottom-0 left-0 right-0 h-1.5 cursor-row-resize"
       )}
     />
@@ -149,8 +149,8 @@ function SortableHeader({ skuId, supply, onUpdateSupplyLabel, onDeleteSku, onAdd
       data-selected={isFirstOfSku ? (isSelected ? 'true' : 'false') : undefined}
       style={{ width, minWidth: width }}
       className={cn(
-        "border-b border-slate-200 border-r border-slate-200 p-2.5 text-center bg-gradient-to-b from-slate-50/80 to-slate-100/50 relative group/th font-bold text-[13px] text-slate-700 hover:from-slate-100/80 hover:to-slate-150/50 transition-all duration-200 hover:z-20",
-        isFirstOfSku && isSelected && "bg-gradient-to-b from-blue-50/60 to-blue-50/10 shadow-[inset_0_-2px_0_0_#3b82f6] z-10"
+        "border-b border-[#DDE7F3] border-r border-[#DDE7F3] p-2.5 text-center bg-gradient-to-b from-slate-50/80 to-slate-100/50 relative group/th font-bold text-[13px] text-[#0B1F33] hover:from-slate-100/80 hover:to-slate-150/50 transition-all duration-200 hover:z-20",
+        isFirstOfSku && isSelected && "bg-gradient-to-b from-[#EEF6FF]/60 to-[#EEF6FF]/10 shadow-[inset_0_-2px_0_0_#2563EB] z-10"
       )}
     >
       <div className="flex items-center justify-center gap-1 group/sup h-full">
@@ -162,8 +162,8 @@ function SortableHeader({ skuId, supply, onUpdateSupplyLabel, onDeleteSku, onAdd
             className={cn(
               "shrink-0 w-5 h-5 rounded border flex items-center justify-center transition-all",
               isSelected
-                ? "bg-blue-500 border-blue-500 text-white"
-                : "bg-white border-slate-300 text-transparent hover:border-blue-400"
+                ? "bg-[#2563EB] border-[#2563EB] text-white"
+                : "bg-white border-slate-300 text-transparent hover:border-[#2563EB]"
             )}
             title={isSelected ? "取消选中" : "选中此主板块"}
             aria-label={isSelected ? "取消选中主板块" : "选中主板块"}
@@ -172,23 +172,23 @@ function SortableHeader({ skuId, supply, onUpdateSupplyLabel, onDeleteSku, onAdd
           </button>
         )}
         {currentStep === 5 ? (
-          <span className="w-full text-center px-1 font-bold text-slate-800 text-[13px]">{supply.label || '-'}</span>
+          <span className="w-full text-center px-1 font-bold text-[#0B1F33] text-[13px]">{supply.label || '-'}</span>
         ) : (
           <input
-             className="w-full bg-transparent border-none focus:ring-1 focus:ring-blue-400 rounded text-[13px] font-bold text-slate-800 placeholder:text-slate-400 px-1 py-0.5 text-center"
+             className="w-full bg-transparent border-none focus:ring-1 focus:ring-[#2563EB] rounded text-[13px] font-bold text-[#0B1F33] placeholder:text-[#64748B] px-1 py-0.5 text-center"
              value={supply.label}
              placeholder="方案名称"
              onChange={(e) => onUpdateSupplyLabel?.(skuId, supply.id, e.target.value)}
           />
         )}
         {currentStep >= 2 && currentStep <= 4 && (
-          <button onClick={() => onDeleteSku?.(skuId)} className="text-slate-400 hover:text-red-500 opacity-0 group-hover/sup:opacity-100 transition-opacity absolute right-2"><Trash2 size={12} /></button>
+          <button onClick={() => onDeleteSku?.(skuId)} className="text-[#64748B] hover:text-red-500 opacity-0 group-hover/sup:opacity-100 transition-opacity absolute right-2"><Trash2 size={12} /></button>
         )}
       </div>
       {currentStep !== 5 && <ResizeHandle onResize={(delta) => onResize(supply.id, delta)} />}
       {/* Insert Column Button */}
       {currentStep >= 2 && currentStep <= 4 && (
-      <div className="absolute right-0 top-0 bottom-0 z-[60] w-[2px] bg-blue-500 opacity-0 group-hover/th:opacity-100 transition-opacity pointer-events-none">
+      <div className="absolute right-0 top-0 bottom-0 z-[60] w-[2px] bg-[#2563EB] opacity-0 group-hover/th:opacity-100 transition-opacity pointer-events-none">
          <button
            type="button"
            data-testid="column-insert-after"
@@ -199,7 +199,7 @@ function SortableHeader({ skuId, supply, onUpdateSupplyLabel, onDeleteSku, onAdd
              }
              onInsertSkuAfter?.(skuId);
            }}
-           className="pointer-events-auto absolute top-1/2 -translate-y-1/2 -right-2 z-[70] w-5 h-5 bg-blue-500 rounded-full text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow"
+           className="pointer-events-auto absolute top-1/2 -translate-y-1/2 -right-2 z-[70] w-5 h-5 bg-[#2563EB] rounded-full text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all shadow"
           >
             <Plus size={12} strokeWidth={3} />
           </button>
@@ -249,12 +249,12 @@ function SortableRow({
       ref={setNodeRef} 
       style={style} 
       id={`row-${field.id}`}
-      className="hover:bg-blue-50/10 transition-colors group relative"
+      className="hover:bg-[#EEF6FF]/10 transition-colors group relative"
     >
-      <td className="sticky left-0 z-20 border-b border-r border-slate-200 bg-white p-2 text-center text-[10px] text-slate-400 font-mono w-[32px] min-w-[32px] relative group/handle">
+      <td className="sticky left-0 z-20 border-b border-r border-[#DDE7F3] bg-white p-2 text-center text-[10px] text-[#64748B] font-mono w-[32px] min-w-[32px] relative group/handle">
         <div className="flex flex-col items-center justify-center gap-1 h-full">
           {currentStep !== 5 && (
-            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing opacity-0 group-hover/handle:opacity-100 transition-opacity p-0.5 text-slate-400">
+            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing opacity-0 group-hover/handle:opacity-100 transition-opacity p-0.5 text-[#64748B]">
               <GripVertical size={12} />
             </div>
           )}
@@ -262,14 +262,14 @@ function SortableRow({
         </div>
         {currentStep !== 5 && <ResizeHandle direction="vertical" onResize={(delta) => onRowResize(field.id, delta)} />}
       </td>
-      <td className="sticky left-[32px] z-20 group-hover:z-30 border-b border-slate-200 border-r-[2px] border-r-slate-300 bg-white p-2 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] align-top w-[120px] min-w-[120px] relative">
+      <td className="sticky left-[32px] z-20 group-hover:z-30 border-b border-[#DDE7F3] border-r-[2px] border-r-slate-300 bg-white p-2 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.05)] align-top w-[120px] min-w-[120px] relative">
         <div className="flex flex-col items-center justify-center h-full gap-1.5 w-full">
           <div className="flex items-center justify-between w-full px-1 group/rowlabel relative">
-            <span className="text-[13px] font-bold text-[#1e293b] text-center flex-1">{field.label}</span>
+            <span className="text-[13px] font-bold text-[#0B1F33] text-center flex-1">{field.label}</span>
             {currentStep >= 2 && currentStep <= 4 && onDeleteRow && (
               <button 
                 onClick={() => onDeleteRow(field.id)} 
-                className="text-slate-400 hover:text-red-500 opacity-0 group-hover/rowlabel:opacity-100 transition-opacity absolute right-0 bg-white"
+                className="text-[#64748B] hover:text-red-500 opacity-0 group-hover/rowlabel:opacity-100 transition-opacity absolute right-0 bg-white"
               >
                 <Trash2 size={12} />
               </button>
@@ -277,7 +277,7 @@ function SortableRow({
           </div>
           {['ce_cert', 'customer_sample_req', 'hw_eng', 'hw_test', 'sw_eng', 'sw_test', 'struct_eng', 'reliability', 'reliability_eng', 'image_eng', 'npm', 'ux', 'parts'].includes(field.id) && (
             <select
-              className="border border-slate-200 rounded bg-slate-50 text-[10px] font-bold text-slate-500 px-1 py-0.5 w-full outline-none hover:bg-slate-100 transition-colors text-center cursor-pointer disabled:cursor-not-allowed"
+              className="border border-[#DDE7F3] rounded bg-[#F6F9FF] text-[10px] font-bold text-[#64748B] px-1 py-0.5 w-full outline-none hover:bg-slate-100 transition-colors text-center cursor-pointer disabled:cursor-not-allowed"
               value={efuseConfigs?.[field.id] || ''}
               onChange={(e) => onUpdateEfuse?.(field.id, e.target.value)}
               disabled={currentStep === 5}
@@ -293,7 +293,7 @@ function SortableRow({
             type="button"
             data-testid="row-insert-after"
             onClick={() => onInsertRowAt?.(field.id)}
-            className="absolute left-1/2 -translate-x-1/2 -bottom-2 z-50 w-4 h-4 bg-blue-500 rounded-full text-white flex items-center justify-center opacity-0 group-hover:opacity-100 hover:scale-125 active:scale-95 transition-all shadow-md"
+            className="absolute left-1/2 -translate-x-1/2 -bottom-2 z-50 w-4 h-4 bg-[#2563EB] rounded-full text-white flex items-center justify-center opacity-0 group-hover:opacity-100 hover:scale-125 active:scale-95 transition-all shadow-md"
             title="在此行后插入"
           >
             <Plus size={10} strokeWidth={4} />
@@ -312,7 +312,7 @@ function SortableRow({
               data-sku-id={field.id === 'mb_id' ? sku.id : undefined}
               colSpan={sku.supplies.length}
               className={cn(
-                "border-b border-r border-slate-200 p-2 align-top transition-colors relative",
+                "border-b border-r border-[#DDE7F3] p-2 align-top transition-colors relative",
                 field.behavior === 'calc' ? "bg-[#f8fafc]" : "bg-white"
               )}
             >
@@ -320,15 +320,15 @@ function SortableRow({
                 <div className={cn(
                   "rounded-lg flex items-center transition-all duration-300 ease-out overflow-hidden w-full",
                   currentStep !== 5 ? "border bg-white" : "border-none bg-transparent",
-                  currentStep !== 5 && "border-slate-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 hover:border-slate-300 hover:shadow-sm focus-within:shadow-md focus-within:shadow-blue-500/5",
-                  field.behavior === 'calc' && "bg-slate-50/50 border-transparent text-slate-500"
+                  currentStep !== 5 && "border-[#DDE7F3] focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#DDE7F3] hover:border-slate-300 hover:shadow-sm focus-within:shadow-md focus-within:shadow-[#2563EB]/5",
+                  field.behavior === 'calc' && "bg-[#EEF6FF] border-transparent text-[#64748B]"
                 )}>
                   <input
                     style={{ height: rowHeight ? rowHeight - 20 : 34 }}
                     className={cn(
                       "flex-1 min-w-0 px-2 focus:outline-none transition-all text-[13px] leading-none text-center",
-                      "bg-transparent text-slate-700",
-                      field.behavior === 'calc' && "font-bold text-slate-500 cursor-default"
+                      "bg-transparent text-[#0B1F33]",
+                      field.behavior === 'calc' && "font-bold text-[#64748B] cursor-default"
                     )}
                     placeholder="-"
                     value={
@@ -358,11 +358,11 @@ function SortableRow({
             <td
               key={sku.id}
               colSpan={sku.supplies.length}
-              className="border-b border-r border-slate-200 p-2 align-top bg-white"
+              className="border-b border-r border-[#DDE7F3] p-2 align-top bg-white"
             >
               {currentStep === 3 ? (
                 <select
-                  className="w-full h-9 px-2 border border-slate-200 rounded bg-white text-[13px] text-slate-700 outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 cursor-pointer"
+                  className="w-full h-9 px-2 border border-[#DDE7F3] rounded bg-white text-[13px] text-[#0B1F33] outline-none focus:border-[#2563EB] focus:ring-1 focus:ring-[#2563EB] cursor-pointer"
                   value={sku.selectedSupplyKey || ''}
                   onChange={(e) => onUpdateSelectedSupply?.(sku.id, e.target.value)}
                 >
@@ -372,7 +372,7 @@ function SortableRow({
                 </select>
               ) : (
                 <input
-                  className="w-full h-9 px-2 bg-transparent text-[13px] text-slate-700 text-center"
+                  className="w-full h-9 px-2 bg-transparent text-[13px] text-[#0B1F33] text-center"
                   value={sku.supplies[0]?.label || sku.selectedSupplyKey || ''}
                   readOnly
                   disabled
@@ -387,7 +387,7 @@ function SortableRow({
               key={supply.id}
               style={{ width: colWidths[supply.id], minWidth: colWidths[supply.id] }}
               className={cn(
-                "border-b border-r border-slate-200 p-2 align-top transition-colors",
+                "border-b border-r border-[#DDE7F3] p-2 align-top transition-colors",
                 field.behavior === 'calc' ? "bg-[#f8fafc]" : "bg-white"
               )}
             >
@@ -395,8 +395,8 @@ function SortableRow({
                 <div className={cn(
                   "rounded-lg flex items-center transition-all duration-300 ease-out overflow-hidden",
                   currentStep !== 5 ? "border bg-white" : "border-none bg-transparent",
-                  currentStep !== 5 && "border-slate-200 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100 hover:border-slate-300 hover:shadow-sm focus-within:shadow-md focus-within:shadow-blue-500/5",
-                  field.behavior === 'calc' && "bg-slate-50/50 border-transparent text-slate-500"
+                  currentStep !== 5 && "border-[#DDE7F3] focus-within:border-[#2563EB] focus-within:ring-2 focus-within:ring-[#DDE7F3] hover:border-slate-300 hover:shadow-sm focus-within:shadow-md focus-within:shadow-[#2563EB]/5",
+                  field.behavior === 'calc' && "bg-[#EEF6FF] border-transparent text-[#64748B]"
                 )}>
                   {field.id === 'prod_loc' ? (
                     <div style={{ height: rowHeight ? rowHeight - 20 : 34 }} className="flex-1 min-w-0">
@@ -413,8 +413,8 @@ function SortableRow({
                         style={{ height: rowHeight ? rowHeight - 20 : 34 }}
                         className={cn(
                           "flex-1 min-w-0 px-2 focus:outline-none transition-all text-[13px] leading-none",
-                          "bg-transparent text-slate-700",
-                          field.behavior === 'calc' && "font-bold text-slate-500 cursor-default"
+                          "bg-transparent text-[#0B1F33]",
+                          field.behavior === 'calc' && "font-bold text-[#64748B] cursor-default"
                         )}
                         placeholder="-"
                         value={
@@ -436,7 +436,7 @@ function SortableRow({
           )}
         </React.Fragment>
       )})}
-      <td className="p-0 border-b border-gray-200 relative w-0"></td>
+      <td className="p-0 border-b border-[#DDE7F3] relative w-0"></td>
     </tr>
   );
 }
@@ -619,10 +619,27 @@ export function TrialProductionTable({
   const otherFields = visibleFields.filter(f => f.group !== '基本信息');
   const otherGroups = Array.from(new Set(otherFields.map(f => f.group)));
 
+  const handleScroll = useCallback((source: 'top' | 'bottom') => (e: React.UIEvent<HTMLDivElement>) => {
+    const scrollLeft = e.currentTarget.scrollLeft;
+    if (source === 'top' && bottomTableRef.current) {
+      if (bottomTableRef.current.scrollLeft !== scrollLeft) {
+        bottomTableRef.current.scrollLeft = scrollLeft;
+      }
+    } else if (source === 'bottom' && topTableRef.current) {
+      if (topTableRef.current.scrollLeft !== scrollLeft) {
+        topTableRef.current.scrollLeft = scrollLeft;
+      }
+    }
+    horizontalScrollLeftRef.current = scrollLeft;
+    if (!isSliderDraggingRef.current) {
+      setHorizontalScrollLeft(Math.min(scrollLeft, Math.max(0, horizontalScrollMaxRef.current)));
+    }
+  }, []);
+
   const renderHorizontalSlider = () => {
     if (currentStep < 2) return null;
     return (
-      <div className="shrink-0 border-t border-slate-200 bg-slate-50 px-3 py-1.5">
+      <div className="shrink-0 border-t border-[#DDE7F3] bg-[#F6F9FF] px-3 py-1.5">
         <input
           type="range"
           min={0}
@@ -633,7 +650,7 @@ export function TrialProductionTable({
           onPointerUp={endSliderDrag}
           onKeyUp={endSliderDrag}
           disabled={horizontalScrollMax <= 0}
-          className="w-full accent-[#0ea5a4] disabled:cursor-not-allowed disabled:opacity-40"
+          className="w-full accent-[#06B6D4] disabled:cursor-not-allowed disabled:opacity-40"
         />
       </div>
     );
@@ -645,7 +662,7 @@ export function TrialProductionTable({
     const step5TableWidthPx = 36 + 120 + step5Model.columns.reduce((sum, col) => sum + (colWidths[col.supplyId] ?? 160), 0);
 
     return (
-      <div className="h-full border border-slate-200 rounded shadow-sm bg-white overflow-hidden flex flex-col">
+      <div className="h-full border border-[#DDE7F3] rounded shadow-sm bg-white overflow-hidden flex flex-col">
         <div ref={step5TableRef} onScroll={syncHorizontalSliderState} className="overflow-auto flex-1">
           <table
             className="border-collapse text-[13px]"
@@ -665,7 +682,7 @@ export function TrialProductionTable({
                     <tr key={rowIdx}>
                       <td
                         colSpan={2 + totalValueCols}
-                        className="bg-[#e8f5e9] font-bold text-slate-700 px-3 py-2 border border-slate-200 text-center"
+                        className="bg-[#e8f5e9] font-bold text-[#0B1F33] px-3 py-2 border border-[#DDE7F3] text-center"
                       >
                         {row.title}
                       </td>
@@ -677,7 +694,7 @@ export function TrialProductionTable({
                     <tr key={rowIdx}>
                       <td
                         colSpan={2 + totalValueCols}
-                        className="bg-[#f1f8e9] font-semibold text-slate-600 px-3 py-1.5 border border-slate-200"
+                        className="bg-[#f1f8e9] font-semibold text-[#0B1F33] px-3 py-1.5 border border-[#DDE7F3]"
                       >
                         {row.title}
                       </td>
@@ -687,17 +704,17 @@ export function TrialProductionTable({
                 // field row
                 return (
                   <tr key={rowIdx} style={{ height: rowHeights[row.fieldId] ?? 36 }}>
-                    <td className="text-center text-slate-400 text-[11px] border border-slate-200 px-1">
+                    <td className="text-center text-[#64748B] text-[11px] border border-[#DDE7F3] px-1">
                       {row.indexLabel}
                     </td>
-                    <td className="px-3 text-slate-600 border border-slate-200 whitespace-nowrap">
+                    <td className="px-3 text-[#0B1F33] border border-[#DDE7F3] whitespace-nowrap">
                       {row.fieldLabel}
                     </td>
                     {row.cells.map((cell, ci) => (
                       <td
                         key={ci}
                         colSpan={cell.colSpan}
-                        className="px-3 text-slate-700 border border-slate-200"
+                        className="px-3 text-[#0B1F33] border border-[#DDE7F3]"
                       >
                         {cell.value}
                       </td>
@@ -734,23 +751,6 @@ export function TrialProductionTable({
     }));
   };
 
-  const handleScroll = useCallback((source: 'top' | 'bottom') => (e: React.UIEvent<HTMLDivElement>) => {
-    const scrollLeft = e.currentTarget.scrollLeft;
-    if (source === 'top' && bottomTableRef.current) {
-      if (bottomTableRef.current.scrollLeft !== scrollLeft) {
-        bottomTableRef.current.scrollLeft = scrollLeft;
-      }
-    } else if (source === 'bottom' && topTableRef.current) {
-      if (topTableRef.current.scrollLeft !== scrollLeft) {
-        topTableRef.current.scrollLeft = scrollLeft;
-      }
-    }
-    horizontalScrollLeftRef.current = scrollLeft;
-    if (!isSliderDraggingRef.current) {
-      setHorizontalScrollLeft(Math.min(scrollLeft, Math.max(0, horizontalScrollMaxRef.current)));
-    }
-  }, []);
-
   const renderColGroup = () => (
     <colgroup>
       <col style={{ width: 32, minWidth: 32 }} />
@@ -767,7 +767,7 @@ export function TrialProductionTable({
   );
 
   return (
-    <div className="relative border border-slate-100 rounded-2xl shadow-xl shadow-slate-200/50 bg-white/95 backdrop-blur-md overflow-hidden flex flex-col h-full min-h-0 min-w-0 transition-all duration-300">
+    <div className="relative border border-[#DDE7F3] rounded-2xl shadow-xl shadow-slate-200/50 bg-white/95 backdrop-blur-md overflow-hidden flex flex-col h-full min-h-0 min-w-0 transition-all duration-300">
       {currentStep >= 2 && currentStep <= 4 && (
         <div className="absolute top-3 right-3 z-[60] flex flex-col gap-2 items-end">
           {selectedSkuId && onCopySelectedSku && (
@@ -775,7 +775,7 @@ export function TrialProductionTable({
               type="button"
               data-testid="copy-selected-sku"
               onClick={onCopySelectedSku}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-blue-300 text-blue-600 rounded-lg text-xs font-bold shadow-md hover:bg-blue-50 transition-all active:scale-95"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-[#2563EB] text-[#2563EB] rounded-lg text-xs font-bold shadow-md hover:bg-[#EEF6FF] transition-all active:scale-95"
               title="复制选中的主板块到剪贴板（页面内）"
             >
               <Copy size={14} />
@@ -787,7 +787,7 @@ export function TrialProductionTable({
               type="button"
               data-testid="paste-into-new-sku"
               onClick={onPasteIntoNewSku}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white border border-emerald-500 rounded-lg text-xs font-bold shadow-md transition-all active:scale-95"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#10B981] hover:bg-[#10B981] text-white border border-[#10B981] rounded-lg text-xs font-bold shadow-md transition-all active:scale-95"
               title="在选中主板块之后插入新块并粘贴"
             >
               <ClipboardPaste size={14} />
@@ -813,10 +813,10 @@ export function TrialProductionTable({
             </thead>
             {basicInfoFields.length > 0 && (
               <tbody>
-                <tr className="bg-slate-50/80 select-none">
+                <tr className="bg-[#F6F9FF] select-none">
                   <td
                     colSpan={viewport.basicInfoColSpan}
-                    className="border-y border-slate-100 bg-slate-50/80 px-3 py-1.5 text-[11px] font-semibold text-slate-400 text-center tracking-[0.2em] uppercase relative"
+                    className="border-y border-[#DDE7F3] bg-[#F6F9FF] px-3 py-1.5 text-[11px] font-semibold text-[#64748B] text-center tracking-[0.2em] uppercase relative"
                   >
                     基本信息
                   </td>
@@ -866,10 +866,10 @@ export function TrialProductionTable({
 
                   return (
                     <React.Fragment key={groupName}>
-                      <tr className="bg-slate-50/80 select-none">
+                      <tr className="bg-[#F6F9FF] select-none">
                         <td
                           colSpan={viewport.bodyColSpan}
-                          className="border-y border-slate-100 bg-slate-50/80 px-3 py-1.5 text-[11px] font-semibold text-slate-400 text-center tracking-[0.2em] uppercase relative"
+                          className="border-y border-[#DDE7F3] bg-[#F6F9FF] px-3 py-1.5 text-[11px] font-semibold text-[#64748B] text-center tracking-[0.2em] uppercase relative"
                         >
                           {groupName}
                         </td>
