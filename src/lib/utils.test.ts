@@ -22,11 +22,29 @@ describe('extractPcbaOptions', () => {
     const file = makeXlsxFile(aoa);
     const result = await extractPcbaOptions(file);
     expect(result).toHaveLength(2);
-    expect(result[0]).toEqual({ pcba: 'A1', projectName: '', band: 'SSA', bandConflict: false, emmc: '', ddr: '' });
-    expect(result[1]).toEqual({ pcba: 'B1', projectName: '', band: 'LATAM', bandConflict: false, emmc: '', ddr: '' });
+    expect(result[0]).toEqual({
+      pcba: 'A1',
+      projectName: '',
+      band: 'SSA',
+      bandConflict: false,
+      duplicateConflict: false,
+      duplicateCount: 1,
+      emmc: '',
+      ddr: '',
+    });
+    expect(result[1]).toEqual({
+      pcba: 'B1',
+      projectName: '',
+      band: 'LATAM',
+      bandConflict: false,
+      duplicateConflict: false,
+      duplicateCount: 1,
+      emmc: '',
+      ddr: '',
+    });
   });
 
-  it('conflict: same PCBA has multiple rows -> uses first occurrence band', async () => {
+  it('conflict: same PCBA has multiple markets -> marks bandConflict and duplicateConflict', async () => {
     const aoa = [
       ['PCBA配置', '出货市场'],
       ['A1', 'SSA'],
@@ -35,10 +53,19 @@ describe('extractPcbaOptions', () => {
     const file = makeXlsxFile(aoa);
     const result = await extractPcbaOptions(file);
     expect(result).toHaveLength(1);
-    expect(result[0]).toEqual({ pcba: 'A1', projectName: '', band: 'SSA', bandConflict: false, emmc: '', ddr: '' });
+    expect(result[0]).toEqual({
+      pcba: 'A1',
+      projectName: '',
+      band: '',
+      bandConflict: true,
+      duplicateConflict: true,
+      duplicateCount: 2,
+      emmc: '',
+      ddr: '',
+    });
   });
 
-  it('same PCBA multiple rows same market -> not a conflict', async () => {
+  it('same PCBA multiple rows same market -> keeps band and flags duplicateConflict only', async () => {
     const aoa = [
       ['PCBA配置', '出货市场'],
       ['A1', 'SSA'],
@@ -47,7 +74,16 @@ describe('extractPcbaOptions', () => {
     const file = makeXlsxFile(aoa);
     const result = await extractPcbaOptions(file);
     expect(result).toHaveLength(1);
-    expect(result[0]).toEqual({ pcba: 'A1', projectName: '', band: 'SSA', bandConflict: false, emmc: '', ddr: '' });
+    expect(result[0]).toEqual({
+      pcba: 'A1',
+      projectName: '',
+      band: 'SSA',
+      bandConflict: false,
+      duplicateConflict: true,
+      duplicateCount: 2,
+      emmc: '',
+      ddr: '',
+    });
   });
 
   it('no market column -> band="", bandConflict=false', async () => {
@@ -58,7 +94,16 @@ describe('extractPcbaOptions', () => {
     const file = makeXlsxFile(aoa);
     const result = await extractPcbaOptions(file);
     expect(result).toHaveLength(1);
-    expect(result[0]).toEqual({ pcba: 'A1', projectName: '', band: '', bandConflict: false, emmc: '', ddr: '' });
+    expect(result[0]).toEqual({
+      pcba: 'A1',
+      projectName: '',
+      band: '',
+      bandConflict: false,
+      duplicateConflict: false,
+      duplicateCount: 1,
+      emmc: '',
+      ddr: '',
+    });
   });
 
   it('ignores title cells like "PCBA配置表" and matches exact "PCBA配置" header row', async () => {
@@ -70,7 +115,16 @@ describe('extractPcbaOptions', () => {
     const file = makeXlsxFile(aoa);
     const result = await extractPcbaOptions(file);
     expect(result).toHaveLength(1);
-    expect(result[0]).toEqual({ pcba: 'A1', projectName: '', band: 'SSA', bandConflict: false, emmc: '128G', ddr: '4G' });
+    expect(result[0]).toEqual({
+      pcba: 'A1',
+      projectName: '',
+      band: 'SSA',
+      bandConflict: false,
+      duplicateConflict: false,
+      duplicateCount: 1,
+      emmc: '128G',
+      ddr: '4G',
+    });
   });
 
   it('no PCBA配置表 sheet -> return []', async () => {
@@ -105,8 +159,26 @@ describe('extractPcbaOptions', () => {
     ];
     const file = makeXlsxFile(aoa);
     const result = await extractPcbaOptions(file);
-    expect(result[0]).toEqual({ pcba: 'A1', projectName: '', band: 'SSA', bandConflict: false, emmc: '128G', ddr: '4G' });
-    expect(result[1]).toEqual({ pcba: 'B1', projectName: '', band: 'LATAM', bandConflict: false, emmc: '256G', ddr: '8G' });
+    expect(result[0]).toEqual({
+      pcba: 'A1',
+      projectName: '',
+      band: 'SSA',
+      bandConflict: false,
+      duplicateConflict: false,
+      duplicateCount: 1,
+      emmc: '128G',
+      ddr: '4G',
+    });
+    expect(result[1]).toEqual({
+      pcba: 'B1',
+      projectName: '',
+      band: 'LATAM',
+      bandConflict: false,
+      duplicateConflict: false,
+      duplicateCount: 1,
+      emmc: '256G',
+      ddr: '8G',
+    });
   });
 
   it('emmc/ddr columns absent -> emmc and ddr are empty strings', async () => {
@@ -116,7 +188,16 @@ describe('extractPcbaOptions', () => {
     ];
     const file = makeXlsxFile(aoa);
     const result = await extractPcbaOptions(file);
-    expect(result[0]).toEqual({ pcba: 'A1', projectName: '', band: 'SSA', bandConflict: false, emmc: '', ddr: '' });
+    expect(result[0]).toEqual({
+      pcba: 'A1',
+      projectName: '',
+      band: 'SSA',
+      bandConflict: false,
+      duplicateConflict: false,
+      duplicateCount: 1,
+      emmc: '',
+      ddr: '',
+    });
   });
 
   it('same PCBA with duplicate rows -> uses first occurrence EMMC/DDR', async () => {
@@ -127,8 +208,12 @@ describe('extractPcbaOptions', () => {
     ];
     const file = makeXlsxFile(aoa);
     const result = await extractPcbaOptions(file);
-    expect(result[0].emmc).toBe('128G');
-    expect(result[0].ddr).toBe('4G');
+    expect(result[0]).toMatchObject({
+      emmc: '128G',
+      ddr: '4G',
+      duplicateConflict: true,
+      duplicateCount: 2,
+    });
   });
 });
 
@@ -192,6 +277,8 @@ describe('extractPcbaOptions - projectName', () => {
       band: 'SSA',
       emmc: '128GB \u4e00\u4f9b',
       ddr: '4GB \u4e00\u4f9b',
+      duplicateConflict: false,
+      duplicateCount: 1,
     });
   });
 });

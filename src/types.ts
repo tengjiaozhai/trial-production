@@ -85,6 +85,8 @@ export interface PcbaOption {
   projectName: string;   // 项目名，如 "X6728"；列不存在时为 ""
   band: string;          // 出货市场（即频段）；冲突时为空字符串 ""
   bandConflict: boolean; // true 表示该 PCBA 对应配置表中多个不同出货市场
+  duplicateConflict: boolean; // true 表示该 PCBA 在配置表中出现 2 次以上
+  duplicateCount: number; // 该 PCBA 在配置表中的出现次数
   emmc: string;          // EMMC 列原始值，如 "128G"；列不存在或冲突时为 ""
   ddr: string;           // DDR 列原始值，如 "4G"；列不存在或冲突时为 ""
 }
@@ -129,7 +131,7 @@ export interface SampleCollectionWorkbookData {
 export interface ProjectInfo {
   name: string;
   mainboardId?: string;
-  pcbaOptions?: PcbaOption[]; // The extracted PCBA configs with band info
+  pcbaOptions?: PcbaOption[]; // The extracted PCBA configs with band and duplicate info
   checkedPcbaOptions?: string[]; // The ones selected by user
   materialWorkbook?: ManagedMaterialWorkbook;
   keyMaterialTemplate?: KeyMaterialTemplateMatch;

@@ -134,7 +134,8 @@ describe('buildManagedMaterialCoreFieldOptions', () => {
 
   const pcbaOpt = {
     pcba: 'A1', projectName: 'X6728', band: 'SSA',
-    bandConflict: false, emmc: '128G', ddr: '4G',
+    bandConflict: false, duplicateConflict: false, duplicateCount: 1,
+    emmc: '128G', ddr: '4G',
   };
 
   it('builds cpu field as code-only', () => {

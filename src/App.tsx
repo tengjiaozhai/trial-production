@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Upload, FileText, Download, CheckCircle, Play, Plus, X, RotateCw, Save, History, Trash2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -31,6 +31,7 @@ import { parseKeyMaterialTemplate, matchCategory2WithLLM, buildOptionsByField } 
 import { parseManagedMaterialCoreWorkbook, matchManagedMaterialNamesWithLLM, buildManagedMaterialCoreFieldOptions } from './lib/managedMaterialCore';
 import { parseSampleCollectionWorkbook, matchSampleCollectionRowsWithLLM, buildSampleCollectionFieldOptions } from './lib/sampleCollectionWorkbook';
 import { buildSupplyValuesForSupplyKey, deriveSupplyColumnsFromFieldOptions, recomputeStep4Values } from './lib/step4SampleCalc';
+import { buildStep2PcbaConflicts } from './lib/step2PcbaConflicts';
 import {
   validateColorAgainstBom,
   validateStorageAgainstComponents,
@@ -72,12 +73,17 @@ export default function App() {
   const [selectedSkuId, setSelectedSkuId] = useState<string | null>(null);
   const [copiedSku, setCopiedSku] = useState<CopiedSku | null>(null);
 
-  // Compute step 2 conflicts based on activeFields and skuData
-  const getStep2Conflicts = () => {
-    return [];
-  };
-
-  const step2Conflicts = getStep2Conflicts();
+  const step2Conflicts = useMemo(
+    () =>
+      buildStep2PcbaConflicts(
+        {
+          pcbaOptions: projectInfo.pcbaOptions ?? [],
+          checkedPcbaOptions: projectInfo.checkedPcbaOptions ?? [],
+          skuData,
+        },
+      ),
+    [projectInfo.pcbaOptions, projectInfo.checkedPcbaOptions, skuData]
+  );
 
   // Load history from localStorage
   useEffect(() => {

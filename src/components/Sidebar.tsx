@@ -4,6 +4,16 @@ import { StepId, ProjectInfo, SKUData, ValidationResult } from '@/src/types';
 import { AM_RULE_DEFS } from '@/src/constants';
 import { cn } from '@/src/lib/utils';
 
+type Step2PcbaConflict = {
+  kind: 'duplicate_pcba';
+  pcba: string;
+  duplicateCount: number;
+  skuId: string;
+  detail: string;
+};
+
+const STEP2_MB_ID_HIGHLIGHT_CLASSES = ['bg-rose-50', 'border', 'border-rose-500', 'ring-2', 'ring-rose-200'];
+
 interface SidebarProps {
   currentStep: StepId;
   projectInfo: ProjectInfo;
@@ -14,7 +24,7 @@ interface SidebarProps {
   isFlowComplete: boolean;
   setIsFlowComplete: (val: boolean) => void;
   onRunValidation: () => void;
-  step2Conflicts?: { fieldId: string; fieldLabel: string; supplyLabel: string }[];
+  step2Conflicts?: Step2PcbaConflict[];
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
 }
@@ -41,6 +51,24 @@ export function Sidebar({
       el.classList.add('bg-rose-50');
       setTimeout(() => el.classList.remove('bg-rose-50'), 2000);
     }
+  };
+  const focusStep2PcbaConflict = (conflict: Step2PcbaConflict) => {
+    const row = document.getElementById('row-mb_id');
+    if (!row) return;
+
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    if (!conflict.skuId) return;
+
+    const cell = row.querySelector<HTMLElement>(
+      `[data-testid="step2-mb-id-cell"][data-sku-id="${conflict.skuId}"]`
+    );
+    if (!cell) return;
+
+    STEP2_MB_ID_HIGHLIGHT_CLASSES.forEach((className) => cell.classList.add(className));
+    setTimeout(() => {
+      STEP2_MB_ID_HIGHLIGHT_CLASSES.forEach((className) => cell.classList.remove(className));
+    }, 1200);
   };
   const hasDataSources = projectInfo.files.length > 0;
 
@@ -105,14 +133,16 @@ export function Sidebar({
                   {step2Conflicts.map((c, i) => (
                     <div 
                       key={i} 
-                      onClick={() => scrollToField(c.fieldId)}
+                      onClick={() => focusStep2PcbaConflict(c)}
                       className="p-3 bg-rose-50/50 rounded border border-rose-200 hover:border-rose-400 hover:shadow-sm transition-all cursor-pointer space-y-1 group"
                     >
                       <div className="flex justify-between items-center">
-                        <span className="text-[13px] font-black text-rose-700">{c.fieldLabel}存在冲突</span>
+                        <span className="text-[13px] font-black text-rose-700">主板 {c.pcba} 重复 {c.duplicateCount} 次</span>
                         <span className="text-[11px] font-bold text-rose-500/80 group-hover:text-rose-600">点击定位</span>
                       </div>
-                      <p className="text-[12px] text-rose-600/80 font-medium">配置项：<span className="font-bold text-rose-700">{c.supplyLabel}</span> 缺少值</p>
+                      <p className="text-[12px] text-rose-600/80 font-medium leading-relaxed">
+                        {c.detail || `该主板在配置表中重复 ${c.duplicateCount} 次。`}
+                      </p>
                     </div>
                   ))}
                 </div>

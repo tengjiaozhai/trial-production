@@ -31,8 +31,9 @@ export function normalizeStorage(raw: string): string {
  * 5. 从表头行下一行开始逐行读取：
  *    - 跳过 null / 空字符串
  *    - 跳过分隔行：包含中文字符或含空格
- *    - 每个 PCBA 标识只取首次出现的行（跳过重复行）
- * 6. 取首次出现行的 market 值：
+ *    - market 统计所有出现行，用于 bandConflict 判断
+ *    - projectName / EMMC / DDR 只取首次出现行
+ * 6. 取 market 值：
  *    - 无值 -> {pcba, band:'', bandConflict:false}
  *    - 有值 -> {pcba, band:value, bandConflict:false}
  */
@@ -121,10 +122,11 @@ export async function extractPcbaOptions(file: File): Promise<PcbaOption[]> {
 
   // Step 4: collect data rows, build map of pcba -> Set<market>
   const pcbaMarkets = new Map<string, Set<string>>();
-  const pcbaEmmcSets = new Map<string, Set<string>>();
-  const pcbaDdrSets  = new Map<string, Set<string>>();
+  const pcbaEmmcValues = new Map<string, string>();
+  const pcbaDdrValues  = new Map<string, string>();
   const pcbaProjectNames = new Map<string, string>();
   const pcbaOrder: string[] = [];
+  const pcbaCounts = new Map<string, number>();
 
   for (let r = headerRowIdx + 1; r < aoa.length; r++) {
     const row = aoa[r];
@@ -138,59 +140,58 @@ export async function extractPcbaOptions(file: File): Promise<PcbaOption[]> {
     const isMergedRow = /[一-龥]/.test(val) || /\s/.test(val);
     if (isMergedRow) continue;
 
+    pcbaCounts.set(val, (pcbaCounts.get(val) ?? 0) + 1);
     if (!pcbaMarkets.has(val)) {
       pcbaMarkets.set(val, new Set<string>());
       pcbaOrder.push(val);
-
-      // Collect market value from first occurrence only
-      if (marketColIdx !== -1) {
-        const marketRaw = row[marketColIdx];
-        if (marketRaw !== null && marketRaw !== undefined) {
-          const market = String(marketRaw).trim();
-          if (market) {
-            pcbaMarkets.get(val)!.add(market);
-          }
-        }
-      }
-
-      // Collect projectName from first occurrence only
-      if (projectNameColIdx !== -1) {
-        const pnRaw = row[projectNameColIdx];
-        if (pnRaw !== null && pnRaw !== undefined) {
-          const pn = String(pnRaw).trim();
-          if (pn) pcbaProjectNames.set(val, pn);
-        }
-      }
-
-      // Collect EMMC/DDR from first occurrence only
-      const collectFirst = (colIdx: number, map: Map<string, Set<string>>) => {
-        if (colIdx === -1) return;
-        const raw = row[colIdx];
-        if (raw === null || raw === undefined) return;
-        const v = String(raw).trim();
-        if (!v) return;
-        if (!map.has(val)) map.set(val, new Set<string>());
-        map.get(val)!.add(v);
-      };
-      collectFirst(emmcColIdx, pcbaEmmcSets);
-      collectFirst(ddrColIdx,  pcbaDdrSets);
     }
+
+    // Collect market values from all occurrences so bandConflict stays accurate.
+    if (marketColIdx !== -1) {
+      const marketRaw = row[marketColIdx];
+      if (marketRaw !== null && marketRaw !== undefined) {
+        const market = String(marketRaw).trim();
+        if (market) {
+          pcbaMarkets.get(val)!.add(market);
+        }
+      }
+    }
+
+    // Collect projectName from first occurrence only.
+    if (pcbaProjectNames.has(val) === false && projectNameColIdx !== -1) {
+      const pnRaw = row[projectNameColIdx];
+      if (pnRaw !== null && pnRaw !== undefined) {
+        const pn = String(pnRaw).trim();
+        if (pn) pcbaProjectNames.set(val, pn);
+      }
+    }
+
+    // Collect EMMC/DDR from first occurrence only.
+    const collectFirst = (colIdx: number, map: Map<string, string>) => {
+      if (colIdx === -1) return;
+      const raw = row[colIdx];
+      if (raw === null || raw === undefined) return;
+      const v = String(raw).trim();
+      if (!v) return;
+      if (!map.has(val)) map.set(val, v);
+    };
+    collectFirst(emmcColIdx, pcbaEmmcValues);
+    collectFirst(ddrColIdx,  pcbaDdrValues);
   }
 
   // Step 5: build result
   const results: PcbaOption[] = pcbaOrder.map(pcba => {
     const markets     = pcbaMarkets.get(pcba)!;
-    const emmcSet     = pcbaEmmcSets.get(pcba) ?? new Set<string>();
-    const ddrSet      = pcbaDdrSets.get(pcba)  ?? new Set<string>();
-    const emmc        = emmcSet.size === 1 ? [...emmcSet][0] : '';
-    const ddr         = ddrSet.size  === 1 ? [...ddrSet][0]  : '';
+    const emmc        = pcbaEmmcValues.get(pcba) ?? '';
+    const ddr         = pcbaDdrValues.get(pcba) ?? '';
     const projectName = pcbaProjectNames.get(pcba) ?? '';
+    const duplicateCount = pcbaCounts.get(pcba) ?? 1;
     if (markets.size === 0) {
-      return { pcba, projectName, band: '', bandConflict: false, emmc, ddr };
+      return { pcba, projectName, band: '', bandConflict: false, duplicateConflict: duplicateCount > 1, duplicateCount, emmc, ddr };
     } else if (markets.size === 1) {
-      return { pcba, projectName, band: [...markets][0], bandConflict: false, emmc, ddr };
+      return { pcba, projectName, band: [...markets][0], bandConflict: false, duplicateConflict: duplicateCount > 1, duplicateCount, emmc, ddr };
     } else {
-      return { pcba, projectName, band: '', bandConflict: true, emmc, ddr };
+      return { pcba, projectName, band: '', bandConflict: true, duplicateConflict: duplicateCount > 1, duplicateCount, emmc, ddr };
     }
   });
 

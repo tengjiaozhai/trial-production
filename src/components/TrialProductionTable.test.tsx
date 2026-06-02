@@ -22,6 +22,13 @@ const baseField = {
   behavior: 'manual' as const,
 };
 
+const mbIdField = {
+  id: 'mb_id',
+  label: '主板标识',
+  group: '基本信息',
+  behavior: 'manual' as const,
+};
+
 describe('TrialProductionTable insert affordances', () => {
   it('renders a row-insert-after button on each visible row in step 2 and fires onInsertRowAt(afterFieldId)', () => {
     const onInsertRowAt = vi.fn();
@@ -124,6 +131,25 @@ describe('TrialProductionTable insert affordances', () => {
 });
 
 describe('TrialProductionTable sku selection', () => {
+  it('marks mb_id cells with sku targeting attributes in step 2', () => {
+    render(
+      <TrialProductionTable
+        currentStep={2}
+        skuData={[
+          { ...baseSku, id: 'sku-1', project: 'A1' },
+          { ...baseSku, id: 'sku-2', project: 'B1' },
+        ]}
+        activeFields={[baseField, mbIdField]}
+        onUpdateValue={() => {}}
+      />
+    );
+
+    const cells = screen.getAllByTestId('step2-mb-id-cell');
+    expect(cells).toHaveLength(2);
+    expect(cells[0]).toHaveAttribute('data-sku-id', 'sku-1');
+    expect(cells[1]).toHaveAttribute('data-sku-id', 'sku-2');
+  });
+
   it('keeps custom inserted rows visible in step 2 when they belong to a visible group', () => {
     render(
       <TrialProductionTable

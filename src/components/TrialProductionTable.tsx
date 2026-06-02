@@ -308,6 +308,8 @@ function SortableRow({
           return (
             <td
               key={sku.id}
+              data-testid={field.id === 'mb_id' ? 'step2-mb-id-cell' : undefined}
+              data-sku-id={field.id === 'mb_id' ? sku.id : undefined}
               colSpan={sku.supplies.length}
               className={cn(
                 "border-b border-r border-slate-200 p-2 align-top transition-colors relative",
