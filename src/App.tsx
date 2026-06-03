@@ -31,7 +31,7 @@ import { parseKeyMaterialTemplate, matchCategory2WithLLM, buildOptionsByField } 
 import { parseManagedMaterialCoreWorkbook, matchManagedMaterialNamesWithLLM, buildManagedMaterialCoreFieldOptions } from './lib/managedMaterialCore';
 import { parseSampleCollectionWorkbook, matchSampleCollectionRowsWithLLM, buildSampleCollectionFieldOptions } from './lib/sampleCollectionWorkbook';
 import { buildSupplyValuesForSupplyKey, deriveSupplyColumnsFromFieldOptions, recomputeStep4Values } from './lib/step4SampleCalc';
-import { buildStep2PcbaConflicts } from './lib/step2PcbaConflicts';
+import { buildStep2CellConflicts } from './lib/step2CellConflicts';
 import {
   validateColorAgainstBom,
   validateStorageAgainstComponents,
@@ -76,14 +76,12 @@ export default function App() {
 
   const step2Conflicts = useMemo(
     () =>
-      buildStep2PcbaConflicts(
-        {
-          pcbaOptions: projectInfo.pcbaOptions ?? [],
-          checkedPcbaOptions: projectInfo.checkedPcbaOptions ?? [],
-          skuData,
-        },
-      ),
-    [projectInfo.pcbaOptions, projectInfo.checkedPcbaOptions, skuData]
+      buildStep2CellConflicts({
+        checkedPcbaOptions: projectInfo.checkedPcbaOptions ?? [],
+        pcbaRows: projectInfo.pcbaRows ?? [],
+        skuData,
+      }),
+    [projectInfo.checkedPcbaOptions, projectInfo.pcbaRows, skuData]
   );
 
   // Load history from localStorage
