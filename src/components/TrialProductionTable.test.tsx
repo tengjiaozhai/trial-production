@@ -333,3 +333,31 @@ describe('TrialProductionTable horizontal slider', () => {
     expect(slider.disabled).toBe(true);
   });
 });
+
+describe('TrialProductionTable step5 efuse labels', () => {
+  it('renders efuse suffixes in Step 5 preview labels', () => {
+    render(
+      <TrialProductionTable
+        currentStep={5}
+        skuData={[
+          {
+            id: 'sku1',
+            stage: 'PR1',
+            orderNo: '',
+            project: 'X6728',
+            supplies: [
+              { id: 's1', supplyKey: '一供', label: '一供', values: { hw_eng: '8' } },
+            ],
+          },
+        ]}
+        efuseConfigs={{ hw_eng: 'no efuse' }}
+        activeFields={[
+          { id: 'hw_eng', label: '硬件', group: '内部样机需求', behavior: 'manual' },
+        ]}
+        onUpdateValue={() => {}}
+      />
+    );
+
+    expect(screen.getByText('硬件(no efuse)')).toBeInTheDocument();
+  });
+});

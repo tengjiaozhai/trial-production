@@ -6,6 +6,7 @@ import { Trash2, Plus, GripVertical, ChevronDown, X, Copy, ClipboardPaste } from
 import { listSupplyKeys } from '../lib/supplyProjection';
 import { buildStep5TableModel } from '../lib/step5TableModel';
 import type { Step5Row } from '../lib/step5TableModel';
+import { supportsEfuseLabel } from '../lib/efuseFields';
 import { buildTableViewportMetrics, BASIC_INFO_BLOCK_HEIGHT_PX } from '../lib/tableViewport';
 import type { CopiedSku } from '../lib/tableOperations';
 
@@ -275,7 +276,7 @@ function SortableRow({
               </button>
             )}
           </div>
-          {['ce_cert', 'customer_sample_req', 'hw_eng', 'hw_test', 'sw_eng', 'sw_test', 'struct_eng', 'reliability', 'reliability_eng', 'image_eng', 'npm', 'ux', 'parts'].includes(field.id) && (
+          {supportsEfuseLabel(field.id) && (
             <select
               className="border border-[#DDE7F3] rounded bg-[#F6F9FF] text-[10px] font-bold text-[#64748B] px-1 py-0.5 w-full outline-none hover:bg-slate-100 transition-colors text-center cursor-pointer disabled:cursor-not-allowed"
               value={efuseConfigs?.[field.id] || ''}
@@ -657,7 +658,7 @@ export function TrialProductionTable({
   };
 
   if (currentStep === 5) {
-    const step5Model = buildStep5TableModel({ activeFields, skuData, includeSupplierRow: true });
+    const step5Model = buildStep5TableModel({ activeFields, skuData, includeSupplierRow: true, efuseConfigs });
     const totalValueCols = step5Model.columns.length;
     const step5TableWidthPx = 36 + 120 + step5Model.columns.reduce((sum, col) => sum + (colWidths[col.supplyId] ?? 160), 0);
 
