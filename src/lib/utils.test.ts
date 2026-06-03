@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as XLSX from 'xlsx';
-import { extractPcbaOptions, normalizeStorage, extractManagedMaterialWorkbook, resolveLcdOptionsForProject, serializeLcdOptions } from './utils';
+import { extractPcbaOptions, normalizeStorage, extractManagedMaterialWorkbook, resolveLcdOptionsForProject, serializeLcdOptions, extractPcbaWorkbookData } from './utils';
 
 function makeXlsxFile(aoa: (string | null)[][]): File {
   const wb = XLSX.utils.book_new();
@@ -409,5 +409,53 @@ describe('extractManagedMaterialWorkbook - camera fields', () => {
     expect(result.frontCamBySheet['X6728']).toHaveLength(1);
     expect(result.mainCamBySheet['X6728']).toHaveLength(1);
     expect(result.subCamBySheet['X6728']).toHaveLength(1);
+  });
+});
+
+describe('extractPcbaWorkbookData', () => {
+  it('preserves raw duplicate rows while still aggregating step1 options', async () => {
+    const file = makeXlsxFile([
+      ['PCBA配置', '出货市场', '项目名称', 'EMMC', 'DDR'],
+      ['A1', 'SSA', 'X6728', '128G', '4G'],
+      ['A1', 'LATAM', 'X6728', '256G', '8G'],
+    ]);
+
+    const result = await extractPcbaWorkbookData(file);
+
+    expect(result.pcbaOptions).toEqual([
+      {
+        pcba: 'A1',
+        projectName: 'X6728',
+        band: '',
+        bandConflict: true,
+        duplicateConflict: true,
+        duplicateCount: 2,
+        emmc: '128G',
+        ddr: '4G',
+      },
+    ]);
+
+    expect(result.pcbaRows).toEqual([
+      {
+        pcba: 'A1',
+        sourceIndex: 0,
+        values: {
+          projectName: 'X6728',
+          band: 'SSA',
+          emmc: '128G',
+          ddr: '4G',
+        },
+      },
+      {
+        pcba: 'A1',
+        sourceIndex: 1,
+        values: {
+          projectName: 'X6728',
+          band: 'LATAM',
+          emmc: '256G',
+          ddr: '8G',
+        },
+      },
+    ]);
   });
 });

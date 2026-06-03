@@ -26,7 +26,7 @@ import {
   AM_RULE_DEFS,
   FIELD_GROUPS
 } from './constants';
-import { cn, extractPcbaOptions, normalizeStorage, extractManagedMaterialWorkbook, resolveLcdOptionsForProject, serializeLcdOptions, resolveFrontCamOptionsForProject, resolveMainCamOptionsForProject, resolveSubCamOptionsForProject } from './lib/utils';
+import { cn, extractPcbaOptions, extractPcbaWorkbookData, normalizeStorage, extractManagedMaterialWorkbook, resolveLcdOptionsForProject, serializeLcdOptions, resolveFrontCamOptionsForProject, resolveMainCamOptionsForProject, resolveSubCamOptionsForProject } from './lib/utils';
 import { parseKeyMaterialTemplate, matchCategory2WithLLM, buildOptionsByField } from './lib/keyMaterialTemplate';
 import { parseManagedMaterialCoreWorkbook, matchManagedMaterialNamesWithLLM, buildManagedMaterialCoreFieldOptions } from './lib/managedMaterialCore';
 import { parseSampleCollectionWorkbook, matchSampleCollectionRowsWithLLM, buildSampleCollectionFieldOptions } from './lib/sampleCollectionWorkbook';
@@ -402,12 +402,13 @@ export default function App() {
       if (configFiles.length > 0) {
         if (hasAnyLLMFile) setLoadingText('解析配置表并提取PCBA...');
         for (const configFile of configFiles) {
-          const options = await extractPcbaOptions(configFile as File);
-          if (options.length > 0) {
-            parsedPcbaOptions = options;
+          const parsed = await extractPcbaWorkbookData(configFile as File);
+          if (parsed.pcbaOptions.length > 0) {
+            parsedPcbaOptions = parsed.pcbaOptions;
             setProjectInfo(prev => ({
               ...prev,
-              pcbaOptions: options,
+              pcbaOptions: parsed.pcbaOptions,
+              pcbaRows: parsed.pcbaRows,
               checkedPcbaOptions: prev.checkedPcbaOptions && prev.checkedPcbaOptions.length > 0
                 ? prev.checkedPcbaOptions
                 : [],

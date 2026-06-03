@@ -91,6 +91,17 @@ export interface PcbaOption {
   ddr: string;           // DDR 列原始值，如 "4G"；列不存在或冲突时为 ""
 }
 
+export interface PcbaSourceRow {
+  pcba: string;
+  sourceIndex: number;
+  values: Record<string, string>;
+}
+
+export interface PcbaWorkbookParseResult {
+  pcbaOptions: PcbaOption[];
+  pcbaRows: PcbaSourceRow[];
+}
+
 export interface ManagedMaterialCoreRow {
   materialName: string;
   code: string;
@@ -132,6 +143,7 @@ export interface ProjectInfo {
   name: string;
   mainboardId?: string;
   pcbaOptions?: PcbaOption[]; // The extracted PCBA configs with band and duplicate info
+  pcbaRows?: PcbaSourceRow[]; // Raw PCBA rows preserved for step2 conflicts
   checkedPcbaOptions?: string[]; // The ones selected by user
   materialWorkbook?: ManagedMaterialWorkbook;
   keyMaterialTemplate?: KeyMaterialTemplateMatch;

@@ -1,7 +1,7 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import * as XLSX from 'xlsx';
-import type { PcbaOption, LcdSupplyOption, ManagedMaterialWorkbook } from '../types';
+import type { PcbaOption, PcbaSourceRow, PcbaWorkbookParseResult, LcdSupplyOption, ManagedMaterialWorkbook } from '../types';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -117,7 +117,7 @@ export async function extractPcbaOptions(file: File): Promise<PcbaOption[]> {
     const upper = raw.toUpperCase();
     if (upper === 'EMMC') emmcColIdx = c;
     if (upper === 'DDR')  ddrColIdx  = c;
-    if (raw === '项目名') projectNameColIdx = c;
+    if (raw === '项目名' || raw === '项目名称') projectNameColIdx = c;
   }
 
   // Step 4: collect data rows, build map of pcba -> Set<market>
@@ -341,4 +341,199 @@ export function resolveSubCamOptionsForProject(
 
 export function serializeLcdOptions(options: LcdSupplyOption[]): string {
   return options.map(o => o.text).join(' / ');
+}
+
+export async function extractPcbaWorkbookData(file: File): Promise<PcbaWorkbookParseResult> {
+  const buffer = await file.arrayBuffer();
+  const wb = XLSX.read(buffer, { type: 'array' });
+
+  // Step 1: find target sheet
+  const targetSheetName = wb.SheetNames.find(name => name.includes('PCBA配置表'));
+  if (!targetSheetName) return { pcbaOptions: [], pcbaRows: [] };
+
+  const ws = wb.Sheets[targetSheetName];
+
+  // Convert to AOA, keep blank cells as null
+  const aoa: (string | number | null | undefined)[][] = XLSX.utils.sheet_to_json(ws, {
+    header: 1,
+    defval: null,
+    blankrows: true,
+  }) as (string | number | null | undefined)[][];
+
+  if (!aoa.length) return { pcbaOptions: [], pcbaRows: [] };
+
+  // Step 2: collect all header candidates (exact match "PCBA配置" or "PCBA 配置"),
+  // then pick the one whose column contains the most valid PCBA data rows below.
+  let headerRowIdx = -1;
+  let headerColIdx = -1;
+  let marketColIdx = -1;
+
+  const headerCandidates: Array<{ row: number; col: number }> = [];
+  for (let r = 0; r < aoa.length; r++) {
+    const row = aoa[r];
+    for (let c = 0; c < row.length; c++) {
+      const val = String(row[c] ?? '').trim();
+      if (/^PCBA\s*配置$/.test(val)) {
+        headerCandidates.push({ row: r, col: c });
+      }
+    }
+  }
+
+  if (headerCandidates.length === 0) return { pcbaOptions: [], pcbaRows: [] };
+
+  // Score each candidate by counting valid (non-separator, non-empty) data rows below it
+  let bestCandidate: { row: number; col: number; score: number } | null = null;
+  for (const cand of headerCandidates) {
+    let score = 0;
+    for (let r = cand.row + 1; r < aoa.length; r++) {
+      const rawVal = aoa[r]?.[cand.col];
+      if (rawVal === null || rawVal === undefined) continue;
+      const v = String(rawVal).trim();
+      if (!v) continue;
+      const isSep = /[一-龥]/.test(v) || /\s/.test(v);
+      if (isSep) continue;
+      score++;
+    }
+    if (!bestCandidate || score > bestCandidate.score ||
+        (score === bestCandidate.score && cand.col > bestCandidate.col)) {
+      bestCandidate = { ...cand, score };
+    }
+  }
+
+  if (!bestCandidate || bestCandidate.score === 0) return { pcbaOptions: [], pcbaRows: [] };
+  headerRowIdx = bestCandidate.row;
+  headerColIdx = bestCandidate.col;
+
+  // Step 3: find market column in the same header row
+  const headerRow = aoa[headerRowIdx];
+  for (let c = 0; c < headerRow.length; c++) {
+    const val = String(headerRow[c] ?? '').trim();
+    if (/出货\s*市场/.test(val)) {
+      marketColIdx = c;
+      break;
+    }
+  }
+
+  // Find EMMC, DDR, and projectName columns
+  let emmcColIdx = -1;
+  let ddrColIdx = -1;
+  let projectNameColIdx = -1;
+  for (let c = 0; c < headerRow.length; c++) {
+    const raw = String(headerRow[c] ?? '').trim();
+    const upper = raw.toUpperCase();
+    if (upper === 'EMMC') emmcColIdx = c;
+    if (upper === 'DDR')  ddrColIdx  = c;
+    if (raw === '项目名' || raw === '项目名称') projectNameColIdx = c;
+  }
+
+  // Step 4: collect data rows, build map of pcba -> Set<market>
+  const pcbaMarkets = new Map<string, Set<string>>();
+  const pcbaEmmcValues = new Map<string, string>();
+  const pcbaDdrValues  = new Map<string, string>();
+  const pcbaProjectNames = new Map<string, string>();
+  const pcbaOrder: string[] = [];
+  const pcbaCounts = new Map<string, number>();
+  const pcbaRows: PcbaSourceRow[] = [];
+
+  for (let r = headerRowIdx + 1; r < aoa.length; r++) {
+    const row = aoa[r];
+    const rawVal = row[headerColIdx];
+    if (rawVal === null || rawVal === undefined) continue;
+
+    const val = String(rawVal).trim();
+    if (!val) continue;
+
+    // Detect separator/merged row: contains Chinese chars or whitespace
+    const isMergedRow = /[一-龥]/.test(val) || /\s/.test(val);
+    if (isMergedRow) continue;
+
+    pcbaCounts.set(val, (pcbaCounts.get(val) ?? 0) + 1);
+    if (!pcbaMarkets.has(val)) {
+      pcbaMarkets.set(val, new Set<string>());
+      pcbaOrder.push(val);
+    }
+
+    // Collect market values from all occurrences so bandConflict stays accurate.
+    if (marketColIdx !== -1) {
+      const marketRaw = row[marketColIdx];
+      if (marketRaw !== null && marketRaw !== undefined) {
+        const market = String(marketRaw).trim();
+        if (market) {
+          pcbaMarkets.get(val)!.add(market);
+        }
+      }
+    }
+
+    // Collect projectName from first occurrence only.
+    if (pcbaProjectNames.has(val) === false && projectNameColIdx !== -1) {
+      const pnRaw = row[projectNameColIdx];
+      if (pnRaw !== null && pnRaw !== undefined) {
+        const pn = String(pnRaw).trim();
+        if (pn) pcbaProjectNames.set(val, pn);
+      }
+    }
+
+    // Collect EMMC/DDR from first occurrence only.
+    const collectFirst = (colIdx: number, map: Map<string, string>) => {
+      if (colIdx === -1) return;
+      const raw = row[colIdx];
+      if (raw === null || raw === undefined) return;
+      const v = String(raw).trim();
+      if (!v) return;
+      if (!map.has(val)) map.set(val, v);
+    };
+    collectFirst(emmcColIdx, pcbaEmmcValues);
+    collectFirst(ddrColIdx,  pcbaDdrValues);
+
+    // Build raw row data
+    const values: Record<string, string> = {};
+    if (projectNameColIdx !== -1) {
+      const pnRaw = row[projectNameColIdx];
+      if (pnRaw !== null && pnRaw !== undefined) {
+        values.projectName = String(pnRaw).trim();
+      }
+    }
+    if (marketColIdx !== -1) {
+      const marketRaw = row[marketColIdx];
+      if (marketRaw !== null && marketRaw !== undefined) {
+        values.band = String(marketRaw).trim();
+      }
+    }
+    if (emmcColIdx !== -1) {
+      const emmcRaw = row[emmcColIdx];
+      if (emmcRaw !== null && emmcRaw !== undefined) {
+        values.emmc = String(emmcRaw).trim();
+      }
+    }
+    if (ddrColIdx !== -1) {
+      const ddrRaw = row[ddrColIdx];
+      if (ddrRaw !== null && ddrRaw !== undefined) {
+        values.ddr = String(ddrRaw).trim();
+      }
+    }
+
+    pcbaRows.push({
+      pcba: val,
+      sourceIndex: r - headerRowIdx - 1,
+      values,
+    });
+  }
+
+  // Step 5: build result
+  const pcbaOptions: PcbaOption[] = pcbaOrder.map(pcba => {
+    const markets     = pcbaMarkets.get(pcba)!;
+    const emmc        = pcbaEmmcValues.get(pcba) ?? '';
+    const ddr         = pcbaDdrValues.get(pcba) ?? '';
+    const projectName = pcbaProjectNames.get(pcba) ?? '';
+    const duplicateCount = pcbaCounts.get(pcba) ?? 1;
+    if (markets.size === 0) {
+      return { pcba, projectName, band: '', bandConflict: false, duplicateConflict: duplicateCount > 1, duplicateCount, emmc, ddr };
+    } else if (markets.size === 1) {
+      return { pcba, projectName, band: [...markets][0], bandConflict: false, duplicateConflict: duplicateCount > 1, duplicateCount, emmc, ddr };
+    } else {
+      return { pcba, projectName, band: '', bandConflict: true, duplicateConflict: duplicateCount > 1, duplicateCount, emmc, ddr };
+    }
+  });
+
+  return { pcbaOptions, pcbaRows };
 }
