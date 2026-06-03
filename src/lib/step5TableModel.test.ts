@@ -76,4 +76,53 @@ describe('buildStep5TableModel', () => {
     if (supplierRow?.kind !== 'field') throw new Error('expected field row');
     expect(supplierRow.fieldLabel).toBe('一供/二供');
   });
+
+  describe('efuse label formatting', () => {
+    const efuseActiveFields: FieldDefinition[] = [
+      { id: 'hw_eng', label: '硬件', group: '内部样机需求', behavior: 'manual' },
+      { id: 'project', label: '项目名称', group: '基本信息', behavior: 'manual' },
+    ];
+
+    const efuseSkuData: SKUData[] = [
+      {
+        id: 'sku_1',
+        stage: 'PR1',
+        orderNo: '',
+        project: 'X6728',
+        fieldOptions: {},
+        supplies: [
+          {
+            id: 's1',
+            supplyKey: '一供',
+            label: 'Supply A',
+            values: { hw_eng: '8', project: 'X6728' },
+          },
+        ],
+      },
+    ];
+
+    it('appends the selected efuse mode to supported Step 5 labels', () => {
+      const model = buildStep5TableModel({
+        activeFields: efuseActiveFields,
+        skuData: efuseSkuData,
+        efuseConfigs: { hw_eng: 'efuse' },
+      });
+
+      const row = model.rows.find((item) => item.kind === 'field' && item.fieldId === 'hw_eng');
+      if (!row || row.kind !== 'field') throw new Error('expected hw_eng field row');
+      expect(row.fieldLabel).toBe('硬件(efuse)');
+    });
+
+    it('keeps labels unchanged when no efuse mode is selected', () => {
+      const model = buildStep5TableModel({
+        activeFields: efuseActiveFields,
+        skuData: efuseSkuData,
+        efuseConfigs: {},
+      });
+
+      const row = model.rows.find((item) => item.kind === 'field' && item.fieldId === 'hw_eng');
+      if (!row || row.kind !== 'field') throw new Error('expected hw_eng field row');
+      expect(row.fieldLabel).toBe('硬件');
+    });
+  });
 });

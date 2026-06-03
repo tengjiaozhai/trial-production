@@ -1,4 +1,5 @@
 import type { FieldDefinition, SKUData } from '../types';
+import { formatFieldLabelWithEfuse } from './efuseFields';
 
 export interface Step5Cell {
   value: string;
@@ -40,6 +41,7 @@ export function buildStep5TableModel(args: {
   activeFields: FieldDefinition[];
   skuData: SKUData[];
   includeSupplierRow?: boolean;
+  efuseConfigs?: Record<string, string>;
 }): Step5TableModel {
   const columns = args.skuData.flatMap((sku) =>
     sku.supplies.map((supply) => ({
@@ -82,7 +84,11 @@ export function buildStep5TableModel(args: {
         kind: 'field',
         indexLabel: String(visibleIndex).padStart(2, '0'),
         fieldId: field.id,
-        fieldLabel: field.label,
+        fieldLabel: formatFieldLabelWithEfuse({
+          fieldId: field.id,
+          fieldLabel: field.label,
+          efuseConfigs: args.efuseConfigs,
+        }),
         cells,
       });
       visibleIndex += 1;
