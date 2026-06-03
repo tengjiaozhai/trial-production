@@ -657,7 +657,7 @@ export function TrialProductionTable({
   };
 
   if (currentStep === 5) {
-    const step5Model = buildStep5TableModel({ activeFields, skuData });
+    const step5Model = buildStep5TableModel({ activeFields, skuData, includeSupplierRow: true });
     const totalValueCols = step5Model.columns.length;
     const step5TableWidthPx = 36 + 120 + step5Model.columns.reduce((sum, col) => sum + (colWidths[col.supplyId] ?? 160), 0);
 

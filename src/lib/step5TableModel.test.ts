@@ -74,6 +74,6 @@ describe('buildStep5TableModel', () => {
     const supplierRow = model.rows.find((r) => r.kind === 'field' && r.fieldId === '__supplier__');
     expect(supplierRow).toBeDefined();
     if (supplierRow?.kind !== 'field') throw new Error('expected field row');
-    expect(supplierRow.fieldLabel).toBe('供应商');
+    expect(supplierRow.fieldLabel).toBe('一供/二供');
   });
 });

@@ -93,7 +93,7 @@ export function buildStep5TableModel(args: {
         kind: 'field',
         indexLabel: String(visibleIndex).padStart(2, '0'),
         fieldId: '__supplier__',
-        fieldLabel: '供应商',
+        fieldLabel: '一供/二供',
         cells: args.skuData.map((sku) => ({
           value: sku.selectedSupplyKey || '',
           colSpan: 1,

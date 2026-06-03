@@ -56,7 +56,19 @@ export function Sidebar({
     const row = document.getElementById('row-mb_id');
     if (!row) return;
 
-    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    // mb_id 行在 topTableRef（200px height + overflow:auto + scrollbar-hidden）内。
+    // scrollIntoView 只滚 topTableRef，不滚外部 main 容器。
+    // 用 getBoundingClientRect 计算位置，手动滚 main 容器。
+    const mainEl = document.querySelector('main[class*="overflow-y-auto"]') as HTMLElement | null;
+    if (mainEl) {
+      const rowRect = row.getBoundingClientRect();
+      const mainRect = mainEl.getBoundingClientRect();
+      // row 相对于 main 容器的绝对位置
+      const rowTopInMain = rowRect.top - mainRect.top + mainEl.scrollTop;
+      // 滚到 row 在 main 容器中央
+      const targetScrollTop = rowTopInMain - mainRect.height / 2 + rowRect.height / 2;
+      mainEl.scrollTo({ top: Math.max(0, targetScrollTop), behavior: 'smooth' });
+    }
 
     if (!conflict.skuId) return;
 

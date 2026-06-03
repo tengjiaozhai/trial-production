@@ -15,9 +15,18 @@ describe('Sidebar step 2 duplicate PCBA conflicts', () => {
   });
 
   it('scrolls to row-mb_id and highlights the matching mb_id cell when a duplicate PCBA card is clicked', () => {
+    const mainEl = document.createElement('main');
+    mainEl.className = 'overflow-y-auto';
+    mainEl.scrollTo = vi.fn();
+    Object.defineProperty(mainEl, 'scrollTop', { value: 0, writable: true });
+    Object.defineProperty(mainEl, 'offsetTop', { value: 0 });
+    document.body.appendChild(mainEl);
+
     const row = document.createElement('div');
     row.id = 'row-mb_id';
     row.scrollIntoView = vi.fn();
+    row.getBoundingClientRect = vi.fn(() => ({ top: 100, bottom: 120, left: 0, right: 100, width: 100, height: 20, x: 0, y: 100 } as DOMRect));
+    mainEl.appendChild(row);
 
     const cell = document.createElement('div');
     cell.setAttribute('data-testid', 'step2-mb-id-cell');
@@ -50,7 +59,7 @@ describe('Sidebar step 2 duplicate PCBA conflicts', () => {
 
     fireEvent.click(screen.getByText('主板 MB-001 在配置表中重复 2 次'));
 
-    expect(row.scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(mainEl.scrollTo).toHaveBeenCalled();
     expect(cell.className).toMatch(/\bbg-rose-50\b/);
     expect(cell.className).toMatch(/\bborder-rose-500\b/);
 
