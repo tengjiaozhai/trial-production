@@ -1267,21 +1267,23 @@ export default function App() {
                 完成并导出
               </button>
             ) : (
-              <button
-                disabled={disableNextToPreview}
-                onClick={() => {
-                  if (disableNextToPreview) return;
-                  setCurrentStep((currentStep + 1) as StepId);
-                }}
-                className={cn(
-                  "px-6 py-2 rounded font-bold text-[13px] transition-all flex items-center gap-2",
-                  disableNextToPreview
-                    ? "bg-[#DDE7F3] text-[#64748B] cursor-not-allowed"
-                    : "bg-[#06B6D4] text-white hover:bg-[#0891B2] active:scale-95"
-                )}
-              >
-                下一步: {currentStep === 2 ? '要素补全' : currentStep === 3 ? '规则引擎核验' : '导出预览'}
-              </button>
+              <div title={disableNextToPreview && currentStep === 2 ? '存在冲突，请先解决冲突' : undefined}>
+                <button
+                  disabled={disableNextToPreview}
+                  onClick={() => {
+                    if (disableNextToPreview) return;
+                    setCurrentStep((currentStep + 1) as StepId);
+                  }}
+                  className={cn(
+                    "px-6 py-2 rounded font-bold text-[13px] transition-all flex items-center gap-2",
+                    disableNextToPreview
+                      ? "bg-[#DDE7F3] text-[#64748B] cursor-not-allowed"
+                      : "bg-[#06B6D4] text-white hover:bg-[#0891B2] active:scale-95"
+                  )}
+                >
+                  下一步: {currentStep === 2 ? '要素补全' : currentStep === 3 ? '规则引擎核验' : '导出预览'}
+                </button>
+              </div>
             )}
           </div>
         </div>
