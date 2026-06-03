@@ -956,7 +956,7 @@ export default function App() {
                       <label className="text-xs font-black text-[#64748B]">模板选择 <span className="text-rose-500">*</span></label>
                       <select
                         className={cn(
-                          "w-full h-12 px-4 rounded-xl border focus:ring-4 focus:ring-[#2563EB]/10 focus:border-[#2563EB] outline-none bg-[#F6F9FF]/30 transition-all text-sm font-bold appearance-none cursor-pointer",
+                          "step1-select w-full h-12 px-4 rounded-xl border focus:ring-4 focus:ring-[#2563EB]/10 focus:border-[#2563EB] outline-none bg-[#F6F9FF]/30 transition-all text-sm font-bold appearance-none cursor-pointer",
                           step1Errors.customer ? "border-rose-500 focus:ring-rose-500/10 focus:border-rose-500" : "border-[#DDE7F3]",
                           projectInfo.customer ? "text-[#0B1F33]" : "text-[#9CA3AF]"
                         )}
@@ -977,9 +977,10 @@ export default function App() {
                       <label className="text-xs font-black text-[#64748B]">试产阶段 <span className="text-rose-500">*</span></label>
                       <select
                         className={cn(
-                          "w-full h-12 px-4 rounded-xl border focus:ring-4 focus:ring-[#2563EB]/10 focus:border-[#2563EB] outline-none bg-[#F6F9FF]/30 transition-all text-sm font-bold appearance-none cursor-pointer",
+                          "step1-select w-full h-12 px-4 rounded-xl border focus:ring-4 focus:ring-[#2563EB]/10 focus:border-[#2563EB] outline-none bg-[#F6F9FF]/30 transition-all text-sm font-bold appearance-none cursor-pointer",
                           step1Errors.stage ? "border-rose-500 focus:ring-rose-500/10 focus:border-rose-500" : "border-[#DDE7F3]",
-                          projectInfo.stage ? "text-[#0B1F33]" : "text-[#9CA3AF]"
+                          !projectInfo.customer && "text-[#9CA3AF]",
+                          projectInfo.customer && (projectInfo.stage ? "text-[#0B1F33]" : "text-[#9CA3AF]")
                         )}
                         value={projectInfo.stage}
                         disabled={!projectInfo.customer}

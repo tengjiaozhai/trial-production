@@ -37,3 +37,11 @@ body {
   animation: shimmer 1.5s infinite;
 }
 
+/* Step1 下拉：占位灰色，可选项深色（与模板选择一致） */
+.step1-select option[value=""] {
+  color: #9ca3af;
+}
+.step1-select option:not([value=""]) {
+  color: #0b1f33;
+}
+
