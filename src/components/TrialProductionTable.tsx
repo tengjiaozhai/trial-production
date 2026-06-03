@@ -309,6 +309,55 @@ function SortableRow({
         
         if (shouldSpanSku) {
           const supply = sku.supplies[0];
+          const spanConflict = step2Conflicts?.find((c: Step2CellConflict) => c.cellId === `step2-cell-${sku.id}-${field.id}`);
+          const updateSpannedField = (nextValue: string) => {
+            sku.supplies.forEach((sup: any) => {
+              onUpdateValue(sku.id, sup.id, field.id, nextValue);
+            });
+            if (field.id === 'project' && onUpdateSkuHeader) onUpdateSkuHeader(sku.id, 'project', nextValue);
+            if (field.id === 'stage' && onUpdateSkuHeader) onUpdateSkuHeader(sku.id, 'stage', nextValue);
+            if (field.id === 'order_no' && onUpdateSkuHeader) onUpdateSkuHeader(sku.id, 'order', nextValue);
+          };
+
+          if (spanConflict) {
+            return (
+              <td
+                key={sku.id}
+                data-testid={spanConflict.cellId}
+                data-step2-cell-id={spanConflict.cellId}
+                data-sku-id={sku.id}
+                data-field-id={field.id}
+                colSpan={sku.supplies.length}
+                className="border-b border-r border-[#DDE7F3] p-2 align-top transition-colors bg-white border-rose-500"
+              >
+                <div className="flex flex-col gap-1.5 relative h-full">
+                  <div className="rounded-lg border border-rose-500 ring-1 ring-rose-200 bg-white flex items-center overflow-hidden w-full">
+                    <input
+                      style={{ height: rowHeight ? rowHeight - 20 : 34 }}
+                      className="flex-1 min-w-0 px-2 focus:outline-none transition-all text-[13px] leading-none bg-transparent text-[#0B1F33] text-center"
+                      placeholder="-"
+                      value={supply.values[field.id] !== undefined ? supply.values[field.id] : ''}
+                      onChange={(e) => updateSpannedField(e.target.value)}
+                      disabled={currentStep === 5}
+                    />
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-1 text-[11px] text-[#2563EB]">
+                    {spanConflict.candidates.map((candidate: string) => (
+                      <button
+                        key={candidate}
+                        type="button"
+                        onClick={() => updateSpannedField(candidate)}
+                        className="px-1.5 py-0.5 bg-[#EEF6FF] border border-[#2563EB]/30 rounded text-[10px] font-bold hover:bg-[#2563EB] hover:text-white transition-colors"
+                      >
+                        {candidate}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </td>
+            );
+          }
+
           return (
             <td
               key={sku.id}
@@ -339,13 +388,7 @@ function SortableRow({
                       supply.values[field.id] !== undefined ? supply.values[field.id] : ''
                     }
                     onChange={(e) => {
-                      // Apply to all supplies in the SKU
-                      sku.supplies.forEach((sup: any) => {
-                         onUpdateValue(sku.id, sup.id, field.id, e.target.value);
-                      });
-                      if (field.id === 'project' && onUpdateSkuHeader) onUpdateSkuHeader(sku.id, 'project', e.target.value);
-                      if (field.id === 'stage' && onUpdateSkuHeader) onUpdateSkuHeader(sku.id, 'stage', e.target.value);
-                      if (field.id === 'order_no' && onUpdateSkuHeader) onUpdateSkuHeader(sku.id, 'order', e.target.value);
+                      updateSpannedField(e.target.value);
                     }}
                     readOnly={field.behavior === 'calc' || currentStep === 5}
                     disabled={currentStep === 5}
@@ -407,8 +450,11 @@ function SortableRow({
                         style={{ height: rowHeight ? rowHeight - 20 : 34 }}
                         className="flex-1 min-w-0 px-2 focus:outline-none transition-all text-[13px] leading-none bg-transparent text-[#0B1F33]"
                         placeholder="-"
-                        value=""
-                        readOnly
+                        value={
+                          supply.values[field.id] !== undefined ? supply.values[field.id] : ''
+                        }
+                        onChange={(e) => onUpdateValue(sku.id, conflict.supplyId ?? supply.id, field.id, e.target.value)}
+                        disabled={currentStep === 5}
                       />
                     </div>
                     <div className="mt-1 flex flex-wrap gap-1 text-[11px] text-[#2563EB]">

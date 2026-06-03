@@ -14,6 +14,22 @@ export interface Step2CellConflict {
   candidates: string[];
 }
 
+const SKU_SCOPED_FIELD_IDS = new Set(['band', 'storage', 'project', 'stage', 'mb_id']);
+
+function getFieldCandidate(fieldId: string, row: PcbaSourceRow): string {
+  if (fieldId === 'project') {
+    return String(row.values.projectName ?? '').trim();
+  }
+
+  if (fieldId === 'storage') {
+    const ddrNum = String(row.values.ddr ?? '').match(/\d+/)?.[0] ?? '';
+    const emmcNum = String(row.values.emmc ?? '').match(/\d+/)?.[0] ?? '';
+    return ddrNum && emmcNum ? `${ddrNum}+${emmcNum}` : '';
+  }
+
+  return String(row.values[fieldId] ?? '').trim();
+}
+
 export function buildStep2CellConflicts(input: {
   checkedPcbaOptions: string[];
   pcbaRows: PcbaSourceRow[];
@@ -49,14 +65,32 @@ export function buildStep2CellConflicts(input: {
       const candidates = new Set<string>();
 
       for (const row of rows) {
-        const val = row.values[field.id];
-        if (val && val.trim()) {
-          candidates.add(val.trim());
+        const val = getFieldCandidate(field.id, row);
+        if (val) {
+          candidates.add(val);
         }
       }
 
       // Skip if only one unique candidate (auto-fill case)
       if (candidates.size <= 1) continue;
+
+      if (SKU_SCOPED_FIELD_IDS.has(field.id)) {
+        const currentVal = sku.supplies[0]?.values[field.id];
+        if (currentVal && currentVal.trim()) continue;
+
+        conflicts.push({
+          kind: 'cell_conflict',
+          scope: 'sku',
+          cellId: `step2-cell-${sku.id}-${field.id}`,
+          skuId: sku.id,
+          fieldId: field.id,
+          fieldLabel: field.label,
+          pcba,
+          supplyLabel: '整列',
+          candidates: [...candidates],
+        });
+        continue;
+      }
 
       // Find supply-scoped conflicts
       for (const supply of sku.supplies) {

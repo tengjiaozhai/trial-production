@@ -415,4 +415,53 @@ describe('TrialProductionTable step2 cell conflicts', () => {
     fireEvent.click(screen.getByRole('button', { name: 'BOE' }));
     expect(onUpdateValue).toHaveBeenCalledWith('sku-1', 'sup-1', 'lcd', 'BOE');
   });
+
+  it('renders a sku-spanned band conflict with candidate chips and applies updates to all supplies', () => {
+    const onUpdateValue = vi.fn();
+
+    render(
+      <TrialProductionTable
+        currentStep={2}
+        skuData={[
+          {
+            id: 'sku-1',
+            stage: 'PR1',
+            orderNo: '',
+            project: 'D1',
+            supplies: [
+              { id: 'sup-1', supplyKey: '一供', label: '一供', values: { band: '' } },
+              { id: 'sup-2', supplyKey: '二供', label: '二供', values: { band: '' } },
+              { id: 'sup-3', supplyKey: '三供', label: '三供', values: { band: '' } },
+            ],
+          },
+        ]}
+        step2Conflicts={[
+          {
+            kind: 'cell_conflict',
+            scope: 'sku',
+            cellId: 'step2-cell-sku-1-band',
+            skuId: 'sku-1',
+            fieldId: 'band',
+            fieldLabel: '频段',
+            pcba: 'D1',
+            supplyLabel: '整列',
+            candidates: ['拉美', '沙特（艾为PD IC）'],
+          } as Step2CellConflict,
+        ]}
+        onUpdateValue={onUpdateValue}
+        activeFields={[
+          { id: 'band', label: '频段', group: '常用项', behavior: 'auto' },
+        ]}
+      />
+    );
+
+    expect(screen.getByTestId('step2-cell-sku-1-band')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '拉美' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '沙特（艾为PD IC）' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '拉美' }));
+    expect(onUpdateValue).toHaveBeenNthCalledWith(1, 'sku-1', 'sup-1', 'band', '拉美');
+    expect(onUpdateValue).toHaveBeenNthCalledWith(2, 'sku-1', 'sup-2', 'band', '拉美');
+    expect(onUpdateValue).toHaveBeenNthCalledWith(3, 'sku-1', 'sup-3', 'band', '拉美');
+  });
 });

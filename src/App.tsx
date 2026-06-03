@@ -181,10 +181,11 @@ export default function App() {
   };
 
   const performExport = () => {
+    const visibleSkuData = projectSkusForStep(skuData, currentStep);
     const wb = buildTrialProductionWorkbook({
       projectName: projectInfo.name ?? 'trial',
       activeFields,
-      skuData,
+      skuData: visibleSkuData,
       layout: step5Layout ?? undefined,
       efuseConfigs: projectInfo.efuseConfigs,
     });

@@ -59,3 +59,40 @@ it('does not emit a conflict when the current cell already has a resolved non-em
 
   expect(result).toEqual([]);
 });
+
+it('emits one sku-scoped conflict for band instead of one per supply', () => {
+  const result = buildStep2CellConflicts({
+    checkedPcbaOptions: ['D1'],
+    pcbaRows: [
+      { pcba: 'D1', sourceIndex: 0, values: { band: '拉美' } },
+      { pcba: 'D1', sourceIndex: 1, values: { band: '沙特（艾为PD IC）' } },
+    ],
+    skuData: [
+      {
+        id: 'sku-1',
+        stage: 'PR1',
+        orderNo: '',
+        project: 'D1',
+        supplies: [
+          { id: 'sup-1', supplyKey: '一供', label: '一供', values: { band: '' } },
+          { id: 'sup-2', supplyKey: '二供', label: '二供', values: { band: '' } },
+          { id: 'sup-3', supplyKey: '三供', label: '三供', values: { band: '' } },
+        ],
+      },
+    ],
+  });
+
+  expect(result).toEqual([
+    {
+      kind: 'cell_conflict',
+      scope: 'sku',
+      cellId: 'step2-cell-sku-1-band',
+      skuId: 'sku-1',
+      fieldId: 'band',
+      fieldLabel: '频段',
+      pcba: 'D1',
+      supplyLabel: '整列',
+      candidates: ['拉美', '沙特（艾为PD IC）'],
+    },
+  ]);
+});
