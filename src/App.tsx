@@ -958,7 +958,7 @@ export default function App() {
                         className={cn(
                           "w-full h-12 px-4 rounded-xl border focus:ring-4 focus:ring-[#2563EB]/10 focus:border-[#2563EB] outline-none bg-[#F6F9FF]/30 transition-all text-sm font-bold appearance-none cursor-pointer",
                           step1Errors.customer ? "border-rose-500 focus:ring-rose-500/10 focus:border-rose-500" : "border-[#DDE7F3]",
-                          !projectInfo.customer && "text-[#9CA3AF]"
+                          projectInfo.customer ? "text-[#0B1F33]" : "text-[#9CA3AF]"
                         )}
                         value={projectInfo.customer}
                         onChange={e => {
@@ -967,10 +967,10 @@ export default function App() {
                           if (step1Errors.customer) setStep1Errors(prev => ({ ...prev, customer: false }));
                         }}
                       >
-                        <option value="">请选择项目模板类型</option>
-                        <option value="标准">标准模板</option>
-                        <option value="传音">传音模板</option>
-                        <option value="中兴">中兴模板</option>
+                        <option value="" className="text-[#9CA3AF]">请选择项目模板类型</option>
+                        <option value="标准" className="text-[#0B1F33]">标准模板</option>
+                        <option value="传音" className="text-[#0B1F33]">传音模板</option>
+                        <option value="中兴" className="text-[#0B1F33]">中兴模板</option>
                       </select>
                     </div>
                     <div className="space-y-2">
@@ -979,7 +979,7 @@ export default function App() {
                         className={cn(
                           "w-full h-12 px-4 rounded-xl border focus:ring-4 focus:ring-[#2563EB]/10 focus:border-[#2563EB] outline-none bg-[#F6F9FF]/30 transition-all text-sm font-bold appearance-none cursor-pointer",
                           step1Errors.stage ? "border-rose-500 focus:ring-rose-500/10 focus:border-rose-500" : "border-[#DDE7F3]",
-                          !projectInfo.stage && "text-[#9CA3AF]"
+                          projectInfo.stage ? "text-[#0B1F33]" : "text-[#9CA3AF]"
                         )}
                         value={projectInfo.stage}
                         disabled={!projectInfo.customer}
@@ -988,9 +988,9 @@ export default function App() {
                           if (step1Errors.stage) setStep1Errors(prev => ({ ...prev, stage: false }));
                         }}
                       >
-                        <option value="">请选择试产阶段</option>
+                        <option value="" className="text-[#9CA3AF]">请选择试产阶段</option>
                         {projectInfo.customer && TEMPLATE_STAGES[projectInfo.customer].map(s => (
-                          <option key={s} value={s}>{s}</option>
+                          <option key={s} value={s} className="text-[#0B1F33]">{s}</option>
                         ))}
                       </select>
                     </div>
