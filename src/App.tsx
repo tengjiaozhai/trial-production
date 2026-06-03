@@ -188,6 +188,7 @@ export default function App() {
       activeFields,
       skuData,
       layout: step5Layout ?? undefined,
+      efuseConfigs: projectInfo.efuseConfigs,
     });
 
     const existingSameName = history.filter((item) => item.name === (projectInfo.name ?? 'trial'));

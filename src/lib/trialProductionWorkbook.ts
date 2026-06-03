@@ -12,8 +12,9 @@ export function buildTrialProductionWorkbook(args: {
   activeFields: FieldDefinition[];
   skuData: SKUData[];
   layout?: Step5LayoutSnapshot;
+  efuseConfigs?: Record<string, string>;
 }): XLSX.WorkBook {
-  const model = buildStep5TableModel({ activeFields: args.activeFields, skuData: args.skuData, includeSupplierRow: true });
+  const model = buildStep5TableModel({ activeFields: args.activeFields, skuData: args.skuData, includeSupplierRow: true, efuseConfigs: args.efuseConfigs });
 
   const wb = XLSX.utils.book_new();
   const ws: XLSX.WorkSheet = {};

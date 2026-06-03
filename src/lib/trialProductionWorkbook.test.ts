@@ -52,4 +52,34 @@ describe('buildTrialProductionWorkbook', () => {
     const ws = wb.Sheets['搭配表'];
     expect(ws['A1']?.v).toBeTruthy();
   });
+
+  it('writes efuse suffixes into exported field labels', () => {
+    const wb = buildTrialProductionWorkbook({
+      projectName: 'X6728',
+      activeFields: [
+        { id: 'hw_eng', label: '硬件', group: '内部样机需求', behavior: 'manual' },
+      ],
+      skuData: [
+        {
+          id: 'sku_1',
+          stage: 'PR1',
+          orderNo: '',
+          project: 'X6728',
+          fieldOptions: {},
+          supplies: [
+            {
+              id: 's1',
+              supplyKey: '一供',
+              label: 'Supply A',
+              values: { hw_eng: '8' },
+            },
+          ],
+        },
+      ],
+      efuseConfigs: { hw_eng: 'efuse' },
+    });
+
+    const ws = wb.Sheets['搭配表'];
+    expect(ws['B2']?.v).toBe('硬件(efuse)');
+  });
 });
