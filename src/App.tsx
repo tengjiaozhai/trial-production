@@ -1234,6 +1234,7 @@ export default function App() {
                      copiedSku={copiedSku}
                      onCopySelectedSku={handleCopySelectedSku}
                      onPasteIntoNewSku={handlePasteIntoNewSku}
+                     step2Conflicts={step2Conflicts}
                   />
                 </div>
               </motion.div>

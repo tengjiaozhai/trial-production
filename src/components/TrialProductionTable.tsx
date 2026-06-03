@@ -9,6 +9,7 @@ import type { Step5Row } from '../lib/step5TableModel';
 import { supportsEfuseLabel } from '../lib/efuseFields';
 import { buildTableViewportMetrics, BASIC_INFO_BLOCK_HEIGHT_PX } from '../lib/tableViewport';
 import type { CopiedSku } from '../lib/tableOperations';
+import type { Step2CellConflict } from '../lib/step2CellConflicts';
 
 function ProdLocDropdown({ value, onChange, disabled, fieldLabel }: any) {
   const options = ['宜宾', '南昌', '河源', '越南'];
@@ -107,6 +108,7 @@ interface TrialProductionTableProps {
   copiedSku?: CopiedSku | null;
   onCopySelectedSku?: () => void;
   onPasteIntoNewSku?: () => void;
+  step2Conflicts?: Step2CellConflict[];
 }
 
 // Resize Handle Component
@@ -226,7 +228,8 @@ function SortableRow({
   onUpdateSkuHeader,
   onUpdateSelectedSupply,
   skuSupplyKeys,
-  onDeleteRow
+  onDeleteRow,
+  step2Conflicts
 }: any) {
   const {
     attributes,
@@ -383,6 +386,48 @@ function SortableRow({
           ) : (
           <React.Fragment>
           {sku.supplies.map((supply: any) => {
+            const cellId = `step2-cell-${sku.id}-${supply.id}-${field.id}`;
+            const conflict = step2Conflicts?.find((c: Step2CellConflict) => c.cellId === cellId);
+            
+            if (conflict) {
+              return (
+                <td
+                  key={supply.id}
+                  data-testid={conflict.cellId}
+                  data-step2-cell-id={conflict.cellId}
+                  data-sku-id={sku.id}
+                  data-supply-id={conflict.supplyId}
+                  data-field-id={field.id}
+                  style={{ width: colWidths[supply.id], minWidth: colWidths[supply.id] }}
+                  className="border-b border-r border-[#DDE7F3] p-2 align-top transition-colors bg-white border-rose-500"
+                >
+                  <div className="flex flex-col gap-1.5 relative">
+                    <div className="rounded-lg border border-rose-500 ring-1 ring-rose-200 bg-white flex items-center overflow-hidden">
+                      <input
+                        style={{ height: rowHeight ? rowHeight - 20 : 34 }}
+                        className="flex-1 min-w-0 px-2 focus:outline-none transition-all text-[13px] leading-none bg-transparent text-[#0B1F33]"
+                        placeholder="-"
+                        value=""
+                        readOnly
+                      />
+                    </div>
+                    <div className="mt-1 flex flex-wrap gap-1 text-[11px] text-[#2563EB]">
+                      {conflict.candidates.map((candidate: string) => (
+                        <button
+                          key={candidate}
+                          type="button"
+                          onClick={() => onUpdateValue(sku.id, conflict.supplyId ?? sku.supplies[0].id, field.id, candidate)}
+                          className="px-1.5 py-0.5 bg-[#EEF6FF] border border-[#2563EB]/30 rounded text-[10px] font-bold hover:bg-[#2563EB] hover:text-white transition-colors"
+                        >
+                          {candidate}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </td>
+              );
+            }
+
             return (
             <td
               key={supply.id}
@@ -469,6 +514,7 @@ export function TrialProductionTable({
   copiedSku = null,
   onCopySelectedSku,
   onPasteIntoNewSku,
+  step2Conflicts = [],
 }: TrialProductionTableProps) {
 
   const topTableRef = useRef<HTMLDivElement>(null);
@@ -841,6 +887,7 @@ export function TrialProductionTable({
                       onUpdateSelectedSupply={onUpdateSelectedSupply}
                       skuSupplyKeys={skuSupplyKeys}
                       onDeleteRow={onDeleteRow}
+                      step2Conflicts={step2Conflicts}
                     />
                   ))}
                 </SortableContext>
@@ -895,6 +942,7 @@ export function TrialProductionTable({
                             onUpdateSelectedSupply={onUpdateSelectedSupply}
                             skuSupplyKeys={skuSupplyKeys}
                             onDeleteRow={onDeleteRow}
+                            step2Conflicts={step2Conflicts}
                           />
                         );
                       })}

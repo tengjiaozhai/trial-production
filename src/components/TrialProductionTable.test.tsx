@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { TrialProductionTable } from './TrialProductionTable';
 import type { SKUData } from '../types';
+import type { Step2CellConflict } from '../lib/step2CellConflicts';
 
 const baseSku: SKUData = {
   id: 'sku1',
@@ -359,5 +360,59 @@ describe('TrialProductionTable step5 efuse labels', () => {
     );
 
     expect(screen.getByText('硬件(no efuse)')).toBeInTheDocument();
+  });
+});
+
+describe('TrialProductionTable step2 cell conflicts', () => {
+  it('renders an unresolved conflict cell as a blank red input with candidate chips', () => {
+    const onUpdateValue = vi.fn();
+
+    render(
+      <TrialProductionTable
+        currentStep={2}
+        skuData={[
+          {
+            id: 'sku-1',
+            stage: 'PR1',
+            orderNo: '',
+            project: 'A1',
+            supplies: [
+              {
+                id: 'sup-1',
+                supplyKey: '一供',
+                label: '一供',
+                values: { lcd: '' },
+              },
+            ],
+          },
+        ]}
+        step2Conflicts={[
+          {
+            kind: 'cell_conflict',
+            scope: 'supply',
+            cellId: 'step2-cell-sku-1-sup-1-lcd',
+            skuId: 'sku-1',
+            supplyId: 'sup-1',
+            fieldId: 'lcd',
+            fieldLabel: 'LCD',
+            pcba: 'A1',
+            supplyLabel: '一供',
+            candidates: ['BOE', 'CSOT'],
+          } as Step2CellConflict,
+        ]}
+        onUpdateValue={onUpdateValue}
+        activeFields={[
+          { id: 'lcd', label: 'LCD', group: '器件规格', behavior: 'calc' },
+        ]}
+      />
+    );
+
+    expect(screen.getByTestId('step2-cell-sku-1-sup-1-lcd')).toHaveClass('border-rose-500');
+    expect(screen.getByPlaceholderText('-')).toHaveValue('');
+    expect(screen.getByRole('button', { name: 'BOE' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'CSOT' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'BOE' }));
+    expect(onUpdateValue).toHaveBeenCalledWith('sku-1', 'sup-1', 'lcd', 'BOE');
   });
 });

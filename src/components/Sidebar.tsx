@@ -3,14 +3,7 @@ import { CheckCircle2, Check, Circle, AlertCircle, Info, ArrowLeft, ShieldCheck,
 import { StepId, ProjectInfo, SKUData, ValidationResult } from '@/src/types';
 import { AM_RULE_DEFS } from '@/src/constants';
 import { cn } from '@/src/lib/utils';
-
-type Step2PcbaConflict = {
-  kind: 'duplicate_pcba';
-  pcba: string;
-  duplicateCount: number;
-  skuId: string;
-  detail: string;
-};
+import type { Step2CellConflict } from '../lib/step2CellConflicts';
 
 const STEP2_MB_ID_HIGHLIGHT_CLASSES = ['bg-rose-50', 'border', 'border-rose-500', 'ring-2', 'ring-rose-200'];
 
@@ -24,7 +17,7 @@ interface SidebarProps {
   isFlowComplete: boolean;
   setIsFlowComplete: (val: boolean) => void;
   onRunValidation: () => void;
-  step2Conflicts?: Step2PcbaConflict[];
+  step2Conflicts?: Step2CellConflict[];
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
 }
@@ -52,50 +45,13 @@ export function Sidebar({
       setTimeout(() => el.classList.remove('bg-rose-50'), 2000);
     }
   };
-  const focusStep2PcbaConflict = (conflict: Step2PcbaConflict) => {
-    const row = document.getElementById('row-mb_id');
-    if (!row) return;
-
-    // mb_id 行嵌在 topTableRef (200px height + overflow:auto) 内。
-    // 必须先滚内层 topTableRef 让 mb_id 可见，再滚外层 main 让 topTableRef 滚到中央。
-    const innerRef = row.closest<HTMLElement>('div.overflow-auto');
-    if (innerRef) {
-      const rowRect = row.getBoundingClientRect();
-      const refRect = innerRef.getBoundingClientRect();
-      const rowTopInRef = rowRect.top - refRect.top + innerRef.scrollTop;
-      const targetRefScroll = rowTopInRef - refRect.height / 2 + rowRect.height / 2;
-      const refMaxScroll = innerRef.scrollHeight - innerRef.clientHeight;
-      innerRef.scrollTo({
-        top: Math.max(0, Math.min(targetRefScroll, refMaxScroll)),
-        behavior: 'smooth',
-      });
-    }
-
-    const mainEl = document.querySelector('main[class*="overflow-y-auto"]') as HTMLElement | null;
-    if (mainEl) {
-      const rowRect = row.getBoundingClientRect();
-      const mainRect = mainEl.getBoundingClientRect();
-      const rowTopInMain = rowRect.top - mainRect.top + mainEl.scrollTop;
-      const targetScrollTop = rowTopInMain - mainRect.height / 2 + rowRect.height / 2;
-      const mainMaxScroll = mainEl.scrollHeight - mainEl.clientHeight;
-      mainEl.scrollTo({
-        top: Math.max(0, Math.min(targetScrollTop, mainMaxScroll)),
-        behavior: 'smooth',
-      });
-    }
-
-    if (!conflict.skuId) return;
-
-    const cell = row.querySelector<HTMLElement>(
-      `[data-testid="step2-mb-id-cell"][data-sku-id="${conflict.skuId}"]`
+  const focusStep2CellConflict = (conflict: Step2CellConflict) => {
+    const cell = document.querySelector<HTMLElement>(
+      `[data-step2-cell-id="${conflict.cellId}"]`
     );
     if (!cell) return;
 
-    cell.scrollIntoView({
-      behavior: 'smooth',
-      block: 'nearest',
-      inline: 'center',
-    });
+    cell.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
 
     STEP2_MB_ID_HIGHLIGHT_CLASSES.forEach((className) => cell.classList.add(className));
     setTimeout(() => {
@@ -165,15 +121,15 @@ export function Sidebar({
                   {step2Conflicts.map((c, i) => (
                     <div 
                       key={i} 
-                      onClick={() => focusStep2PcbaConflict(c)}
+                      onClick={() => focusStep2CellConflict(c)}
                       className="p-3 bg-rose-50/50 rounded border border-rose-200 hover:border-rose-400 hover:shadow-sm transition-all cursor-pointer space-y-1 group"
                     >
                       <div className="flex justify-between items-center">
-                        <span className="text-[13px] font-black text-rose-700">主板 {c.pcba} 重复 {c.duplicateCount} 次</span>
+                        <span className="text-[13px] font-black text-rose-700">{c.fieldLabel}存在冲突</span>
                         <span className="text-[11px] font-bold text-rose-500/80 group-hover:text-rose-600">点击定位</span>
                       </div>
                       <p className="text-[12px] text-rose-600/80 font-medium leading-relaxed">
-                        {c.detail || `该主板在配置表中重复 ${c.duplicateCount} 次。`}
+                        PCBA: {c.pcba} | 供应商: {c.supplyLabel} | 候选: {c.candidates.join(', ')}
                       </p>
                     </div>
                   ))}
