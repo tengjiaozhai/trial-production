@@ -56,18 +56,32 @@ export function Sidebar({
     const row = document.getElementById('row-mb_id');
     if (!row) return;
 
-    // mb_id 行在 topTableRef（200px height + overflow:auto + scrollbar-hidden）内。
-    // scrollIntoView 只滚 topTableRef，不滚外部 main 容器。
-    // 用 getBoundingClientRect 计算位置，手动滚 main 容器。
+    // mb_id 行嵌在 topTableRef (200px height + overflow:auto) 内。
+    // 必须先滚内层 topTableRef 让 mb_id 可见，再滚外层 main 让 topTableRef 滚到中央。
+    const innerRef = row.closest<HTMLElement>('div.overflow-auto');
+    if (innerRef) {
+      const rowRect = row.getBoundingClientRect();
+      const refRect = innerRef.getBoundingClientRect();
+      const rowTopInRef = rowRect.top - refRect.top + innerRef.scrollTop;
+      const targetRefScroll = rowTopInRef - refRect.height / 2 + rowRect.height / 2;
+      const refMaxScroll = innerRef.scrollHeight - innerRef.clientHeight;
+      innerRef.scrollTo({
+        top: Math.max(0, Math.min(targetRefScroll, refMaxScroll)),
+        behavior: 'smooth',
+      });
+    }
+
     const mainEl = document.querySelector('main[class*="overflow-y-auto"]') as HTMLElement | null;
     if (mainEl) {
       const rowRect = row.getBoundingClientRect();
       const mainRect = mainEl.getBoundingClientRect();
-      // row 相对于 main 容器的绝对位置
       const rowTopInMain = rowRect.top - mainRect.top + mainEl.scrollTop;
-      // 滚到 row 在 main 容器中央
       const targetScrollTop = rowTopInMain - mainRect.height / 2 + rowRect.height / 2;
-      mainEl.scrollTo({ top: Math.max(0, targetScrollTop), behavior: 'smooth' });
+      const mainMaxScroll = mainEl.scrollHeight - mainEl.clientHeight;
+      mainEl.scrollTo({
+        top: Math.max(0, Math.min(targetScrollTop, mainMaxScroll)),
+        behavior: 'smooth',
+      });
     }
 
     if (!conflict.skuId) return;
@@ -76,6 +90,12 @@ export function Sidebar({
       `[data-testid="step2-mb-id-cell"][data-sku-id="${conflict.skuId}"]`
     );
     if (!cell) return;
+
+    cell.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'center',
+    });
 
     STEP2_MB_ID_HIGHLIGHT_CLASSES.forEach((className) => cell.classList.add(className));
     setTimeout(() => {
