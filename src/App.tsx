@@ -72,6 +72,7 @@ export default function App() {
   const [stepsCollapsed, setStepsCollapsed] = useState(false);
   const [selectedSkuId, setSelectedSkuId] = useState<string | null>(null);
   const [copiedSku, setCopiedSku] = useState<CopiedSku | null>(null);
+  const [step1Errors, setStep1Errors] = useState<Record<string, boolean>>({});
 
   const step2Conflicts = useMemo(
     () =>
@@ -536,6 +537,19 @@ export default function App() {
 
   // Step 2: Auto Calculation Logic
   const startAutoCalc = async () => {
+    const errors: Record<string, boolean> = {};
+    if (!projectInfo.name) errors.name = true;
+    if (!projectInfo.customer) errors.customer = true;
+    if (!projectInfo.stage) errors.stage = true;
+    if (!projectInfo.files || projectInfo.files.length === 0) errors.files = true;
+    if (!projectInfo.checkedPcbaOptions || projectInfo.checkedPcbaOptions.length === 0) errors.pcba = true;
+    
+    if (Object.keys(errors).length > 0) {
+      setStep1Errors(errors);
+      return;
+    }
+    
+    setStep1Errors({});
     setLoadingPhase('calc');
     setLoading(true);
     const timeline = [
@@ -926,19 +940,30 @@ export default function App() {
                       <input
                         type="text"
                         placeholder="例如: X6728"
-                        className="w-full h-12 px-4 rounded-xl border border-[#DDE7F3] focus:ring-4 focus:ring-[#2563EB]/10 focus:border-[#2563EB] outline-none transition-all text-sm font-bold bg-[#F6F9FF]/30"
+                        className={cn(
+                          "w-full h-12 px-4 rounded-xl border focus:ring-4 focus:ring-[#2563EB]/10 focus:border-[#2563EB] outline-none transition-all text-sm font-bold bg-[#F6F9FF]/30",
+                          step1Errors.name ? "border-rose-500 focus:ring-rose-500/10 focus:border-rose-500" : "border-[#DDE7F3]"
+                        )}
                         value={projectInfo.name}
-                        onChange={e => setProjectInfo(prev => ({ ...prev, name: e.target.value }))}
+                        onChange={e => {
+                          setProjectInfo(prev => ({ ...prev, name: e.target.value }));
+                          if (step1Errors.name) setStep1Errors(prev => ({ ...prev, name: false }));
+                        }}
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs font-black text-[#64748B]">模板选择 <span className="text-rose-500">*</span></label>
                       <select
-                        className="w-full h-12 px-4 rounded-xl border border-[#DDE7F3] focus:ring-4 focus:ring-[#2563EB]/10 focus:border-[#2563EB] outline-none bg-[#F6F9FF]/30 transition-all text-sm font-bold appearance-none cursor-pointer"
+                        className={cn(
+                          "w-full h-12 px-4 rounded-xl border focus:ring-4 focus:ring-[#2563EB]/10 focus:border-[#2563EB] outline-none bg-[#F6F9FF]/30 transition-all text-sm font-bold appearance-none cursor-pointer",
+                          step1Errors.customer ? "border-rose-500 focus:ring-rose-500/10 focus:border-rose-500" : "border-[#DDE7F3]",
+                          !projectInfo.customer && "text-[#9CA3AF] opacity-70"
+                        )}
                         value={projectInfo.customer}
                         onChange={e => {
                           const customer = e.target.value as Template;
                           setProjectInfo(prev => ({ ...prev, customer, stage: '' }));
+                          if (step1Errors.customer) setStep1Errors(prev => ({ ...prev, customer: false }));
                         }}
                       >
                         <option value="">请选择项目模板类型</option>
@@ -950,10 +975,17 @@ export default function App() {
                     <div className="space-y-2">
                       <label className="text-xs font-black text-[#64748B]">试产阶段 <span className="text-rose-500">*</span></label>
                       <select
-                        className="w-full h-12 px-4 rounded-xl border border-[#DDE7F3] focus:ring-4 focus:ring-[#2563EB]/10 focus:border-[#2563EB] outline-none bg-[#F6F9FF]/30 transition-all text-sm font-bold appearance-none cursor-pointer"
+                        className={cn(
+                          "w-full h-12 px-4 rounded-xl border focus:ring-4 focus:ring-[#2563EB]/10 focus:border-[#2563EB] outline-none bg-[#F6F9FF]/30 transition-all text-sm font-bold appearance-none cursor-pointer",
+                          step1Errors.stage ? "border-rose-500 focus:ring-rose-500/10 focus:border-rose-500" : "border-[#DDE7F3]",
+                          !projectInfo.stage && "text-[#9CA3AF] opacity-70"
+                        )}
                         value={projectInfo.stage}
                         disabled={!projectInfo.customer}
-                        onChange={e => setProjectInfo(prev => ({ ...prev, stage: e.target.value as Stage }))}
+                        onChange={e => {
+                          setProjectInfo(prev => ({ ...prev, stage: e.target.value as Stage }));
+                          if (step1Errors.stage) setStep1Errors(prev => ({ ...prev, stage: false }));
+                        }}
                       >
                         <option value="">请选择试产阶段</option>
                         {projectInfo.customer && TEMPLATE_STAGES[projectInfo.customer].map(s => (
@@ -983,7 +1015,10 @@ export default function App() {
                       className={cn("absolute inset-0 opacity-0 z-10", isUploadResolving ? "cursor-not-allowed" : "cursor-pointer")}
                       onChange={handleFileUpload}
                     />
-                    <div className="border border-dashed border-[#DDE7F3] rounded-xl p-8 flex flex-col items-center justify-center group-hover:bg-[#F6F9FF] group-hover:border-[#2563EB] transition-all">
+                    <div className={cn(
+                      "border border-dashed rounded-xl p-8 flex flex-col items-center justify-center group-hover:bg-[#F6F9FF] group-hover:border-[#2563EB] transition-all",
+                      step1Errors.files ? "border-rose-500 bg-rose-50/30" : "border-[#DDE7F3]"
+                    )}>
                       <div className="w-12 h-12 rounded-xl bg-[#F6F9FF] flex items-center justify-center text-[#64748B] group-hover:text-[#2563EB] group-hover:bg-[#EEF6FF] transition-all mb-3">
                         <Upload size={24} />
                       </div>
@@ -1028,7 +1063,10 @@ export default function App() {
                   )}
 
                   {(!projectInfo.pcbaOptions || projectInfo.pcbaOptions.length === 0) ? (
-                    <div className="mt-6 border border-[#DDE7F3] bg-[#EEF6FF]/30 rounded-xl p-4">
+                    <div className={cn(
+                      "mt-6 border bg-[#EEF6FF]/30 rounded-xl p-4",
+                      step1Errors.pcba ? "border-rose-500 bg-rose-50/30" : "border-[#DDE7F3]"
+                    )}>
                       <h4 className="text-sm font-bold text-[#0B1F33] mb-3">请添加主板标识 <span className="text-rose-500">*</span></h4>
                       <p className="text-[11px] text-[#64748B] mb-4">未检测到配置表，请手动添加或上传相关文件</p>
                       
@@ -1093,7 +1131,10 @@ export default function App() {
                       </div>
                     </div>
                   ) : (
-                    <div className="mt-6 border border-[#DDE7F3] bg-[#EEF6FF]/30 rounded-xl p-4 flex flex-col h-full max-h-[400px]">
+                    <div className={cn(
+                      "mt-6 border bg-[#EEF6FF]/30 rounded-xl p-4 flex flex-col h-full max-h-[400px]",
+                      step1Errors.pcba ? "border-rose-500 bg-rose-50/30" : "border-[#DDE7F3]"
+                    )}>
                       <div className="flex items-center justify-between mb-3 shrink-0">
                         <div>
                           <h4 className="text-sm font-bold text-[#0B1F33]">请选择主板标识 <span className="text-rose-500">*</span></h4>
@@ -1246,13 +1287,13 @@ export default function App() {
 
             {currentStep === 1 ? (
               <button
-                disabled={!isStep1Complete || isUploadResolving}
+                disabled={isUploadResolving}
                 onClick={startAutoCalc}
                 className={cn(
                   "px-6 py-2 rounded font-bold text-[13px] text-white transition-all flex items-center gap-2",
-                  (isStep1Complete && !isUploadResolving)
-                    ? "bg-[#2563EB] hover:bg-[#1d4ed8]"
-                    : "bg-[#DDE7F3] text-[#64748B] cursor-not-allowed"
+                  isUploadResolving
+                    ? "bg-[#DDE7F3] text-[#64748B] cursor-not-allowed"
+                    : "bg-[#2563EB] hover:bg-[#1d4ed8]"
                 )}
               >
                 {isUploadResolving ? '解析中...' : '点此开始解析'}
