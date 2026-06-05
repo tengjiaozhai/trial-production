@@ -906,7 +906,7 @@ export function TrialProductionTable({
               <tr className="bg-[#f8fafc]">
                 <th className="sticky left-0 z-[70] border-b border-r border-slate-200 bg-[#f8fafc]"></th>
                 <th className="sticky left-[32px] z-[70] border-b border-slate-200 border-r-[2px] border-r-slate-300 bg-[#f8fafc] px-3 py-2 text-center text-slate-700 text-[13px] font-bold shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)]">
-                  基本信息
+                  一供/二供
                 </th>
                 {skuData.map((sku) => (
                   <React.Fragment key={sku.id}>
