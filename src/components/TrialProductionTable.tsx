@@ -903,44 +903,34 @@ export function TrialProductionTable({
           <table className="text-sm border-separate border-spacing-0" style={tableStyle}>
             {renderColGroup()}
             <thead className="bg-[#f1f5f9]">
-              <tr>
-                <th
-                  colSpan={viewport.basicInfoColSpan}
-                  className="bg-[#f8fafc] border-b border-slate-200 px-3 py-2 text-[13px] font-bold text-slate-500 text-center uppercase tracking-wider relative"
-                >
+              <tr className="bg-[#f8fafc]">
+                <th className="sticky left-0 z-[70] border-b border-r border-slate-200 bg-[#f8fafc]"></th>
+                <th className="sticky left-[32px] z-[70] border-b border-slate-200 border-r-[2px] border-r-slate-300 bg-[#f8fafc] px-3 py-2 text-center text-slate-700 text-[13px] font-bold shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)]">
                   基本信息
                 </th>
+                {skuData.map((sku) => (
+                  <React.Fragment key={sku.id}>
+                    {sku.supplies.map((supply, supIdx) => (
+                      <SortableHeader
+                        key={supply.id}
+                        skuId={sku.id}
+                        supply={supply}
+                        supIdx={supIdx}
+                        currentStep={currentStep}
+                        onUpdateSupplyLabel={onUpdateSupplyLabel}
+                        onDeleteSku={onDeleteSku}
+                        onAddSupply={onAddSupply}
+                        onInsertSkuAfter={onInsertSkuAfter}
+                        width={colWidths[supply.id] || 140}
+                        onResize={handleColResize}
+                        isSelected={supIdx === 0 && selectedSkuId === sku.id}
+                        onSelectSku={onSelectSku}
+                      />
+                    ))}
+                  </React.Fragment>
+                ))}
+                <th className="border-b border-slate-200 bg-[#f8fafc]"></th>
               </tr>
-              {currentStep >= 2 && currentStep <= 4 && (
-                <tr className="bg-[#f8fafc]">
-                  <th className="sticky left-0 z-[70] border-b border-r border-slate-200 bg-[#f8fafc]"></th>
-                  <th className="sticky left-[32px] z-[70] border-b border-slate-200 border-r-[2px] border-r-slate-300 bg-[#f8fafc] px-3 py-2 text-center text-slate-700 text-[13px] font-bold shadow-[2px_0_4px_-2px_rgba(0,0,0,0.05)]">
-                    方案名称
-                  </th>
-                  {skuData.map((sku) => (
-                    <React.Fragment key={sku.id}>
-                      {sku.supplies.map((supply, supIdx) => (
-                        <SortableHeader
-                          key={supply.id}
-                          skuId={sku.id}
-                          supply={supply}
-                          supIdx={supIdx}
-                          currentStep={currentStep}
-                          onUpdateSupplyLabel={onUpdateSupplyLabel}
-                          onDeleteSku={onDeleteSku}
-                          onAddSupply={onAddSupply}
-                          onInsertSkuAfter={onInsertSkuAfter}
-                          width={colWidths[supply.id] || 140}
-                          onResize={handleColResize}
-                          isSelected={supIdx === 0 && selectedSkuId === sku.id}
-                          onSelectSku={onSelectSku}
-                        />
-                      ))}
-                    </React.Fragment>
-                  ))}
-                  <th className="border-b border-slate-200 bg-[#f8fafc]"></th>
-                </tr>
-              )}
             </thead>
             {basicInfoFields.length > 0 && (
               <tbody>

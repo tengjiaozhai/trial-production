@@ -63,7 +63,7 @@ export function Sidebar({
   const checklist = [
     { label: '项目名称', done: !!projectInfo.name },
     { label: '主板标识', done: !!projectInfo.checkedPcbaOptions && projectInfo.checkedPcbaOptions.length > 0 },
-    { label: '选择客户', done: !!projectInfo.customer },
+    { label: '选择模版', done: !!projectInfo.customer },
     { label: '试产阶段', done: !!projectInfo.stage },
     { label: '上传数据源', done: hasDataSources },
   ];
