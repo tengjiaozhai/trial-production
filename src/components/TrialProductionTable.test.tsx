@@ -420,7 +420,7 @@ describe('TrialProductionTable step2 cell conflicts', () => {
         ]}
         onUpdateValue={onUpdateValue}
         activeFields={[
-          { id: 'lcd', label: 'LCD', group: '器件规格', behavior: 'calc' },
+          { id: 'lcd', label: 'LCD', group: '常规器件', behavior: 'calc' },
         ]}
       />
     );
