@@ -5,7 +5,7 @@ export const FIELD_GROUPS = [
   '常用项',
   '存储/PCBA',
   '核心器件',
-  '器件规格',
+  '常规器件',
   '工艺辅料',
   'BOM信息',
   '内部样机需求',
@@ -39,9 +39,9 @@ export const FIELD_DEFS: FieldDefinition[] = [
   { id: 'assembly_qty', label: '组装数量', group: '存储/PCBA', behavior: 'calc' },
 
   // 核心器件
-  { id: 'cpu', label: '中央处理器', group: '核心器件', behavior: 'auto' },
-  { id: 'emmc', label: '内存EMMC', group: '核心器件', behavior: 'auto' },
-  { id: 'ddr', label: '闪存DDR', group: '核心器件', behavior: 'auto' },
+  { id: 'cpu', label: 'CPU', group: '核心器件', behavior: 'auto' },
+  { id: 'emmc', label: 'flash EMMC', group: '核心器件', behavior: 'auto' },
+  { id: 'ddr', label: 'flash DDR', group: '核心器件', behavior: 'auto' },
   { id: 'pmu', label: '电源管理', group: '核心器件', behavior: 'auto' },
   { id: 'tx', label: '无线发射', group: '核心器件', behavior: 'auto' },
   { id: 'rf_transceiver', label: '射频收发器', group: '核心器件', behavior: 'auto' },
