@@ -34,6 +34,9 @@ export interface SupplyColumn {
  * - t_long_rd_total = sum of INTERNAL_IDS fields
  * - customer_sample_req = sum of CUSTOMER_IDS fields (reliability + field_test + fan_sample + ce_cert)
  * - total_qty = t_long_rd_total + customer_sample_req
+ * - assembly_qty = ceil(total_qty / prod_yield)
+ * - pcba = next multiple of 4 >= (board_adj_qty + assembly_qty)
+ * - sub_board_qty = pcba
  */
 export function recomputeStep4Values(
   values: Record<string, string>,
@@ -68,6 +71,32 @@ export function recomputeStep4Values(
     delete result['total_qty'];
   } else {
     result['total_qty'] = String(total);
+  }
+
+  // 组装数量 = 总计 / 生产良率
+  const prodYield = parseFloat(values['prod_yield'] ?? '');
+  if (total > 0 && !isNaN(prodYield) && prodYield > 0) {
+    result['assembly_qty'] = String(Math.ceil(total / prodYield));
+  } else {
+    delete result['assembly_qty'];
+  }
+
+  // PCBA = 大于（调板数量 + 组装数量）的最近的4的倍数
+  const assemblyQty = parseInt(result['assembly_qty'] ?? '', 10);
+  const boardAdjQty = parseInt(values['board_adj_qty'] ?? '', 10) || 0;
+  if (!isNaN(assemblyQty) && assemblyQty > 0) {
+    const sum = boardAdjQty + assemblyQty;
+    result['pcba'] = String(Math.ceil(sum / 4) * 4);
+  } else {
+    delete result['pcba'];
+  }
+
+  // 小板数量 = PCBA
+  const pcba = parseInt(result['pcba'] ?? '', 10);
+  if (!isNaN(pcba) && pcba > 0) {
+    result['sub_board_qty'] = String(pcba);
+  } else {
+    delete result['sub_board_qty'];
   }
 
   return result;

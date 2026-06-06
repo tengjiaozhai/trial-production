@@ -71,6 +71,49 @@ describe('recomputeStep4Values', () => {
     expect(result.customer_sample_req).toBeUndefined();
     expect(result.total_qty).toBe('5');
   });
+
+  it('computes assembly_qty = total_qty / prod_yield', () => {
+    const result = recomputeStep4Values({
+      hw_eng: '10',
+      reliability: '5',
+      prod_yield: '0.8',
+    });
+    expect(result.total_qty).toBe('15');
+    expect(result.assembly_qty).toBe('19'); // ceil(15 / 0.8) = 18.75 -> 19
+  });
+
+  it('computes pcba = next multiple of 4 >= (board_adj_qty + assembly_qty)', () => {
+    const result = recomputeStep4Values({
+      hw_eng: '10',
+      reliability: '5',
+      prod_yield: '0.8',
+      board_adj_qty: '3',
+    });
+    expect(result.assembly_qty).toBe('19');
+    expect(result.pcba).toBe('24'); // 3 + 19 = 22, next multiple of 4 is 24
+  });
+
+  it('computes sub_board_qty = pcba', () => {
+    const result = recomputeStep4Values({
+      hw_eng: '10',
+      reliability: '5',
+      prod_yield: '0.8',
+      board_adj_qty: '3',
+    });
+    expect(result.pcba).toBe('24');
+    expect(result.sub_board_qty).toBe('24');
+  });
+
+  it('deletes assembly_qty, pcba, sub_board_qty when prod_yield is empty', () => {
+    const result = recomputeStep4Values({
+      hw_eng: '10',
+      reliability: '5',
+      board_adj_qty: '3',
+    });
+    expect(result.assembly_qty).toBeUndefined();
+    expect(result.pcba).toBeUndefined();
+    expect(result.sub_board_qty).toBeUndefined();
+  });
 });
 
 describe('deriveSupplyColumnsFromFieldOptions', () => {

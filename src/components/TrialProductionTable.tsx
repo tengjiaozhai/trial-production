@@ -309,6 +309,7 @@ function SortableRow({
         
         if (shouldSpanSku) {
           const supply = sku.supplies[0];
+          const step4CellId = supply ? `step4-cell-${sku.id}-${supply.id}-${field.id}` : undefined;
           const spanConflict = step2Conflicts?.find((c: Step2CellConflict) => c.cellId === `step2-cell-${sku.id}-${field.id}`);
           const updateSpannedField = (nextValue: string) => {
             sku.supplies.forEach((sup: any) => {
@@ -325,6 +326,7 @@ function SortableRow({
                 key={sku.id}
                 data-testid={spanConflict.cellId}
                 data-step2-cell-id={spanConflict.cellId}
+                data-step4-cell-id={step4CellId}
                 data-sku-id={sku.id}
                 data-field-id={field.id}
                 colSpan={sku.supplies.length}
@@ -362,6 +364,7 @@ function SortableRow({
             <td
               key={sku.id}
               data-testid={field.id === 'mb_id' ? 'step2-mb-id-cell' : undefined}
+              data-step4-cell-id={step4CellId}
               data-sku-id={field.id === 'mb_id' ? sku.id : undefined}
               colSpan={sku.supplies.length}
               className={cn(

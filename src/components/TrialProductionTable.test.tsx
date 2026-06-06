@@ -116,6 +116,20 @@ describe('TrialProductionTable insert affordances', () => {
     expect(onInsertRowAt).toHaveBeenCalledWith('project');
   });
 
+  it('adds step4 targeting ids to sku-spanning storage cells', () => {
+    const { container } = render(
+      <TrialProductionTable
+        currentStep={4}
+        skuData={[{ ...baseSku, supplies: [{ id: 's1', supplyKey: '一供', label: '一供', values: { storage: '4+128' } }] }]}
+        activeFields={[{ id: 'storage', label: '存储', group: '基本信息', behavior: 'manual' }]}
+        onUpdateValue={() => {}}
+      />
+    );
+
+    const cell = container.querySelector('[data-step4-cell-id="step4-cell-sku1-s1-storage"]');
+    expect(cell).not.toBeNull();
+  });
+
   it('uses per-column insert buttons in step 4 instead of the floating sku-insert-after button', () => {
     const onInsertSkuAfter = vi.fn();
     render(
