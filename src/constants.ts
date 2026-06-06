@@ -90,6 +90,13 @@ export const FIELD_DEFS: FieldDefinition[] = [
   { id: 'mbom', label: 'MBOM', group: 'BOM信息', behavior: 'manual' },
   { id: 'pbom', label: 'PBOM', group: 'BOM信息', behavior: 'manual' },
 
+  // 客户样机需求
+  { id: 'reliability', label: '可靠性（客户）', group: '客户样机需求', behavior: 'auto' },
+  { id: 'field_test', label: '场测样机', group: '客户样机需求', behavior: 'auto' },
+  { id: 'fan_sample', label: '粉丝样机', group: '客户样机需求', behavior: 'auto' },
+  { id: 'ce_cert', label: 'CE认证样机', group: '客户样机需求', behavior: 'auto' },
+  { id: 'customer_sample_req', label: '客户样机需求', group: '客户样机需求', behavior: 'calc' },
+
   // 内部样机需求
   { id: 'hw_eng', label: '硬件', group: '内部样机需求', behavior: 'auto' },
   { id: 'hw_test', label: '硬测', group: '内部样机需求', behavior: 'auto' },
@@ -103,14 +110,7 @@ export const FIELD_DEFS: FieldDefinition[] = [
   { id: 'ux', label: '体验', group: '内部样机需求', behavior: 'auto' },
   { id: 'parts', label: '器件', group: '内部样机需求', behavior: 'auto' },
   { id: 'pm', label: '产品', group: '内部样机需求', behavior: 'auto' },
-
-  // 客户样机需求
-  { id: 'reliability', label: '可靠性（客户）', group: '客户样机需求', behavior: 'auto' },
-  { id: 'field_test', label: '场测样机', group: '客户样机需求', behavior: 'auto' },
-  { id: 'fan_sample', label: '粉丝样机', group: '客户样机需求', behavior: 'auto' },
-  { id: 'ce_cert', label: 'CE认证样机', group: '客户样机需求', behavior: 'auto' },
-  { id: 'customer_sample_req', label: '客户样机需求', group: '客户样机需求', behavior: 'calc' },
-  { id: 'backup_unit', label: '备料样机', group: '客户样机需求', behavior: 'manual' },
+  { id: 'backup_unit', label: '备料样机', group: '内部样机需求', behavior: 'manual' },
 
   // 统计汇总
   { id: 't_long_rd_total', label: '天珑研发样机总计', group: '统计汇总', behavior: 'calc' },
