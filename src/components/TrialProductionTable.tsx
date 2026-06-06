@@ -902,7 +902,7 @@ export function TrialProductionTable({
           ref={topTableRef}
           onScroll={handleScroll('top')}
           style={{ height: BASIC_INFO_BLOCK_HEIGHT_PX }}
-          className="shrink-0 z-20 shadow-sm min-w-0 overflow-auto scrollbar-thin scrollbar-thumb-slate-300"
+          className="shrink-0 z-20 shadow-sm min-w-0 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-slate-300"
         >
           <table className="text-sm border-separate border-spacing-0" style={tableStyle}>
             {renderColGroup()}
