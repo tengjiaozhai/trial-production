@@ -37,14 +37,6 @@ export function Sidebar({
   onToggleCollapsed
 }: SidebarProps) {
   
-  const scrollToField = (id: string) => {
-    const el = document.getElementById(`row-${id}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      el.classList.add('bg-rose-50');
-      setTimeout(() => el.classList.remove('bg-rose-50'), 2000);
-    }
-  };
   const focusStep2CellConflict = (conflict: Step2CellConflict) => {
     const cell = document.querySelector<HTMLElement>(
       `[data-step2-cell-id="${conflict.cellId}"]`
