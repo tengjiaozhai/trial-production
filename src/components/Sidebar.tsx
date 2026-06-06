@@ -58,6 +58,22 @@ export function Sidebar({
       STEP2_MB_ID_HIGHLIGHT_CLASSES.forEach((className) => cell.classList.remove(className));
     }, 1200);
   };
+  const focusStep4Validation = (result: ValidationResult) => {
+    if (!result.fieldId || !result.skuId || !result.supplyId) return;
+
+    const cellId = `step4-cell-${result.skuId}-${result.supplyId}-${result.fieldId}`;
+    const cell = document.querySelector<HTMLElement>(
+      `[data-step4-cell-id="${cellId}"]`
+    );
+    if (!cell) return;
+
+    cell.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+
+    STEP2_MB_ID_HIGHLIGHT_CLASSES.forEach((className) => cell.classList.add(className));
+    setTimeout(() => {
+      STEP2_MB_ID_HIGHLIGHT_CLASSES.forEach((className) => cell.classList.remove(className));
+    }, 1200);
+  };
   const hasDataSources = projectInfo.files.length > 0;
 
   const checklist = [
