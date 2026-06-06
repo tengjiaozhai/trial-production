@@ -691,6 +691,8 @@ export default function App() {
               : `${prefix}颜色(${color})与 MBOM/PBOM 均不匹配。`,
             level: colorCheck.ok ? 'pass' : 'error',
             fieldId: 'color',
+            skuId: sku.id,
+            supplyId: sup.id,
           });
         }
 
@@ -709,6 +711,8 @@ export default function App() {
               : `${prefix}存储(${storage})与${storageCheck.reasons.join('、')}冲突。`,
             level: storageCheck.ok ? 'pass' : 'error',
             fieldId: 'storage',
+            skuId: sku.id,
+            supplyId: sup.id,
           });
         }
 
@@ -726,6 +730,8 @@ export default function App() {
               : `${prefix}整机标识(${unitId})不包含主板标识(${mbId})。`,
             level: idCheck.ok ? 'pass' : 'error',
             fieldId: 'unit_id',
+            skuId: sku.id,
+            supplyId: sup.id,
           });
         }
 
@@ -747,6 +753,8 @@ export default function App() {
               detail: `${prefix}EBOM描述存储(${ebomToken})与存储字段(${storageFld})不一致。`,
               level: 'error',
               fieldId: 'ebom_desc',
+              skuId: sku.id,
+              supplyId: sup.id,
             });
           } else {
             results.push({
@@ -756,6 +764,8 @@ export default function App() {
               detail: `${prefix}EBOM描述存储与存储字段匹配。`,
               level: 'pass',
               fieldId: 'ebom_desc',
+              skuId: sku.id,
+              supplyId: sup.id,
             });
           }
         }
