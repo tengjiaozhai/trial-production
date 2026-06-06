@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { Sidebar } from './Sidebar';
 import type { Step2CellConflict } from '../lib/step2CellConflicts';
+import type { ValidationResult } from '../types';
 
 describe('Sidebar step 2 duplicate PCBA conflicts', () => {
   beforeEach(() => {
@@ -141,5 +142,51 @@ describe('Sidebar step2 cell_conflict targeting', () => {
     expect(target.scrollIntoView).toHaveBeenCalledWith(
       expect.objectContaining({ inline: 'center' })
     );
+  });
+});
+
+describe('Sidebar step4 validation cell targeting', () => {
+  it('scrolls to the validation cell and highlights it when an error card is clicked', () => {
+    const target = document.createElement('div');
+    target.setAttribute('data-step4-cell-id', 'step4-cell-sku_1-s_1-color');
+    target.scrollIntoView = vi.fn();
+    document.body.appendChild(target);
+
+    const validationResults: ValidationResult[] = [
+      {
+        id: 'RULE-COLOR-sku_1-s_1',
+        title: '颜色不一致',
+        detail: '[X6728 · 一供] 颜色(color)与 MBOM/PBOM 均不匹配。',
+        amReference: 'Rule-1',
+        level: 'error',
+        fieldId: 'color',
+        skuId: 'sku_1',
+        supplyId: 's_1',
+      },
+    ];
+
+    render(
+      <Sidebar
+        currentStep={4}
+        projectInfo={{ name: 'X6728', customer: '标准', stage: 'EVT', files: [] }}
+        skuData={[]}
+        validationResults={validationResults}
+        onGoBack={() => {}}
+        isFlowComplete={false}
+        setIsFlowComplete={() => {}}
+        onRunValidation={() => {}}
+      />
+    );
+
+    const card = screen.getByText('颜色不一致').closest('div[class*="cursor-pointer"]');
+    fireEvent.click(card!);
+
+    expect(target.scrollIntoView).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'center',
+    });
+
+    document.body.removeChild(target);
   });
 });
