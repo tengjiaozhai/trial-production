@@ -109,7 +109,7 @@ export const FIELD_DEFS: FieldDefinition[] = [
   { id: 'field_test', label: '场测样机', group: '客户样机需求', behavior: 'auto' },
   { id: 'fan_sample', label: '粉丝样机', group: '客户样机需求', behavior: 'auto' },
   { id: 'ce_cert', label: 'CE认证样机', group: '客户样机需求', behavior: 'auto' },
-  { id: 'customer_sample_req', label: '客户样机需求', group: '客户样机需求', behavior: 'manual' },
+  { id: 'customer_sample_req', label: '客户样机需求', group: '客户样机需求', behavior: 'calc' },
   { id: 'backup_unit', label: '备料样机', group: '客户样机需求', behavior: 'manual' },
 
   // 统计汇总

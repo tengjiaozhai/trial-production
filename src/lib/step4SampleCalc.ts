@@ -15,6 +15,13 @@ export const INTERNAL_IDS = [
   'pm',
 ] as const;
 
+export const CUSTOMER_IDS = [
+  'reliability',
+  'field_test',
+  'fan_sample',
+  'ce_cert',
+] as const;
+
 const SUPPLY_ORDER: SupplyTag[] = ['一供', '二供', '三供', '四供'];
 
 export interface SupplyColumn {
@@ -25,8 +32,8 @@ export interface SupplyColumn {
 /**
  * Recompute derived Step 4 values:
  * - t_long_rd_total = sum of INTERNAL_IDS fields
+ * - customer_sample_req = sum of CUSTOMER_IDS fields (reliability + field_test + fan_sample + ce_cert)
  * - total_qty = t_long_rd_total + customer_sample_req
- * - customer_sample_req is kept as-is (manual input)
  */
 export function recomputeStep4Values(
   values: Record<string, string>,
@@ -38,15 +45,23 @@ export function recomputeStep4Values(
     return acc + (isNaN(v) ? 0 : v);
   }, 0);
 
-  const customerReq = parseInt(values['customer_sample_req'] ?? '', 10);
-  const customerVal = isNaN(customerReq) ? 0 : customerReq;
+  const customerSum = CUSTOMER_IDS.reduce((acc, id) => {
+    const v = parseInt(values[id] ?? '', 10);
+    return acc + (isNaN(v) ? 0 : v);
+  }, 0);
 
-  const total = internalSum + customerVal;
+  const total = internalSum + customerSum;
 
   if (internalSum === 0) {
     delete result['t_long_rd_total'];
   } else {
     result['t_long_rd_total'] = String(internalSum);
+  }
+
+  if (customerSum === 0) {
+    delete result['customer_sample_req'];
+  } else {
+    result['customer_sample_req'] = String(customerSum);
   }
 
   if (total === 0) {

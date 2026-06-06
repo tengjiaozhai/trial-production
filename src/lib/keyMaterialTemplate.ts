@@ -81,7 +81,7 @@ function fallbackMatchCategory2(
     aux_material: [/辅料/i],
     cooling: [/散热|导热|石墨|vc/i],
     pcb: [/^PCB$|主板/i],
-    sub_board: [/小板|sub.*board/i],
+    sub_board: [/^PCB-KB$/i, /^小板$/i, /^副板$/i, /sub.*board/i, /按键板/i],
   };
 
   const fieldPatterns = patterns[fieldId];
@@ -180,6 +180,9 @@ const TARGETS: { fieldId: SplitOptionFieldId; materialName: string; hint: string
   { fieldId: 'sub_board', materialName: '小板', hint: 'Sub Board/副板', mode: 'brand' },
 ];
 
+const SUB_BOARD_PROMPT_RULE =
+  '补充规则：仅对 fieldId="sub_board" 生效。"小板（Sub Board/副板）"在当前业务里指 PCB 子板；若候选列表包含 "PCB-KB"，则返回 "PCB-KB"。不要把它匹配为 "连接器-大小板" 或其他连接器类。';
+
 export async function matchCategory2WithLLM(
   category2List: string[]
 ): Promise<Partial<Record<SplitOptionFieldId, string>>> {
@@ -190,15 +193,26 @@ export async function matchCategory2WithLLM(
   const groupA = TARGETS.filter((_, i) => i % 2 === 0);
   const groupB = TARGETS.filter((_, i) => i % 2 === 1);
 
-  const buildPrompt = (group: typeof TARGETS) => [
-    '你是BOM物料匹配助手。',
-    '我会给你分类2候选列表与目标物料名。',
-    '请为每个目标物料返回最可能同一物料的分类2。',
-    '返回必须是JSON对象，key是fieldId，value是候选列表中"完全一致"的分类2字符串或null。',
-    '禁止返回候选列表外的值。',
-    `候选分类2: ${JSON.stringify(category2List)}`,
-    `目标物料: ${JSON.stringify(group.map((x) => ({ fieldId: x.fieldId, materialName: `${x.materialName}（${x.hint}）` })))}`,
-  ].join('\n');
+  const buildPrompt = (group: typeof TARGETS) => {
+    const lines = [
+      '你是BOM物料匹配助手。',
+      '我会给你分类2候选列表与目标物料名。',
+      '请为每个目标物料返回最可能同一物料的分类2。',
+      '返回必须是JSON对象，key是fieldId，value是候选列表中"完全一致"的分类2字符串或null。',
+      '禁止返回候选列表外的值。',
+    ];
+
+    if (group.some((item) => item.fieldId === 'sub_board')) {
+      lines.push(SUB_BOARD_PROMPT_RULE);
+    }
+
+    lines.push(`候选分类2: ${JSON.stringify(category2List)}`);
+    lines.push(
+      `目标物料: ${JSON.stringify(group.map((x) => ({ fieldId: x.fieldId, materialName: `${x.materialName}（${x.hint}）` })))}`
+    );
+
+    return lines.join('\n');
+  };
 
   const [rawA, rawB] = await Promise.all([
     requestJsonObjectFromLLM(buildPrompt(groupA)),

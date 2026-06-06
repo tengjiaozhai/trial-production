@@ -26,14 +26,50 @@ describe('recomputeStep4Values', () => {
     expect(result.total_qty).toBe('29');
   });
 
-  it('keeps customer_sample_req manual and adds into total_qty', () => {
+  it('computes customer_sample_req from customer fields and adds into total_qty', () => {
     const result = recomputeStep4Values({
       hw_eng: '10',
-      customer_sample_req: '7',
+      reliability: '3',
+      field_test: '2',
+      fan_sample: '1',
+      ce_cert: '1',
     });
     expect(result.customer_sample_req).toBe('7');
     expect(result.t_long_rd_total).toBe('10');
     expect(result.total_qty).toBe('17');
+  });
+
+  it('computes customer_sample_req from reliability + field_test + fan_sample + ce_cert', () => {
+    const result = recomputeStep4Values({
+      hw_eng: '5',
+      reliability: '3',
+      field_test: '2',
+      fan_sample: '1',
+      ce_cert: '4',
+    });
+    expect(result.customer_sample_req).toBe('10');
+    expect(result.t_long_rd_total).toBe('5');
+    expect(result.total_qty).toBe('15');
+  });
+
+  it('deletes customer_sample_req when customer fields are all empty', () => {
+    const result = recomputeStep4Values({
+      hw_eng: '5',
+    });
+    expect(result.customer_sample_req).toBeUndefined();
+    expect(result.total_qty).toBe('5');
+  });
+
+  it('deletes customer_sample_req when sum is 0', () => {
+    const result = recomputeStep4Values({
+      hw_eng: '5',
+      reliability: '0',
+      field_test: '0',
+      fan_sample: '',
+      ce_cert: '',
+    });
+    expect(result.customer_sample_req).toBeUndefined();
+    expect(result.total_qty).toBe('5');
   });
 });
 

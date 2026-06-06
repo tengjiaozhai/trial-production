@@ -158,6 +158,27 @@ describe('matchCategory2WithLLM', () => {
     expect(result.pcb).toBe('PCB');
     expect(result.sub_board).toBe('小板');
   });
+
+  it('adds PCB-KB rule for sub_board prompt and keeps fallback aligned', async () => {
+    const prompts: string[] = [];
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_input, init) => {
+      const body = JSON.parse(String(init?.body ?? '{}'));
+      prompts.push(body.messages?.[0]?.content ?? '');
+      return {
+        ok: true,
+        json: async () => ({
+          choices: [{ message: { content: '{}' } }],
+        }),
+      } as any;
+    });
+
+    const result = await matchCategory2WithLLM(['PCB-MB', 'PCB-KB', '连接器-大小板']);
+
+    const subBoardPrompt = prompts.find((prompt) => prompt.includes('"fieldId":"sub_board"'));
+    expect(subBoardPrompt).toContain('若候选列表包含 "PCB-KB"，则返回 "PCB-KB"');
+    expect(subBoardPrompt).toContain('不要把它匹配为 "连接器-大小板"');
+    expect(result.sub_board).toBe('PCB-KB');
+  });
 });
 
 describe('buildOptionsByField', () => {
