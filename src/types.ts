@@ -178,6 +178,8 @@ export interface ValidationResult {
   amReference: string;
   level: ValidationLevel;
   fieldId?: string;
+  skuId?: string;
+  supplyId?: string;
 }
 
 export type StepId = 1 | 2 | 3 | 4 | 5;
