@@ -477,6 +477,7 @@ function SortableRow({
             return (
             <td
               key={supply.id}
+              data-step4-cell-id={`step4-cell-${sku.id}-${supply.id}-${field.id}`}
               style={{ width: colWidths[supply.id], minWidth: colWidths[supply.id] }}
               className={cn(
                 "border-b border-r border-[#DDE7F3] p-2 align-top transition-colors",
@@ -898,7 +899,7 @@ export function TrialProductionTable({
           ref={topTableRef}
           onScroll={handleScroll('top')}
           style={{ height: BASIC_INFO_BLOCK_HEIGHT_PX }}
-          className="shrink-0 z-20 shadow-sm min-w-0 overflow-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="shrink-0 z-20 shadow-sm min-w-0 overflow-auto scrollbar-thin scrollbar-thumb-slate-300"
         >
           <table className="text-sm border-separate border-spacing-0" style={tableStyle}>
             {renderColGroup()}
