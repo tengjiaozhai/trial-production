@@ -222,7 +222,11 @@ export function Sidebar({
                   .map((result, idx) => (
                   <div 
                     key={idx} 
-                    onClick={() => result.fieldId && scrollToField(result.fieldId)}
+                    onClick={() => {
+                      if (result.level === 'error' || result.level === 'warn') {
+                        focusStep4Validation(result);
+                      }
+                    }}
                     className={cn(
                     "p-4 rounded border-l-4 space-y-1 transition-all cursor-pointer hover:shadow-sm",
                     result.level === 'error' ? "bg-rose-50 border-rose-500" :
@@ -233,7 +237,7 @@ export function Sidebar({
                     <div className="flex justify-between items-start">
                        <span className="font-bold text-[#64748B] text-[11px] font-mono tracking-tighter">#{result.amReference || 'REF'}</span>
                        <div className="flex items-center gap-2">
-                          {result.fieldId && result.level !== 'pass' && <span className="text-[10px] font-bold text-[#2563EB] underline">定位</span>}
+                          {result.fieldId && result.skuId && result.supplyId && result.level !== 'pass' && <span className="text-[10px] font-bold text-[#2563EB] underline">点击定位</span>}
                          <span className={cn(
                           "font-bold text-[11px] px-1.5 py-0.5 rounded",
                           result.level === 'error' ? "bg-rose-100 text-rose-700" :
