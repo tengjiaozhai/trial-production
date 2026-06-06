@@ -4,6 +4,7 @@ import {
   normalizeSelectedSupplyKey,
   projectSkuForStep,
   projectSkusForStep,
+  listSupplyKeys,
 } from './supplyProjection';
 
 const makeSupply = (supplyKey: SupplyTag, id?: string) => ({
@@ -47,5 +48,22 @@ describe('supplyProjection', () => {
     const step5 = projectSkusForStep([sku1, sku2], 5);
     expect(step4.map((s) => s.supplies.length)).toEqual([1, 1]);
     expect(step5.map((s) => s.supplies.length)).toEqual([1, 1]);
+  });
+
+  it('handles four supplies correctly', () => {
+    const input = makeSku(
+      [makeSupply('一供'), makeSupply('二供'), makeSupply('三供'), makeSupply('四供')],
+      '四供'
+    );
+    expect(normalizeSelectedSupplyKey(input).selectedSupplyKey).toBe('四供');
+    expect(projectSkuForStep(input, 3).supplies.map((s) => s.supplyKey)).toEqual(['四供']);
+    expect(projectSkuForStep(input, 2).supplies.map((s) => s.supplyKey)).toEqual(['一供', '二供', '三供', '四供']);
+  });
+
+  it('lists four supply keys in correct order', () => {
+    const input = makeSku(
+      [makeSupply('四供'), makeSupply('一供'), makeSupply('三供'), makeSupply('二供')],
+    );
+    expect(listSupplyKeys(input)).toEqual(['一供', '二供', '三供', '四供']);
   });
 });

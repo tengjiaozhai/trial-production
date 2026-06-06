@@ -152,6 +152,28 @@ describe('buildManagedMaterialCoreFieldOptions', () => {
     ]);
   });
 
+  it('builds emmc with four supplies when available', () => {
+    const matchWithFourSupplies = {
+      ...baseMatch,
+      rows: [
+        ...baseMatch.rows.filter((r) => r.materialName !== '128GB EMMC'),
+        { materialName: '128GB EMMC', code: '14201661', vendor: 'HAC19-1280BSAC',   supply: '一供' },
+        { materialName: '128GB EMMC', code: '14201611', vendor: 'FEMDNN128G-A3V01', supply: '二供' },
+        { materialName: '128GB EMMC', code: '14201680', vendor: 'FORESEE128G',      supply: '三供' },
+        { materialName: '128GB EMMC', code: '14201690', vendor: 'Samsung128G',       supply: '四供' },
+      ],
+    };
+    const result = buildManagedMaterialCoreFieldOptions(matchWithFourSupplies, pcbaOpt);
+    const texts = result.emmc?.map((item) => item.text);
+    expect(texts).toEqual([
+      '14201661一供HAC19-1280BSAC128G',
+      '14201611二供FEMDNN128G-A3V01128G',
+      '14201680三供FORESEE128G128G',
+      '14201690四供Samsung128G128G',
+    ]);
+    expect(result.emmc).toHaveLength(4);
+  });
+
   it('builds ddr with code+supply+vendor+size', () => {
     const result = buildManagedMaterialCoreFieldOptions(baseMatch, pcbaOpt);
     expect(result.ddr?.[0].text).toBe('14201579一供K4UBE3D4AM_SGCL4G');

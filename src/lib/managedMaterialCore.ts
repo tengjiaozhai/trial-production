@@ -19,7 +19,7 @@ function normalizeHeader(value: unknown): string {
 }
 
 function toSupplyTag(raw: string): SupplyTag {
-  return raw === '一供' || raw === '二供' || raw === '三供' ? raw : '';
+  return raw === '一供' || raw === '二供' || raw === '三供' || raw === '四供' ? raw : '';
 }
 
 function extractSize(raw: string): string {
@@ -273,7 +273,7 @@ export function buildManagedMaterialCoreFieldOptions(
 
   const emmcSize = extractSize(pcbaOption.emmc);
   const ddrSize = extractSize(pcbaOption.ddr);
-  const sortWeight: Record<string, number> = { '一供': 1, '二供': 2, '三供': 3 };
+  const sortWeight: Record<string, number> = { '一供': 1, '二供': 2, '三供': 3, '四供': 4 };
 
   const buildRows = (
     materialName: string | undefined,
@@ -283,7 +283,6 @@ export function buildManagedMaterialCoreFieldOptions(
     return match.rows
       .filter((row) => row.materialName === materialName)
       .sort((a, b) => (sortWeight[a.supply] ?? 99) - (sortWeight[b.supply] ?? 99))
-      .slice(0, 3)
       .map((row) => ({
         supply: toSupplyTag(row.supply),
         text: formatter(row),

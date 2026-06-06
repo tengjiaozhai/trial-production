@@ -51,6 +51,20 @@ describe('deriveSupplyColumnsFromFieldOptions', () => {
     expect(columns.map((c) => c.supplyKey)).toEqual(['一供', '二供', '三供']);
   });
 
+  it('derives four supply columns when four supplies exist', () => {
+    const columns = deriveSupplyColumnsFromFieldOptions({
+      emmc: [
+        { supply: '一供', text: 'E1', sourceCategory2: 'EMMC' },
+        { supply: '二供', text: 'E2', sourceCategory2: 'EMMC' },
+        { supply: '三供', text: 'E3', sourceCategory2: 'EMMC' },
+        { supply: '四供', text: 'E4', sourceCategory2: 'EMMC' },
+      ],
+    } as any);
+
+    expect(columns.map((c) => c.label)).toEqual(['一供', '二供', '三供', '四供']);
+    expect(columns.map((c) => c.supplyKey)).toEqual(['一供', '二供', '三供', '四供']);
+  });
+
   it('falls back to 主供 when no supply tags exist', () => {
     const columns = deriveSupplyColumnsFromFieldOptions({
       pcb: [{ supply: '', text: 'qualcomm', sourceCategory2: 'PCB' }],

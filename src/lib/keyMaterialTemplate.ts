@@ -221,7 +221,7 @@ export async function matchCategory2WithLLM(
   return out;
 }
 
-const SUPPLY_ORDER: Record<string, number> = { '一供': 1, '二供': 2, '三供': 3 };
+const SUPPLY_ORDER: Record<string, number> = { '一供': 1, '二供': 2, '三供': 3, '四供': 4 };
 
 export function buildOptionsByField(
   parsed: ParsedKeyMaterialTemplate,
@@ -235,8 +235,7 @@ export function buildOptionsByField(
 
     const matchedRows = parsed.rows
       .filter((r) => r.category2 === category2)
-      .sort((a, b) => (SUPPLY_ORDER[a.supply] ?? 99) - (SUPPLY_ORDER[b.supply] ?? 99))
-      .slice(0, 3);
+      .sort((a, b) => (SUPPLY_ORDER[a.supply] ?? 99) - (SUPPLY_ORDER[b.supply] ?? 99));
 
     const options: SplitFieldOption[] = [];
 

@@ -1,6 +1,6 @@
 import type { SKUData, StepId, SupplyTag } from '../types';
 
-const SUPPLY_ORDER: SupplyTag[] = ['一供', '二供', '三供', ''];
+const SUPPLY_ORDER: SupplyTag[] = ['一供', '二供', '三供', '四供', ''];
 
 export function normalizeSelectedSupplyKey(sku: SKUData): SKUData {
   const valid = new Set<string>(sku.supplies.map((s) => s.supplyKey));

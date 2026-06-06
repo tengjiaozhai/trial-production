@@ -15,7 +15,7 @@ export const INTERNAL_IDS = [
   'pm',
 ] as const;
 
-const SUPPLY_ORDER: SupplyTag[] = ['一供', '二供', '三供'];
+const SUPPLY_ORDER: SupplyTag[] = ['一供', '二供', '三供', '四供'];
 
 export interface SupplyColumn {
   supplyKey: SupplyTag | '';
