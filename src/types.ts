@@ -178,6 +178,7 @@ export interface ValidationResult {
   amReference: string;
   level: ValidationLevel;
   fieldId?: string;
+  targetFieldId?: SplitOptionFieldId;
   skuId?: string;
   supplyId?: string;
 }

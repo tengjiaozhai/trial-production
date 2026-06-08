@@ -32,6 +32,7 @@ import { parseManagedMaterialCoreWorkbook, matchManagedMaterialNamesWithLLM, bui
 import { parseSampleCollectionWorkbook, matchSampleCollectionRowsWithLLM, buildSampleCollectionFieldOptions } from './lib/sampleCollectionWorkbook';
 import { buildSupplyValuesForSupplyKey, deriveSupplyColumnsFromFieldOptions, recomputeStep4Values } from './lib/step4SampleCalc';
 import { buildStep2CellConflicts } from './lib/step2CellConflicts';
+import { buildStep4StorageValidationResults } from './lib/step4StorageValidationResults';
 import {
   validateColorAgainstBom,
   validateStorageAgainstComponents,
@@ -702,18 +703,15 @@ export default function App() {
         const ddr = String(vals['ddr'] || '').trim();
         if (storage) {
           const storageCheck = validateStorageAgainstComponents({ storage, emmc, ddr });
-          results.push({
-            id: `RULE-STORAGE-${sku.id}-${sup.id}`,
-            title: storageCheck.ok ? '存储核验通过' : '存储配置冲突',
-            amReference: 'Rule-2',
-            detail: storageCheck.ok
-              ? `${prefix}存储与 flash EMMC/flash DDR 匹配。`
-              : `${prefix}存储(${storage})与${storageCheck.reasons.join('、')}冲突。`,
-            level: storageCheck.ok ? 'pass' : 'error',
-            fieldId: 'storage',
-            skuId: sku.id,
-            supplyId: sup.id,
-          });
+          results.push(
+            ...buildStep4StorageValidationResults({
+              skuId: sku.id,
+              supplyId: sup.id,
+              prefix,
+              storage,
+              validationResult: storageCheck,
+            })
+          );
         }
 
         // --- Rule 3: unit_id contains mb_id ---

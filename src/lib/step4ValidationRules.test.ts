@@ -32,17 +32,62 @@ describe('validateStorageAgainstComponents', () => {
         emmc: '14201661一供宏芯宇128G',
         ddr: '14201579一供三星4G',
       })
-    ).toEqual({ ok: true, reasons: [] });
+    ).toEqual({ ok: true, reasons: [], mismatches: [] });
   });
 
-  it('fails when either emmc or ddr mismatches', () => {
+  it('reports emmc-only mismatch metadata', () => {
     expect(
       validateStorageAgainstComponents({
         storage: '4+128',
         emmc: '14201661一供宏芯宇64G',
         ddr: '14201579一供三星4G',
       })
-    ).toEqual({ ok: false, reasons: ['flash EMMC不匹配'] });
+    ).toEqual({
+      ok: false,
+      reasons: ['flash EMMC不匹配'],
+      mismatches: [{ targetFieldId: 'emmc', reason: 'flash EMMC不匹配' }],
+    });
+  });
+
+  it('reports ddr-only mismatch metadata', () => {
+    expect(
+      validateStorageAgainstComponents({
+        storage: '4+128',
+        emmc: '14201661一供宏芯宇128G',
+        ddr: '14201579一供三星8G',
+      })
+    ).toEqual({
+      ok: false,
+      reasons: ['flash DDR不匹配'],
+      mismatches: [{ targetFieldId: 'ddr', reason: 'flash DDR不匹配' }],
+    });
+  });
+
+  it('reports emmc then ddr mismatch metadata in order', () => {
+    expect(
+      validateStorageAgainstComponents({
+        storage: '4+128',
+        emmc: '14201661一供宏芯宇64G',
+        ddr: '14201579一供三星8G',
+      })
+    ).toEqual({
+      ok: false,
+      reasons: ['flash EMMC不匹配', 'flash DDR不匹配'],
+      mismatches: [
+        { targetFieldId: 'emmc', reason: 'flash EMMC不匹配' },
+        { targetFieldId: 'ddr', reason: 'flash DDR不匹配' },
+      ],
+    });
+  });
+
+  it('returns empty mismatches for storage format errors', () => {
+    expect(
+      validateStorageAgainstComponents({
+        storage: 'bad-storage',
+        emmc: '14201661一供宏芯宇128G',
+        ddr: '14201579一供三星4G',
+      })
+    ).toEqual({ ok: false, reasons: ['存储格式错误'], mismatches: [] });
   });
 });
 

@@ -146,11 +146,77 @@ describe('Sidebar step2 cell_conflict targeting', () => {
 });
 
 describe('Sidebar step4 validation cell targeting', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('scrolls to targetFieldId when present instead of fieldId', () => {
+    const fallbackTarget = document.createElement('div');
+    fallbackTarget.scrollIntoView = vi.fn();
+
+    const target = document.createElement('div');
+    target.scrollIntoView = vi.fn();
+
+    const querySelectorSpy = vi.spyOn(document, 'querySelector').mockImplementation((selector) => {
+      if (selector === '[data-step4-cell-id="step4-cell-sku_1-s_1-lcd"]') {
+        return target;
+      }
+      if (selector === '[data-step4-cell-id="step4-cell-sku_1-s_1-color"]') {
+        return fallbackTarget;
+      }
+      return null;
+    });
+
+    const validationResults: ValidationResult[] = [
+      {
+        id: 'RULE-DISPLAY-sku_1-s_1',
+        title: '展示字段不一致',
+        detail: '[X6728 · 一供] display_name 与目标字段不匹配。',
+        amReference: 'Rule-2',
+        level: 'error',
+        fieldId: 'color',
+        targetFieldId: 'lcd',
+        skuId: 'sku_1',
+        supplyId: 's_1',
+      },
+    ];
+
+    render(
+      <Sidebar
+        currentStep={4}
+        projectInfo={{ name: 'X6728', customer: '标准', stage: 'EVT', files: [] }}
+        skuData={[]}
+        validationResults={validationResults}
+        onGoBack={() => {}}
+        isFlowComplete={false}
+        setIsFlowComplete={() => {}}
+        onRunValidation={() => {}}
+      />
+    );
+
+    fireEvent.click(screen.getByText('点击定位'));
+
+    expect(querySelectorSpy).toHaveBeenCalledWith(
+      '[data-step4-cell-id="step4-cell-sku_1-s_1-lcd"]'
+    );
+    expect(target.scrollIntoView).toHaveBeenCalledWith({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'center',
+    });
+    expect(fallbackTarget.scrollIntoView).not.toHaveBeenCalled();
+  });
+
   it('scrolls to the validation cell and highlights it when an error card is clicked', () => {
     const target = document.createElement('div');
-    target.setAttribute('data-step4-cell-id', 'step4-cell-sku_1-s_1-color');
     target.scrollIntoView = vi.fn();
-    document.body.appendChild(target);
+
+    const querySelectorSpy = vi.spyOn(document, 'querySelector').mockImplementation((selector) => {
+      if (selector === '[data-step4-cell-id="step4-cell-sku_1-s_1-color"]') {
+        return target;
+      }
+      return null;
+    });
 
     const validationResults: ValidationResult[] = [
       {
@@ -178,15 +244,15 @@ describe('Sidebar step4 validation cell targeting', () => {
       />
     );
 
-    const card = screen.getByText('颜色不一致').closest('div[class*="cursor-pointer"]');
-    fireEvent.click(card!);
+    fireEvent.click(screen.getByText('点击定位'));
 
+    expect(querySelectorSpy).toHaveBeenCalledWith(
+      '[data-step4-cell-id="step4-cell-sku_1-s_1-color"]'
+    );
     expect(target.scrollIntoView).toHaveBeenCalledWith({
       behavior: 'smooth',
       block: 'nearest',
       inline: 'center',
     });
-
-    document.body.removeChild(target);
   });
 });

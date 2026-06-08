@@ -16,18 +16,29 @@ export function validateStorageAgainstComponents(args: {
   storage: string;
   emmc: string;
   ddr: string;
-}): { ok: boolean; reasons: string[] } {
+}): {
+  ok: boolean;
+  reasons: string[];
+  mismatches: Array<{ targetFieldId: 'emmc' | 'ddr'; reason: string }>;
+} {
   const pair = parseStoragePair(args.storage);
-  if (!pair) return { ok: false, reasons: ['存储格式错误'] };
+  if (!pair) return { ok: false, reasons: ['存储格式错误'], mismatches: [] };
 
   const reasons: string[] = [];
+  const mismatches: Array<{ targetFieldId: 'emmc' | 'ddr'; reason: string }> = [];
   const emmcSize = extractTrailingSize(args.emmc);
   const ddrSize = extractTrailingSize(args.ddr);
 
-  if (!emmcSize || emmcSize !== pair.emmc) reasons.push('flash EMMC不匹配');
-  if (!ddrSize || ddrSize !== pair.ddr) reasons.push('flash DDR不匹配');
+  if (!emmcSize || emmcSize !== pair.emmc) {
+    reasons.push('flash EMMC不匹配');
+    mismatches.push({ targetFieldId: 'emmc', reason: 'flash EMMC不匹配' });
+  }
+  if (!ddrSize || ddrSize !== pair.ddr) {
+    reasons.push('flash DDR不匹配');
+    mismatches.push({ targetFieldId: 'ddr', reason: 'flash DDR不匹配' });
+  }
 
-  return { ok: reasons.length === 0, reasons };
+  return { ok: reasons.length === 0, reasons, mismatches };
 }
 
 export function validateColorAgainstBom(args: {

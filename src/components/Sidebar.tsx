@@ -51,9 +51,10 @@ export function Sidebar({
     }, 1200);
   };
   const focusStep4Validation = (result: ValidationResult) => {
-    if (!result.fieldId || !result.skuId || !result.supplyId) return;
+    const fieldId = result.targetFieldId ?? result.fieldId;
+    if (!fieldId || !result.skuId || !result.supplyId) return;
 
-    const cellId = `step4-cell-${result.skuId}-${result.supplyId}-${result.fieldId}`;
+    const cellId = `step4-cell-${result.skuId}-${result.supplyId}-${fieldId}`;
     const cell = document.querySelector<HTMLElement>(
       `[data-step4-cell-id="${cellId}"]`
     );
