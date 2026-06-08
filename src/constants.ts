@@ -113,7 +113,7 @@ export const FIELD_DEFS: FieldDefinition[] = [
   { id: 'backup_unit', label: '备料样机', group: '内部样机需求', behavior: 'manual' },
 
   // 统计汇总
-  { id: 't_long_rd_total', label: '天珑研发样机总计', group: '统计汇总', behavior: 'calc' },
+  { id: 't_long_rd_total', label: '天珑研发样机总计', group: '内部样机需求', behavior: 'calc' },
   { id: 'total_qty', label: '总计', group: '统计汇总', behavior: 'calc' },
   { id: 'prod_yield', label: '生产良率', group: '统计汇总', behavior: 'manual' },
 ];
