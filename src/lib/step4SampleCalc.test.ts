@@ -72,11 +72,11 @@ describe('recomputeStep4Values', () => {
     expect(result.total_qty).toBe('5');
   });
 
-  it('computes assembly_qty = total_qty / prod_yield', () => {
+  it('computes assembly_qty = total_qty / (prod_yield / 100)', () => {
     const result = recomputeStep4Values({
       hw_eng: '10',
       reliability: '5',
-      prod_yield: '0.8',
+      prod_yield: '80',
     });
     expect(result.total_qty).toBe('15');
     expect(result.assembly_qty).toBe('19'); // ceil(15 / 0.8) = 18.75 -> 19
@@ -86,7 +86,7 @@ describe('recomputeStep4Values', () => {
     const result = recomputeStep4Values({
       hw_eng: '10',
       reliability: '5',
-      prod_yield: '0.8',
+      prod_yield: '80',
       board_adj_qty: '3',
     });
     expect(result.assembly_qty).toBe('19');
@@ -97,7 +97,7 @@ describe('recomputeStep4Values', () => {
     const result = recomputeStep4Values({
       hw_eng: '10',
       reliability: '5',
-      prod_yield: '0.8',
+      prod_yield: '80',
       board_adj_qty: '3',
     });
     expect(result.pcba).toBe('24');

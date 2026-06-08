@@ -73,10 +73,10 @@ export function recomputeStep4Values(
     result['total_qty'] = String(total);
   }
 
-  // 组装数量 = 总计 / 生产良率
+  // 组装数量 = 总计 / (生产良率 / 100)
   const prodYield = parseFloat(values['prod_yield'] ?? '');
   if (total > 0 && !isNaN(prodYield) && prodYield > 0) {
-    result['assembly_qty'] = String(Math.ceil(total / prodYield));
+    result['assembly_qty'] = String(Math.ceil(total / (prodYield / 100)));
   } else {
     delete result['assembly_qty'];
   }
