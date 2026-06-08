@@ -80,7 +80,7 @@ function fallbackMatchCategory2(
     side_key: [/侧键|side.*key/i],
     aux_material: [/辅料/i],
     cooling: [/散热|导热|石墨|vc/i],
-    pcb: [/^PCB$|主板/i],
+    pcb: [/^PCB$|^PCB-MB$|主板/i],
     sub_board: [/^PCB-KB$/i, /^小板$/i, /^副板$/i, /sub.*board/i, /按键板/i],
   };
 
