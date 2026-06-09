@@ -1,262 +1,262 @@
-# Electron + Univer Product Design Handoff
+# Electron + Univer 产品设计交接文档
 
-## Purpose
+## 目的
 
-This handoff turns the approved Electron + Univer migration spec into concrete product-design artifacts for implementation. It defines the desktop app shell, spreadsheet workspace behavior, interaction states, and visual acceptance criteria. It does not introduce a second architecture or implementation path.
+本交接文档将已批准的 Electron + Univer 迁移规格转化为具体的产品设计制品，用于实现落地。它定义了桌面应用壳、电子表格工作区行为、交互状态和视觉验收标准。它不引入第二种架构或实现路径。
 
-Canonical design spec:
+规范设计文档：
 
 - `docs/superpowers/specs/2026-06-09-electron-univer-desktop-design.md`
 
-## Product Experience Summary
+## 产品体验概述
 
-The desktop app remains a five-step trial-production wizard. The major change is that the table workspace becomes a spreadsheet-grade editing surface powered by Univer Sheets.
+桌面应用仍然是一个五步试产搭配表向导。主要变化是表格工作区变为由 Univer Sheets 驱动的电子表格级编辑界面。
 
-The user should experience the migration as:
+用户应该将此次迁移体验为：
 
-- A native desktop app that opens directly into the existing trial-production workflow.
-- A spreadsheet-like workspace for Step 2 to Step 5.
-- More familiar cell navigation, copy/paste, resizing, and selection behavior.
-- The same business rules, validation logic, and Excel export result as before.
+- 一个原生桌面应用，直接打开进入现有的试产工作流。
+- Step 2 到 Step 5 呈现类似电子表格的工作区。
+- 更熟悉的单元格导航、复制/粘贴、调整大小和选中行为。
+- 与之前相同的业务规则、校验逻辑和 Excel 导出结果。
 
-No visual redesign is intended. Keep the existing enterprise-blue visual language and wizard/sidebar structure. Univer should feel embedded inside the current product, not like a separate office suite dropped into the page.
+不打算进行视觉重新设计。保留现有的企业蓝视觉语言和向导/侧边栏结构。Univer 应该感觉嵌入在当前产品内部，而不是像独立的办公套件被放置在页面中。
 
-## Desktop Shell Blueprint
+## 桌面壳蓝图
 
 ```mermaid
 flowchart TD
-  A["Electron App Launch"] --> B["electron-egg Main Process"]
+  A["Electron 应用启动"] --> B["electron-egg 主进程"]
   B --> C["BrowserWindow"]
-  C --> D["React Frontend in public/dist"]
-  D --> E["Five-Step Wizard"]
-  E --> F["Univer Sheet Workspace"]
-  E --> G["Sidebar: Status, Validation, Navigation"]
-  F --> H["Business State Callbacks"]
+  C --> D["React 前端（public/dist）"]
+  D --> E["五步向导"]
+  E --> F["Univer Sheet 工作区"]
+  E --> G["侧边栏：状态、校验、导航"]
+  F --> H["业务状态回调"]
   H --> I["skuData / activeFields / projectInfo"]
   I --> F
-  I --> J["xlsx Export Builder"]
+  I --> J["xlsx 导出构建器"]
 ```
 
-### Window
+### 窗口
 
-- Default size: large desktop workspace similar to `tn-viewer`.
-- Minimum size: large enough to keep the wizard sidebar and sheet usable.
-- Menu bar: hidden by default.
-- First screen: current app entry screen, not a new launcher.
-- Close behavior: normal desktop close is acceptable for this migration; custom close confirmation is optional only if already needed by product flow.
+- 默认大小：类似于 `tn-viewer` 的大型桌面工作区。
+- 最小尺寸：足够同时容纳向导侧边栏和 sheet 的可用空间。
+- 菜单栏：默认隐藏。
+- 首屏：当前应用入口画面，而不是新的启动器。
+- 关闭行为：本次迁移可接受普通的桌面关闭；自定义关闭确认仅在产品流程已有需求时才需要。
 
-### Shell Regions
+### 壳区域
 
 ```text
 +----------------------------------------------------------------+
-| Desktop Window                                                  |
+| 桌面窗口                                                        |
 | +------------------------------------------------------------+ |
-| | Existing app header / wizard context                         | |
+| | 现有应用头部 / 向导上下文                                     | |
 | +----------------------+-------------------------------------+ |
-| | Sidebar              | Main workspace                       | |
-| | - step controls      | - upload form on Step 1              | |
-| | - conflict cards     | - Univer sheet on Step 2-5           | |
-| | - validation cards   | - candidate panel when needed        | |
-| | - export actions     |                                     | |
+| | 侧边栏                | 主工作区                              | |
+| | - 步骤控制            | - Step 1 的上传表单                   | |
+| | - 冲突卡片            | - Step 2-5 的 Univer sheet           | |
+| | - 校验卡片            | - 需要时的候选面板                     | |
+| | - 导出操作            |                                      | |
 | +----------------------+-------------------------------------+ |
 +----------------------------------------------------------------+
 ```
 
-Keep the current layout hierarchy:
+保持当前布局层级：
 
-- Step indicator remains the top-level progress cue.
-- Sidebar remains the command/status surface.
-- Main workspace owns the large table/sheet region.
+- 步骤指示器仍然作为顶级的进度提示。
+- 侧边栏仍然是命令/状态界面。
+- 主工作区拥有大型表格/sheet 区域。
 
-## Univer Workspace Blueprint
+## Univer 工作区蓝图
 
 ```mermaid
 flowchart LR
-  A["Business model"] --> B["Sheet adapter"]
-  B --> C["Univer workbook snapshot"]
-  B --> D["Business cell map"]
+  A["业务模型"] --> B["Sheet 适配器"]
+  B --> C["Univer workbook 快照"]
+  B --> D["业务单元格映射"]
   C --> E["TrialProductionSheet"]
-  E --> F["Univer edit event"]
-  F --> G["Reverse mapper"]
-  G --> H["Existing business callbacks"]
+  E --> F["Univer 编辑事件"]
+  F --> G["反向映射器"]
+  G --> H["现有业务回调"]
   H --> A
 ```
 
-### Sheet Structure
+### Sheet 结构
 
-The sheet should preserve the mental model of the existing table:
+Sheet 应保留现有表格的心理模型：
 
-- Rows are business fields.
-- Columns are SKU/supply combinations.
-- Basic information stays visually separated from other groups.
-- Group headers remain visible as section breaks.
-- Step 5 uses the export preview model and is read-only.
+- 行是业务字段。
+- 列是 SKU/供应组合。
+- 基本信息与其他分组保持视觉分离。
+- 分组标题保持可见，作为分段分隔。
+- Step 5 使用导出预览模型，且为只读。
 
-The sheet is not a free-form spreadsheet. It is a spreadsheet UI over structured business data.
+Sheet 不是自由形式的电子表格。它是结构化业务数据之上的电子表格 UI。
 
-### Required Sheet States
+### 所需 Sheet 状态
 
-| State | User sees | Required behavior |
+| 状态 | 用户所见 | 所需行为 |
 |---|---|---|
-| Loading | Existing loading overlay or sheet skeleton | User cannot edit until workbook is ready |
-| Ready | Univer sheet embedded in workspace | Edits sync to business state |
-| Step 2 conflict | Red/rose conflict styling on affected cells | Candidate panel appears for active conflict |
-| Step 4 validation error | Error cards in sidebar, sheet cell can be focused | Clicking card scrolls/selects the mapped cell |
-| Step 5 preview | Read-only sheet | Layout widths/heights can feed export snapshot |
-| Empty/no SKU | Helpful empty state in workspace | No broken sheet canvas |
+| 加载中 | 现有加载覆盖层或 sheet 骨架屏 | Workbook 就绪前用户无法编辑 |
+| 就绪 | Univer sheet 嵌入在工作区中 | 编辑同步到业务状态 |
+| Step 2 冲突 | 受影响单元格显示红色/玫红冲突样式 | 当前冲突单元格的候选面板出现 |
+| Step 4 校验错误 | 侧边栏显示错误卡片，sheet 单元格可聚焦 | 点击卡片滚动/选中映射的单元格 |
+| Step 5 预览 | 只读 sheet | 布局宽高可用于导出快照 |
+| 空/无 SKU | 工作区显示有用的空状态提示 | 不出现破损的 sheet 画布 |
 
-## Interaction Contracts
+## 交互契约
 
-### Editing Cells
+### 编辑单元格
 
-When the user edits a cell:
+当用户编辑单元格时：
 
-1. Univer emits a value-change event.
-2. The reverse mapper resolves the edited row/column to `{ skuId, supplyId, fieldId, scope }`.
-3. The app calls the existing business callback.
-4. React state updates.
-5. The sheet adapter regenerates the workbook view as needed.
+1. Univer 发出值变更事件。
+2. 反向映射器将编辑的行/列解析为 `{ skuId, supplyId, fieldId, scope }`。
+3. 应用调用现有的业务回调。
+4. React 状态更新。
+5. Sheet 适配器根据需要重新生成 workbook 视图。
 
-Do not let Univer snapshot mutations become the authoritative business state.
+不要让 Univer 快照突变成为权威的业务状态。
 
-### SKU-Scoped Fields
+### SKU 作用域字段
 
-For SKU-scoped fields such as `band`, `storage`, `project`, `stage`, and `mb_id`:
+对于 SKU 作用域字段（如 `band`、`storage`、`project`、`stage`、`mb_id`）：
 
-- Display them as a visually spanned value when practical.
-- Updates must apply to all relevant supplies, matching current behavior.
-- Validation and conflict targeting must still resolve to the correct business key.
+- 在可行时将其显示为视觉上跨列合并的值。
+- 更新必须应用到所有相关供应，与当前行为一致。
+- 校验和冲突定位仍必须解析到正确的业务键。
 
-### Structural Actions
+### 结构性操作
 
-The following remain app-level actions, not native Univer row/column menu actions:
+以下操作保持为应用级操作，而非 Univer 原生行列菜单操作：
 
-- Add supply in Step 2.
-- Insert SKU after selected SKU.
-- Copy selected SKU.
-- Paste into new SKU.
-- Insert custom field row.
-- Delete custom field row.
+- 在 Step 2 中添加供应。
+- 在选中的 SKU 后插入 SKU。
+- 复制选中的 SKU。
+- 粘贴到新 SKU。
+- 插入自定义字段行。
+- 删除自定义字段行。
 
-Univer native insert/delete menus should be hidden or disabled where they would bypass `skuData` and `activeFields`.
+Univer 原生插入/删除菜单应被隐藏或禁用，以防止绕过 `skuData` 和 `activeFields`。
 
-### Candidate Panel
+### 候选面板
 
-Step 2 conflict candidate chips move from inside table cells to a focused candidate panel.
+Step 2 冲突候选选项从表格单元格内部移到聚焦的候选面板中。
 
-Recommended placement:
+推荐位置：
 
-- Inline top-right within the sheet workspace when a conflict cell is selected.
-- If screen space is tight, use a right-side floating panel inside the main workspace.
+- 当冲突单元格被选中时，显示在 sheet 工作区内部的右上角。
+- 如果屏幕空间紧张，使用主工作区内的右侧浮动面板。
 
-Panel content:
+面板内容：
 
-- Field label.
-- PCBA.
-- Supply label or "整列".
-- Candidate buttons.
-- Short instruction: "选择一个候选值以解除冲突".
+- 字段标签。
+- PCBA。
+- 供应标签或"整列"。
+- 候选按钮。
+- 简短提示："选择一个候选值以解除冲突"。
 
-Candidate click behavior:
+候选点击行为：
 
-- Calls the same update callback as manual cell editing.
-- Removes conflict styling after state recomputation.
-- Does not write directly into Univer snapshot without updating business state.
+- 调用与手动单元格编辑相同的更新回调。
+- 在状态重新计算后移除冲突样式。
+- 不直接写入 Univer 快照而不更新业务状态。
 
-## Step-by-Step UX Requirements
+## 逐步 UX 需求
 
-### Step 1: Fill Required Inputs
+### Step 1：填写必填项
 
-No table replacement here.
+此步骤无需替换表格。
 
-Keep:
+保留：
 
-- Project information form.
-- File upload flow.
-- Existing parsing/loading feedback.
+- 项目信息表单。
+- 文件上传流程。
+- 现有的解析/加载反馈。
 
-Desktop-specific note:
+桌面端特别说明：
 
-- File selection can remain browser file input for this migration.
-- Native Electron file dialogs are not required unless explicitly requested later.
+- 本次迁移中文件选择可以继续使用浏览器文件输入。
+- 除非后续明确要求，否则不需要原生 Electron 文件对话框。
 
-### Step 2: Auto Fetch And Conflict Resolution
+### Step 2：自动获取与冲突解决
 
-Main workspace:
+主工作区：
 
-- Univer sheet shows parsed PCBA/SKU data.
-- Conflict cells are styled visibly.
-- Candidate panel appears when the user selects a conflict cell.
+- Univer sheet 显示解析后的 PCBA/SKU 数据。
+- 冲突单元格以可见样式标记。
+- 当用户选中冲突单元格时，候选面板出现。
 
-Sidebar:
+侧边栏：
 
-- Conflict count and cards remain visible.
-- Clicking a card focuses the mapped Univer cell.
-- Next step remains blocked while unresolved conflicts exist.
+- 冲突计数和卡片保持可见。
+- 点击卡片聚焦映射的 Univer 单元格。
+- 在未解决的冲突存在时，下一步仍然被阻止。
 
-### Step 3: Complete Data
+### Step 3：补充完善
 
-Main workspace:
+主工作区：
 
-- Univer sheet supports spreadsheet-style editing.
-- Existing copy/paste SKU controls remain available.
-- Existing insert actions remain available.
+- Univer sheet 支持电子表格式编辑。
+- 现有的复制/粘贴 SKU 控制保持可用。
+- 现有的插入操作保持可用。
 
-The sheet should make business-controlled operations obvious. Do not rely on hidden context-menu actions for core workflows.
+Sheet 应使业务控制的操作显而易见。不要依赖隐藏的上下文菜单操作来完成核心工作流。
 
-### Step 4: Calculate And Validate
+### Step 4：计算与校验
 
-Main workspace:
+主工作区：
 
-- Univer sheet remains editable where the current flow allows editing.
-- Validation target focus selects and scrolls to the relevant cell.
+- Univer sheet 在当前流程允许编辑的地方保持可编辑。
+- 校验目标聚焦选中并滚动到相关单元格。
 
-Sidebar:
+侧边栏：
 
-- Validation cards keep current severity hierarchy.
-- Clicking "点击定位" routes through `TrialProductionSheet.focusCellByBusinessKey()`.
+- 校验卡片保持当前的严重性层级。
+- 点击"点击定位"通过 `TrialProductionSheet.focusCellByBusinessKey()` 路由。
 
-### Step 5: Export Preview
+### Step 5：导出预览
 
-Main workspace:
+主工作区：
 
-- Univer sheet renders the final preview in read-only mode.
-- Merged/spanned cells match `buildStep5TableModel()`.
-- Column widths and row heights feed `Step5LayoutSnapshot` where available.
+- Univer sheet 以只读模式渲染最终预览。
+- 合并/跨列单元格与 `buildStep5TableModel()` 一致。
+- 列宽和行高在可用时供给 `Step5LayoutSnapshot`。
 
-Export:
+导出：
 
-- Existing `buildTrialProductionWorkbook()` remains authoritative.
-- The exported `.xlsx` should match the business preview, not Univer's generic export.
+- 现有的 `buildTrialProductionWorkbook()` 保持权威性。
+- 导出的 `.xlsx` 应与业务预览匹配，而非 Univer 的通用导出。
 
-## Visual Acceptance Criteria
+## 视觉验收标准
 
-Capture screenshots for these states during implementation QA:
+在实现 QA 期间为以下状态截图：
 
-- Electron window loaded on Step 1.
-- Step 2 sheet with at least one unresolved conflict.
-- Step 2 candidate panel open and focused on a conflict cell.
-- Step 3 sheet with copy/paste SKU controls visible.
-- Step 4 validation card clicked with matching sheet cell selected.
-- Step 5 read-only export preview.
-- macOS `.dmg` app launched after install/open.
-- Windows `.exe` app launched in Windows/CI validation environment.
+- Electron 窗口加载到 Step 1。
+- Step 2 sheet 至少包含一个未解决的冲突。
+- Step 2 候选面板打开并聚焦在冲突单元格上。
+- Step 3 sheet 显示复制/粘贴 SKU 控制。
+- Step 4 校验卡片被点击，匹配的 sheet 单元格被选中。
+- Step 5 只读导出预览。
+- macOS `.dmg` 应用安装/打开后启动。
+- Windows `.exe` 应用在 Windows/CI 验证环境中启动。
 
-The visible UI passes when:
+可见 UI 通过的判断标准：
 
-- Univer does not overflow or clip the wizard/sidebar layout.
-- The sheet canvas fills the available workspace height.
-- Toolbar/menu density does not overwhelm the existing product UI.
-- Chinese labels appear in Univer UI.
-- Conflict and validation focus states are visually distinguishable.
-- Existing app colors remain dominant; Univer chrome should not visually take over the app.
+- Univer 不会溢出或裁剪向导/侧边栏布局。
+- Sheet 画布填满可用的工作区高度。
+- 工具栏/菜单密度不会压过现有产品 UI。
+- Univer UI 中出现中文标签。
+- 冲突和校验聚焦状态在视觉上可区分。
+- 现有应用颜色保持主导；Univer 的界面样式不应在视觉上接管应用。
 
-## Implementation Handoff Checklist
+## 实现交接清单
 
-- Keep one canonical runtime: Electron desktop.
-- Keep one canonical table: Univer-backed `TrialProductionSheet`.
-- Keep one canonical business state: React app state and existing business modules.
-- Keep one canonical Excel export: `buildTrialProductionWorkbook()`.
-- Remove unused old table code after replacement.
-- Do not add compatibility paths unless explicitly requested.
-- Run the full test/build/package verification from the approved design spec.
+- 保持一个规范运行时：Electron 桌面。
+- 保持一个规范表格：Univer 驱动的 `TrialProductionSheet`。
+- 保持一个规范业务状态：React 应用状态和现有业务模块。
+- 保持一个规范 Excel 导出：`buildTrialProductionWorkbook()`。
+- 替换后移除未使用的旧表格代码。
+- 除非明确要求，否则不添加兼容路径。
+- 运行已批准设计规格中的完整测试/构建/包验证。

@@ -5,8 +5,6 @@ import { AM_RULE_DEFS } from '@/src/constants';
 import { cn } from '@/src/lib/utils';
 import type { Step2CellConflict } from '../lib/step2CellConflicts';
 
-const STEP2_MB_ID_HIGHLIGHT_CLASSES = ['bg-rose-50', 'border', 'border-rose-500', 'ring-2', 'ring-rose-200'];
-
 interface SidebarProps {
   currentStep: StepId;
   projectInfo: ProjectInfo;
@@ -20,6 +18,7 @@ interface SidebarProps {
   step2Conflicts?: Step2CellConflict[];
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
+  onFocusCell?: (skuId: string, supplyId: string | undefined, fieldId: string) => void;
 }
 
 export function Sidebar({
@@ -34,38 +33,21 @@ export function Sidebar({
   onRunValidation,
   step2Conflicts = [],
   collapsed = false,
-  onToggleCollapsed
+  onToggleCollapsed,
+  onFocusCell,
 }: SidebarProps) {
   
   const focusStep2CellConflict = (conflict: Step2CellConflict) => {
-    const cell = document.querySelector<HTMLElement>(
-      `[data-step2-cell-id="${conflict.cellId}"]`
-    );
-    if (!cell) return;
-
-    cell.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-
-    STEP2_MB_ID_HIGHLIGHT_CLASSES.forEach((className) => cell.classList.add(className));
-    setTimeout(() => {
-      STEP2_MB_ID_HIGHLIGHT_CLASSES.forEach((className) => cell.classList.remove(className));
-    }, 1200);
+    if (onFocusCell) {
+      onFocusCell(conflict.skuId, conflict.supplyId, conflict.fieldId);
+    }
   };
   const focusStep4Validation = (result: ValidationResult) => {
     const fieldId = result.targetFieldId ?? result.fieldId;
-    if (!fieldId || !result.skuId || !result.supplyId) return;
-
-    const cellId = `step4-cell-${result.skuId}-${result.supplyId}-${fieldId}`;
-    const cell = document.querySelector<HTMLElement>(
-      `[data-step4-cell-id="${cellId}"]`
-    );
-    if (!cell) return;
-
-    cell.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-
-    STEP2_MB_ID_HIGHLIGHT_CLASSES.forEach((className) => cell.classList.add(className));
-    setTimeout(() => {
-      STEP2_MB_ID_HIGHLIGHT_CLASSES.forEach((className) => cell.classList.remove(className));
-    }, 1200);
+    if (!fieldId || !result.skuId) return;
+    if (onFocusCell) {
+      onFocusCell(result.skuId, result.supplyId, fieldId);
+    }
   };
   const hasDataSources = projectInfo.files.length > 0;
 

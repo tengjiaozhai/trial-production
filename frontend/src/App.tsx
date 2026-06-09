@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Upload, FileText, Download, CheckCircle, Play, Plus, X, RotateCw, Save, History, Trash2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -6,7 +6,8 @@ import { arrayMove } from '@dnd-kit/sortable';
 
 import { StepsIndicator } from './components/StepsIndicator';
 import { Sidebar } from './components/Sidebar';
-import { TrialProductionTable } from './components/TrialProductionTable';
+import { TrialProductionSheet } from './components/TrialProductionSheet';
+import type { TrialProductionSheetHandle } from './components/TrialProductionSheet';
 import { HistoryModal } from './components/HistoryModal';
 import { 
   ProjectInfo, 
@@ -859,6 +860,11 @@ export default function App() {
     (currentStep === 2 && step2Conflicts.length > 0);
   const visibleSkuData = projectSkusForStep(skuData, currentStep);
   const skuSupplyKeys = Object.fromEntries(skuData.map(s => [s.id, listSupplyKeys(s)]));
+  const sheetRef = useRef<TrialProductionSheetHandle>(null);
+
+  const handleSheetFocusCell = (skuId: string, supplyId: string | undefined, fieldId: string) => {
+    sheetRef.current?.focusCellByBusinessKey(skuId, supplyId, fieldId);
+  };
 
   return (
     <div className="flex flex-col h-screen bg-[#f5f7f9] text-[#0B1F33] font-sans overflow-hidden">
@@ -920,6 +926,7 @@ export default function App() {
           step2Conflicts={step2Conflicts}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
+          onFocusCell={handleSheetFocusCell}
         />
 
         <main className="flex flex-col flex-1 min-w-0 min-h-0 overflow-y-auto p-4 md:p-6 pb-24 scroll-smooth transition-all duration-300 ease-out">
@@ -1214,37 +1221,15 @@ export default function App() {
                 </div>
 
                 <div className="flex-1 min-h-0 bg-white rounded shadow-sm border border-[#DDE7F3] overflow-hidden">
-                  <TrialProductionTable
+                  <TrialProductionSheet
+                    ref={sheetRef}
                     currentStep={currentStep}
                     skuData={visibleSkuData}
-                    efuseConfigs={projectInfo.efuseConfigs}
-                    onUpdateEfuse={(id, val) => setProjectInfo(prev => ({ ...prev, efuseConfigs: { ...prev.efuseConfigs, [id]: val } }))}
-                    onUpdateValue={handleUpdateValue}
-                    onUpdateSkuHeader={handleUpdateSkuHeader}
-                    onUpdateSupplyLabel={handleUpdateSupplyLabel}
-                    onAddSupply={handleAddSupplyAt}
-                    onAddSku={handleAddSkuAt}
-                    onDeleteSku={handleDeleteSku}
-                    onInsertSkuAfter={handleInsertSkuAfter}
                     activeFields={activeFields}
-                    onReorderFields={handleReorderFields}
-                    onReorderSkus={handleReorderSkus}
-                    onReorderSupplies={handleReorderSupplies}
-                     onInsertRowAt={handleInsertFieldAt}
-                     onUpdateFieldLabel={(id, label) => setActiveFields(flds => flds.map(f => f.id === id ? { ...f, label } : f))}
-                     onDeleteRow={id => {
-                        setActiveFields(prev => prev.filter(f => f.id !== id));
-                        setIsExportDisabled(true);
-                     }}
-                     onStep5LayoutChange={setStep5Layout}
-                     onUpdateSelectedSupply={handleUpdateSelectedSupply}
-                     skuSupplyKeys={skuSupplyKeys}
-                     selectedSkuId={selectedSkuId}
-                     onSelectSku={handleSelectSku}
-                     copiedSku={copiedSku}
-                     onCopySelectedSku={handleCopySelectedSku}
-                     onPasteIntoNewSku={handlePasteIntoNewSku}
-                     step2Conflicts={step2Conflicts}
+                    efuseConfigs={projectInfo.efuseConfigs}
+                    step2Conflicts={step2Conflicts}
+                    onUpdateValue={handleUpdateValue}
+                    onStep5LayoutChange={setStep5Layout}
                   />
                 </div>
               </motion.div>

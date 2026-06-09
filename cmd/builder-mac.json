@@ -1,0 +1,34 @@
+{
+  "productName": "试产搭配表",
+  "appId": "com.tinno.trial-production",
+  "copyright": "© 2025 天珑 Technology Co., Ltd.",
+  "directories": {
+    "output": "out"
+  },
+  "asar": true,
+  "files": [
+    "**/*",
+    "!cmd/",
+    "!frontend/",
+    "!docs/",
+    "!logs/",
+    "!out/",
+    "!*.md",
+    "!LICENSE",
+    "!.gitignore",
+    "!.vscode/",
+    "!.playwright-cli/"
+  ],
+  "extraResources": [
+    {
+      "from": "build/extraResources",
+      "to": "extraResources"
+    }
+  ],
+  "mac": {
+    "icon": "build/icons/icon.icns",
+    "artifactName": "${productName}-${os}-${version}-${arch}.${ext}",
+    "darkModeSupport": true,
+    "hardenedRuntime": false
+  }
+}

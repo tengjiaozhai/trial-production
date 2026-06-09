@@ -1,150 +1,150 @@
-# Electron + Univer Desktop Migration Implementation Plan
+# Electron + Univer 桌面端迁移实现计划
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **对智能体工作者的要求：** 必需子技能：使用 superpowers:subagent-driven-development（推荐）或 superpowers:executing-plans 逐任务实现本计划。步骤使用复选框（`- [ ]`）语法进行追踪。
 
-**Goal:** Convert the current trial-production React/Vite app into a single authoritative electron-egg desktop application and replace the custom table with a Univer Sheets workspace.
+**目标：** 将当前的试产搭配表 React/Vite 应用转换为单一权威的 electron-egg 桌面应用，并用 Univer Sheets 工作区替换自定义表格。
 
-**Architecture:** The Electron desktop runtime becomes the only canonical runtime. The React app moves under `frontend/`; Electron/electron-egg owns app startup and packaging. Univer is only the table interaction layer; existing business state and Excel export remain authoritative.
+**架构：** Electron 桌面运行时成为唯一的规范运行时。React 应用移到 `frontend/` 下；Electron/electron-egg 负责应用启动和打包。Univer 仅作为表格交互层；现有业务状态和 Excel 导出保持权威性。
 
-**Tech Stack:** React 19, TypeScript 5.8, Vite 6, Tailwind CSS 4, electron-egg, ee-core, ee-bin, Electron, electron-builder, Univer Sheets, Vitest, xlsx.
+**技术栈：** React 19、TypeScript 5.8、Vite 6、Tailwind CSS 4、electron-egg、ee-core、ee-bin、Electron、electron-builder、Univer Sheets、Vitest、xlsx。
 
 ---
 
-## Phase Gates
+## 阶段门控
 
-| Phase | Independent owner | Depends on | Acceptance gate |
+| 阶段 | 独立负责人 | 依赖阶段 | 验收条件 |
 |---|---|---|---|
-| Phase 0: Baseline and safety | Repo maintainer | None | Current tests/lint behavior captured; user changes untouched |
-| Phase 1: Electron shell | Desktop owner | Phase 0 | Electron dev window loads unchanged app |
-| Phase 2: Packaging | Desktop owner | Phase 1 | macOS `.dmg` builds locally; Windows `.exe` builds on Windows/CI |
-| Phase 3: Univer foundation | Sheet owner | Phase 0 | Localized Univer sheet renders in app shell |
-| Phase 4: Sheet model adapter | Sheet owner | Phase 3 | Snapshot + business map tests pass |
-| Phase 5: Interaction integration | App owner | Phase 4 | Step 2-5 workflows work through Univer |
-| Phase 6: Legacy removal | App owner | Phase 5 | Old table path removed; no duplicate runtime/table path |
-| Phase 7: End-to-end release verification | QA owner | Phase 6 | Full test/lint/dev/build/package acceptance passes |
+| Phase 0：基线确认与安全 | 仓库维护者 | 无 | 当前测试/lint 行为已记录；用户改动不受影响 |
+| Phase 1：Electron 壳 | 桌面端负责人 | Phase 0 | Electron 开发窗口加载未改动的应用 |
+| Phase 2：打包 | 桌面端负责人 | Phase 1 | macOS `.dmg` 本地可构建；Windows `.exe` 在 Windows/CI 构建 |
+| Phase 3：Univer 基础 | Sheet 负责人 | Phase 0 | 已本地化的 Univer sheet 在应用壳中渲染 |
+| Phase 4：Sheet 模型适配器 | Sheet 负责人 | Phase 3 | 快照 + 业务映射测试通过 |
+| Phase 5：交互集成 | 应用负责人 | Phase 4 | Step 2-5 工作流通过 Univer 运行 |
+| Phase 6：旧代码清理 | 应用负责人 | Phase 5 | 旧表格路径已删除；无重复的运行时/表格路径 |
+| Phase 7：端到端发布验证 | QA 负责人 | Phase 6 | 完整 test/lint/dev/build/package 验收通过 |
 
-Parallelization rule:
+并行规则：
 
-- Phase 1 and Phase 3 can start after Phase 0 if they avoid editing the same files.
-- Phase 4 can proceed in pure library tests once Phase 3 defines the Univer dependency shape.
-- Phase 5 must wait for Phase 4.
-- Phase 6 must wait for Phase 5.
-- Phase 7 must wait for Phase 6.
+- Phase 1 和 Phase 3 在 Phase 0 之后可以同时开始，只要它们不编辑相同文件。
+- Phase 4 可以在 Phase 3 定义 Univer 依赖形态后，纯库测试先行推进。
+- Phase 5 必须等待 Phase 4。
+- Phase 6 必须等待 Phase 5。
+- Phase 7 必须等待 Phase 6。
 
-## File Responsibility Map
+## 文件职责映射
 
-### Desktop Runtime
+### 桌面端运行时
 
-- Create `electron/main.js`: electron-egg app bootstrap.
-- Create `electron/config/config.default.js`: BrowserWindow, mainServer, logging, and security defaults.
-- Create `electron/config/config.prod.js`: production overrides.
-- Create `electron/preload/index.js`: preload registration.
-- Create `electron/preload/bridge.js`: contextBridge API surface.
-- Create `electron/preload/lifecycle.js`: lifecycle class with explicit `ready`, `electronAppReady`, `windowReady`, and `beforeClose` methods; methods can be no-op except logging.
-- Create `cmd/bin.js`: ee-bin dev/build/move/package commands.
-- Create `cmd/builder.json`: Windows NSIS builder config.
-- Create `cmd/builder-mac.json`: macOS dmg builder config.
-- Create `build/icons/*`: icon resources required by builder configs.
-- Create `build/extraResources/read.txt`: minimal extra resource directory so builder config resolves.
-- Modify root `package.json`: desktop scripts and electron dependencies.
-- Modify root `package-lock.json`: dependency lock update.
+- 创建 `electron/main.js`：electron-egg 应用引导。
+- 创建 `electron/config/config.default.js`：BrowserWindow、mainServer、日志和安全默认配置。
+- 创建 `electron/config/config.prod.js`：生产环境覆盖配置。
+- 创建 `electron/preload/index.js`：preload 注册。
+- 创建 `electron/preload/bridge.js`：contextBridge API 暴露面。
+- 创建 `electron/preload/lifecycle.js`：生命周期类，包含 `ready`、`electronAppReady`、`windowReady` 和 `beforeClose` 方法；方法可以是空操作（仅记录日志）。
+- 创建 `cmd/bin.js`：ee-bin dev/build/move/package 命令。
+- 创建 `cmd/builder.json`：Windows NSIS 构建器配置。
+- 创建 `cmd/builder-mac.json`：macOS dmg 构建器配置。
+- 创建 `build/icons/*`：构建器配置所需的图标资源。
+- 创建 `build/extraResources/read.txt`：最小额外资源目录，使构建器配置可解析。
+- 修改根 `package.json`：桌面端脚本和 Electron 依赖。
+- 修改根 `package-lock.json`：依赖锁更新。
 
-### Frontend Runtime
+### 前端运行时
 
-- Move current frontend files into `frontend/`.
-- Modify `frontend/package.json`: frontend dev/build/test/lint scripts.
-- Modify `frontend/vite.config.ts`: `base: './'`, existing alias behavior, and test setup paths.
-- Modify `frontend/index.html`: relative production loading.
-- Modify import paths only where move breaks them.
+- 将当前前端文件移到 `frontend/`。
+- 修改 `frontend/package.json`：前端 dev/build/test/lint 脚本。
+- 修改 `frontend/vite.config.ts`：`base: './'`、现有别名行为和测试设置路径。
+- 修改 `frontend/index.html`：相对路径的生产加载。
+- 仅在移动导致引入路径损坏时修改引入路径。
 
 ### Univer Sheet
 
-- Create `frontend/src/components/TrialProductionSheet.tsx`: Univer-backed replacement component.
-- Create `frontend/src/components/TrialProductionSheet.test.tsx`: component integration tests.
-- Create `frontend/src/lib/univerTrialProductionSheet.ts`: business state to Univer snapshot adapter and business cell map.
-- Create `frontend/src/lib/univerTrialProductionSheet.test.ts`: pure adapter tests.
-- Create `frontend/src/lib/univerSheetEvents.ts`: edit event normalization and reverse mapping.
-- Create `frontend/src/lib/univerSheetEvents.test.ts`: event mapping tests.
-- Modify `frontend/src/App.tsx`: replace `TrialProductionTable` with `TrialProductionSheet`.
-- Modify `frontend/src/components/Sidebar.tsx`: route focus through sheet focus handler instead of DOM cell query for Univer-backed steps.
+- 创建 `frontend/src/components/TrialProductionSheet.tsx`：Univer 驱动的替换组件。
+- 创建 `frontend/src/components/TrialProductionSheet.test.tsx`：组件集成测试。
+- 创建 `frontend/src/lib/univerTrialProductionSheet.ts`：业务状态到 Univer 快照的适配器及业务单元格映射。
+- 创建 `frontend/src/lib/univerTrialProductionSheet.test.ts`：纯适配器测试。
+- 创建 `frontend/src/lib/univerSheetEvents.ts`：编辑事件规范化和反向映射。
+- 创建 `frontend/src/lib/univerSheetEvents.test.ts`：事件映射测试。
+- 修改 `frontend/src/App.tsx`：将 `TrialProductionTable` 替换为 `TrialProductionSheet`。
+- 修改 `frontend/src/components/Sidebar.tsx`：对于 Univer 驱动的步骤，通过 sheet 聚焦处理器路由聚焦，而不是 DOM 单元格查询。
 
-### Cleanup
+### 清理
 
-- Delete `frontend/src/components/TrialProductionTable.tsx` after replacement.
-- Delete or rewrite `frontend/src/components/TrialProductionTable.test.tsx`.
-- Delete `frontend/src/lib/tableViewport.ts` and `frontend/src/lib/tableViewport.test.ts` after `TrialProductionSheet` owns sheet sizing and scrolling.
-- Keep `frontend/src/lib/tableOperations.ts`; it remains the business authority for copy/paste/insert SKU behavior.
-- Keep `frontend/src/lib/step5TableModel.ts` and `frontend/src/lib/trialProductionWorkbook.ts`; they remain the export authority.
+- 替换后删除 `frontend/src/components/TrialProductionTable.tsx`。
+- 删除或重写 `frontend/src/components/TrialProductionTable.test.tsx`。
+- 在 `TrialProductionSheet` 接管 sheet 尺寸和滚动后，删除 `frontend/src/lib/tableViewport.ts` 和 `frontend/src/lib/tableViewport.test.ts`。
+- 保留 `frontend/src/lib/tableOperations.ts`；它仍然是复制/粘贴/插入 SKU 行为的业务权威。
+- 保留 `frontend/src/lib/step5TableModel.ts` 和 `frontend/src/lib/trialProductionWorkbook.ts`；它们仍然是导出的权威。
 
-## Phase 0: Baseline And Safety
+## Phase 0：基线确认与安全
 
-### Task 0.1: Capture Current Repo State
+### Task 0.1：捕获当前仓库状态
 
-**Files:**
+**文件：**
 
-- Read only: repository status and existing docs.
+- 只读：仓库状态和现有文档。
 
-- [ ] Run:
+- [x] 运行：
 
 ```bash
 git status --short 2>&1 | head -c 4000
 ```
 
-Expected:
+预期输出：
 
 ```text
-Shows pre-existing user changes, including PROJECT-INDEX.json, PROJECT-INDEX.md, and AGENTS.md if still present.
+显示已存在的用户改动，包括 PROJECT-INDEX.json、PROJECT-INDEX.md 和 AGENTS.md（如果仍在）。
 ```
 
-- [ ] Record in the task notes that these user changes must not be reverted or staged unless explicitly requested.
+- [x] 在任务笔记中记录：这些用户改动不能被还原或暂存，除非明确要求。
 
-Acceptance:
+验收：
 
-- The implementer can identify which changes are user-owned before touching files.
-- No repo-tracked file is modified by this task.
+- 实施者能在触及文件前识别出哪些改动是用户所有的。
+- 此任务不修改任何仓库追踪的文件。
 
-### Task 0.2: Capture Baseline Verification
+### Task 0.2：捕获基线验证
 
-**Files:**
+**文件：**
 
-- Read only unless lockfile install is required later.
+- 只读，除非后续需要安装依赖锁文件。
 
-- [ ] Run:
+- [x] 运行：
 
 ```bash
 /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run test 2>&1 | head -c 12000
 ```
 
-- [ ] Run:
+- [x] 运行：
 
 ```bash
 /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run lint 2>&1 | head -c 12000
 ```
 
-Acceptance:
+验收：
 
-- Baseline pass/fail is documented before migration.
-- Later failures can be separated from pre-existing failures.
+- 迁移前已记录基线通过/失败状态。
+- 后续失败可与已有失败区分开来。
 
-## Phase 1: Electron-Egg Runtime Shell
+## Phase 1：Electron-Egg 运行时壳
 
-### Task 1.1: Move Frontend Into `frontend/`
+### Task 1.1：将前端移到 `frontend/`
 
-**Files:**
+**文件：**
 
-- Move current frontend files to `frontend/`.
-- Keep root package for Electron.
+- 将当前前端文件移到 `frontend/`。
+- 根包保留给 Electron。
 
-Steps:
+步骤：
 
-- [ ] Move current React/Vite source files into `frontend/` while preserving relative structure.
-- [ ] Ensure `frontend/src/main.tsx` still imports `./App.tsx` and `./index.css`.
-- [ ] Ensure `frontend/vite.config.ts` keeps alias `@` mapped to the frontend project root.
-- [ ] Set Vite production base to `./`.
+- [x] 将当前 React/Vite 源文件移到 `frontend/`，同时保持相对结构。
+- [x] 确保 `frontend/src/main.tsx` 仍然引入 `./App.tsx` 和 `./index.css`。
+- [x] 确保 `frontend/vite.config.ts` 保持别名 `@` 映射到前端项目根目录。
+- [x] 将 Vite 生产 base 设置为 `./`。
 
-Acceptance:
+验收：
 
-- Running from `frontend/` succeeds:
+- 从 `frontend/` 运行成功：
 
 ```bash
 cd frontend && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run test 2>&1 | head -c 12000
@@ -152,42 +152,42 @@ cd frontend && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run lint 2
 cd frontend && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run build 2>&1 | head -c 12000
 ```
 
-- No import path uses a stale root location.
-- Old root Vite entry is not kept as a second runtime.
+- 没有引入路径使用过期的根目录位置。
+- 旧的根 Vite 入口不作为第二运行时保留。
 
-### Task 1.2: Add Electron-Egg Main Process
+### Task 1.2：添加 Electron-Egg 主进程
 
-**Files:**
+**文件：**
 
-- Create `electron/main.js`
-- Create `electron/config/config.default.js`
-- Create `electron/config/config.prod.js`
-- Create `electron/preload/index.js`
-- Create `electron/preload/bridge.js`
-- Create `electron/preload/lifecycle.js`
+- 创建 `electron/main.js`
+- 创建 `electron/config/config.default.js`
+- 创建 `electron/config/config.prod.js`
+- 创建 `electron/preload/index.js`
+- 创建 `electron/preload/bridge.js`
+- 创建 `electron/preload/lifecycle.js`
 
-Required behavior:
+所需行为：
 
-- Bootstrap via `const { ElectronEgg } = require('ee-core')`.
-- Register lifecycle/preload only as needed.
-- Configure BrowserWindow with `contextIsolation: true` and `nodeIntegration: false`.
-- Production main server loads `/public/dist/index.html`.
+- 通过 `const { ElectronEgg } = require('ee-core')` 引导。
+- 仅按需注册生命周期/preload。
+- 配置 BrowserWindow 为 `contextIsolation: true` 和 `nodeIntegration: false`。
+- 生产环境主服务器加载 `/public/dist/index.html`。
 
-Acceptance:
+验收：
 
-- Electron starts without requiring renderer access to Node globals.
-- The preload bridge exposes only explicit APIs.
-- Config follows the `tn-viewer` shape but does not copy insecure `contextIsolation: false` or `nodeIntegration: true`.
+- Electron 启动时不要求渲染器访问 Node 全局变量。
+- Preload 桥接仅暴露显式 API。
+- 配置遵循 `tn-viewer` 的风格，但不复制不安全的 `contextIsolation: false` 或 `nodeIntegration: true`。
 
-### Task 1.3: Add EE-Bin Commands
+### Task 1.3：添加 EE-Bin 命令
 
-**Files:**
+**文件：**
 
-- Create `cmd/bin.js`
-- Modify root `package.json`
-- Modify root `package-lock.json`
+- 创建 `cmd/bin.js`
+- 修改根 `package.json`
+- 修改根 `package-lock.json`
 
-Required root scripts:
+所需的根脚本：
 
 ```json
 {
@@ -203,119 +203,119 @@ Required root scripts:
 }
 ```
 
-Acceptance:
+验收：
 
-- `npm run dev` launches the Electron desktop flow.
-- `npm run build` writes frontend output to `public/dist` and Electron output to `public/electron`.
-- No root `vite` script remains as the canonical app launch path.
+- `npm run dev` 启动 Electron 桌面端流程。
+- `npm run build` 将前端输出写入 `public/dist`，Electron 输出写入 `public/electron`。
+- 没有根 `vite` 脚本作为规范的应用程序启动路径保留。
 
-## Phase 2: Packaging
+## Phase 2：打包
 
-### Task 2.1: Add Builder Configs And Required Resources
+### Task 2.1：添加构建器配置和所需资源
 
-**Files:**
+**文件：**
 
-- Create `cmd/builder.json`
-- Create `cmd/builder-mac.json`
-- Create `build/icons/icon.ico`
-- Create `build/icons/icon.icns`
-- Create `build/icons/icon.png`
-- Create `build/extraResources/read.txt`
+- 创建 `cmd/builder.json`
+- 创建 `cmd/builder-mac.json`
+- 创建 `build/icons/icon.ico`
+- 创建 `build/icons/icon.icns`
+- 创建 `build/icons/icon.png`
+- 创建 `build/extraResources/read.txt`
 
-Required config:
+所需配置：
 
-- Windows target: NSIS `.exe`.
-- macOS target: `.dmg`.
-- `asar: true`.
-- Exclude development-only folders from packaged app.
-- Artifact names include product name, OS, version, and arch.
+- Windows 目标：NSIS `.exe`。
+- macOS 目标：`.dmg`。
+- `asar: true`。
+- 打包的应用中排除仅开发用的目录。
+- 产物名称包含产品名、操作系统、版本和架构。
 
-Acceptance:
+验收：
 
-- Builder configs resolve all referenced icon/resource paths.
-- macOS config does not require signing credentials.
-- Windows config is suitable for Windows/CI, not current Mac-only verification.
+- 构建器配置可解析所有引用的图标/资源路径。
+- macOS 配置不需要签名凭证。
+- Windows 配置适用于 Windows/CI，而非当前仅 Mac 的验证环境。
 
-### Task 2.2: Verify Packaging Commands
+### Task 2.2：验证打包命令
 
-**Files:**
+**文件：**
 
-- No source edits expected after Task 2.1.
+- Task 2.1 之后不应有源文件编辑。
 
-Commands:
+命令：
 
 ```bash
 /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run build 2>&1 | head -c 12000
 /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run build-m 2>&1 | head -c 12000
 ```
 
-Windows or CI command:
+Windows 或 CI 命令：
 
 ```bash
 npm run build-w
 ```
 
-Acceptance:
+验收：
 
-- Local macOS produces a `.dmg`.
-- Windows/CI produces an NSIS `.exe`.
-- If `.exe` is not built on macOS, this is not a local failure because Windows/CI is the accepted path.
+- 本地 macOS 生成 `.dmg`。
+- Windows/CI 生成 NSIS `.exe`。
+- 如果在 macOS 上未构建 `.exe`，这不视为本地失败，因为 Windows/CI 是认可路径。
 
-## Phase 3: Univer Foundation
+## Phase 3：Univer 基础
 
-### Task 3.1: Add Univer Dependencies And Styles
+### Task 3.1：添加 Univer 依赖和样式
 
-**Files:**
+**文件：**
 
-- Modify `frontend/package.json`
-- Modify `frontend/package-lock.json`
-- Modify `frontend/src/main.tsx` or `frontend/src/index.css` for required Univer CSS imports, depending on Univer package guidance.
+- 修改 `frontend/package.json`
+- 修改 `frontend/package-lock.json`
+- 根据 Univer 包指南，修改 `frontend/src/main.tsx` 或 `frontend/src/index.css` 以添加所需的 Univer CSS 引入。
 
-Dependencies:
+依赖项：
 
 - `@univerjs/presets`
 - `@univerjs/preset-sheets-core`
 - `@univerjs/core`
-- Any peer dependency required by the chosen Univer preset, including `rxjs` if not pulled transitively.
+- 所选 Univer preset 所需的任何 peer 依赖，包括 `rxjs`（如果未通过传递依赖引入）。
 
-Acceptance:
+验收：
 
-- `cd frontend && npm run lint` passes or exposes only actionable Univer type issues to fix in this phase.
-- Univer Chinese locale packages are imported from the installed package paths, not copied manually.
+- `cd frontend && npm run lint` 通过或仅暴露可在本阶段修复的可操作 Univer 类型问题。
+- Univer 中文区域包通过已安装的包路径引入，而非手动复制。
 
-### Task 3.2: Create Minimal Localized Univer Component
+### Task 3.2：创建最小化本地化 Univer 组件
 
-**Files:**
+**文件：**
 
-- Create `frontend/src/components/TrialProductionSheet.tsx`
-- Create `frontend/src/components/TrialProductionSheet.test.tsx`
+- 创建 `frontend/src/components/TrialProductionSheet.tsx`
+- 创建 `frontend/src/components/TrialProductionSheet.test.tsx`
 
-Required behavior:
+所需行为：
 
-- Component accepts the current `TrialProductionTable` prop surface where practical.
-- Component initializes Univer with Simplified Chinese locale.
-- Component renders a minimal workbook without connecting business edits yet.
+- 组件在可行时接受当前 `TrialProductionTable` 的属性接口。
+- 组件以简体中文区域设置初始化 Univer。
+- 组件渲染最小化的 workbook，暂时不连接业务编辑。
 
-Acceptance:
+验收：
 
 ```bash
 cd frontend && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run test -- src/components/TrialProductionSheet.test.tsx 2>&1 | head -c 12000
 cd frontend && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run lint 2>&1 | head -c 12000
 ```
 
-- Test verifies that the component renders a sheet host.
-- Manual dev check confirms Univer UI labels are Chinese.
+- 测试验证组件渲染了 sheet 宿主。
+- 手动开发检查确认 Univer UI 标签为中文。
 
-## Phase 4: Sheet Model Adapter
+## Phase 4：Sheet 模型适配器
 
-### Task 4.1: Build Business-To-Sheet Adapter
+### Task 4.1：构建业务到 Sheet 的适配器
 
-**Files:**
+**文件：**
 
-- Create `frontend/src/lib/univerTrialProductionSheet.ts`
-- Create `frontend/src/lib/univerTrialProductionSheet.test.ts`
+- 创建 `frontend/src/lib/univerTrialProductionSheet.ts`
+- 创建 `frontend/src/lib/univerTrialProductionSheet.test.ts`
 
-Required exports:
+所需导出：
 
 ```ts
 export interface TrialProductionCellKey {
@@ -331,35 +331,35 @@ export interface TrialProductionSheetModel {
 }
 ```
 
-Required behavior:
+所需行为：
 
-- Generate visible rows for each current step using the same step field filters as the old table.
-- Generate columns from visible `skuData` and supplies.
-- Preserve Step 5 merged/spanned semantics through `buildStep5TableModel()`.
-- Mark Step 5 cells as read-only.
-- Style Step 2 conflict cells.
+- 使用与旧表格相同的步骤字段过滤器，为每个当前步骤生成可见行。
+- 从可见的 `skuData` 和供应生成列。
+- 通过 `buildStep5TableModel()` 保留 Step 5 的合并/跨列语义。
+- 将 Step 5 单元格标记为只读。
+- 为 Step 2 冲突单元格添加样式。
 
-Acceptance:
+验收：
 
 ```bash
 cd frontend && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run test -- src/lib/univerTrialProductionSheet.test.ts 2>&1 | head -c 12000
 ```
 
-Test cases must cover:
+测试用例必须覆盖：
 
-- Step 2 conflict cell has a mapped business key and conflict style.
-- Step 3 custom row remains visible when its group is visible.
-- Step 4 validation-targetable cell exists in `cellMap`.
-- Step 5 uses `buildStep5TableModel()` and marks preview cells read-only.
+- Step 2 冲突单元格具有映射的业务键和冲突样式。
+- Step 3 自定义行在其分组可见时保持可见。
+- Step 4 可校验定位的单元格存在于 `cellMap` 中。
+- Step 5 使用 `buildStep5TableModel()` 并将预览单元格标记为只读。
 
-### Task 4.2: Build Edit Event Reverse Mapper
+### Task 4.2：构建编辑事件反向映射器
 
-**Files:**
+**文件：**
 
-- Create `frontend/src/lib/univerSheetEvents.ts`
-- Create `frontend/src/lib/univerSheetEvents.test.ts`
+- 创建 `frontend/src/lib/univerSheetEvents.ts`
+- 创建 `frontend/src/lib/univerSheetEvents.test.ts`
 
-Required exports:
+所需导出：
 
 ```ts
 export interface TrialProductionSheetEdit {
@@ -375,136 +375,136 @@ export function mapUniverEditToBusinessEdit(input: {
 }): TrialProductionSheetEdit | null;
 ```
 
-Required behavior:
+所需行为：
 
-- Return `null` for unmapped cells.
-- Normalize edited values to strings.
-- Preserve `sku` scoped vs `supply` scoped information.
+- 对未映射的单元格返回 `null`。
+- 将编辑后的值规范化为字符串。
+- 保留 `sku` 作用域与 `supply` 作用域的信息。
 
-Acceptance:
+验收：
 
 ```bash
 cd frontend && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run test -- src/lib/univerSheetEvents.test.ts 2>&1 | head -c 12000
 ```
 
-## Phase 5: App Integration
+## Phase 5：应用集成
 
-### Task 5.1: Replace Table Component In App
+### Task 5.1：在应用中替换表格组件
 
-**Files:**
+**文件：**
 
-- Modify `frontend/src/App.tsx`
-- Modify `frontend/src/components/TrialProductionSheet.tsx`
-- Modify `frontend/src/components/Sidebar.tsx`
+- 修改 `frontend/src/App.tsx`
+- 修改 `frontend/src/components/TrialProductionSheet.tsx`
+- 修改 `frontend/src/components/Sidebar.tsx`
 
-Required behavior:
+所需行为：
 
-- `App.tsx` renders `TrialProductionSheet` for Step 2 and later.
-- Existing Step 1 remains unchanged.
-- Cell edits call existing `handleUpdateValue`.
-- SKU-scoped edits update all relevant supplies as current behavior requires.
-- Sidebar focus calls a `focusCellByBusinessKey` path instead of direct DOM cell lookup for Univer-backed steps.
+- `App.tsx` 在 Step 2 及之后渲染 `TrialProductionSheet`。
+- 现有的 Step 1 保持不变。
+- 单元格编辑调用现有的 `handleUpdateValue`。
+- SKU 作用域的编辑按当前行为要求更新所有相关供应。
+- 对于 Univer 驱动的步骤，侧边栏聚焦调用 `focusCellByBusinessKey` 路径，而非直接 DOM 单元格查找。
 
-Acceptance:
+验收：
 
 ```bash
 cd frontend && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run test -- src/components/Sidebar.test.tsx src/components/TrialProductionSheet.test.tsx 2>&1 | head -c 12000
 cd frontend && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run lint 2>&1 | head -c 12000
 ```
 
-Manual acceptance:
+手动验收：
 
-- Step 2 conflict card focuses the sheet cell.
-- Step 4 validation card focuses the target field cell.
-- Editing a normal supply-scoped cell changes `skuData`.
+- Step 2 冲突卡片聚焦到 sheet 单元格。
+- Step 4 校验卡片聚焦到目标字段单元格。
+- 编辑普通供应作用域的单元格改变 `skuData`。
 
-### Task 5.2: Reconnect Step 2 Candidate Panel
+### Task 5.2：重新连接 Step 2 候选面板
 
-**Files:**
+**文件：**
 
-- Modify `frontend/src/components/TrialProductionSheet.tsx`
-- Modify `frontend/src/components/TrialProductionSheet.test.tsx`
+- 修改 `frontend/src/components/TrialProductionSheet.tsx`
+- 修改 `frontend/src/components/TrialProductionSheet.test.tsx`
 
-Required behavior:
+所需行为：
 
-- Selecting a conflict cell opens a candidate panel.
-- Candidate click calls the same business update callback as an edit.
-- SKU-scoped conflict candidate applies to all relevant supplies.
+- 选中冲突单元格时打开候选面板。
+- 候选点击调用与编辑相同的业务更新回调。
+- SKU 作用域的冲突候选应用到所有相关供应。
 
-Acceptance:
+验收：
 
 ```bash
 cd frontend && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run test -- src/components/TrialProductionSheet.test.tsx 2>&1 | head -c 12000
 ```
 
-Manual acceptance:
+手动验收：
 
-- Candidate panel displays field label, PCBA, supply label or "整列", and candidate buttons.
-- After a candidate is chosen, conflict styling disappears after state recomputation.
+- 候选面板显示字段标签、PCBA、供应标签或"整列"以及候选按钮。
+- 选择候选值后，状态重新计算后冲突样式消失。
 
-### Task 5.3: Preserve Step 3 Structure Operations
+### Task 5.3：保留 Step 3 结构性操作
 
-**Files:**
+**文件：**
 
-- Modify `frontend/src/components/TrialProductionSheet.tsx`
-- Keep `frontend/src/lib/tableOperations.ts`
-- Keep `frontend/src/lib/tableOperations.test.ts`
+- 修改 `frontend/src/components/TrialProductionSheet.tsx`
+- 保留 `frontend/src/lib/tableOperations.ts`
+- 保留 `frontend/src/lib/tableOperations.test.ts`
 
-Required behavior:
+所需行为：
 
-- Add supply, insert SKU, copy selected SKU, paste into new SKU, insert row, and delete row remain app-level operations.
-- Univer native row/column insert/delete menus do not become business structure entry points.
+- 添加供应、插入 SKU、复制选中 SKU、粘贴到新 SKU、插入行和删除行保持为应用级操作。
+- Univer 原生行列插入/删除菜单不成为业务结构的入口点。
 
-Acceptance:
+验收：
 
 ```bash
 cd frontend && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run test -- src/lib/tableOperations.test.ts src/components/TrialProductionSheet.test.tsx 2>&1 | head -c 12000
 ```
 
-Manual acceptance:
+手动验收：
 
-- User can copy selected SKU and paste into a new SKU.
-- User cannot use a Univer native menu to create a column that is not represented in `skuData`.
+- 用户可以复制选中的 SKU 并粘贴到新 SKU。
+- 用户不能使用 Univer 原生菜单创建在 `skuData` 中没有表示的列。
 
-### Task 5.4: Preserve Step 5 Preview And Export Layout
+### Task 5.4：保留 Step 5 预览和导出布局
 
-**Files:**
+**文件：**
 
-- Modify `frontend/src/components/TrialProductionSheet.tsx`
-- Keep `frontend/src/lib/step5TableModel.ts`
-- Keep `frontend/src/lib/trialProductionWorkbook.ts`
+- 修改 `frontend/src/components/TrialProductionSheet.tsx`
+- 保留 `frontend/src/lib/step5TableModel.ts`
+- 保留 `frontend/src/lib/trialProductionWorkbook.ts`
 
-Required behavior:
+所需行为：
 
-- Step 5 is read-only.
-- Step 5 preview is generated from `buildStep5TableModel()`.
-- Row height and column width changes update `Step5LayoutSnapshot` where available.
-- Excel export still calls `buildTrialProductionWorkbook()`.
+- Step 5 为只读。
+- Step 5 预览从 `buildStep5TableModel()` 生成。
+- 行高和列宽变化在可用时更新 `Step5LayoutSnapshot`。
+- Excel 导出仍然调用 `buildTrialProductionWorkbook()`。
 
-Acceptance:
+验收：
 
 ```bash
 cd frontend && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run test -- src/lib/step5TableModel.test.ts src/lib/trialProductionWorkbook.test.ts src/components/TrialProductionSheet.test.tsx 2>&1 | head -c 12000
 ```
 
-Manual acceptance:
+手动验收：
 
-- Step 5 sheet is not editable.
-- Exported workbook still contains the expected `搭配表` sheet.
+- Step 5 sheet 不可编辑。
+- 导出的 workbook 仍然包含预期的 `搭配表` sheet。
 
-## Phase 6: Legacy Removal And Canonicalization
+## Phase 6：旧代码清理与规范化
 
-### Task 6.1: Remove Old Table Path
+### Task 6.1：移除旧表格路径
 
-**Files:**
+**文件：**
 
-- Delete `frontend/src/components/TrialProductionTable.tsx`
-- Delete or replace `frontend/src/components/TrialProductionTable.test.tsx`
-- Delete `frontend/src/lib/tableViewport.ts`
-- Delete `frontend/src/lib/tableViewport.test.ts`
-- Modify any stale imports.
+- 删除 `frontend/src/components/TrialProductionTable.tsx`
+- 删除或替换 `frontend/src/components/TrialProductionTable.test.tsx`
+- 删除 `frontend/src/lib/tableViewport.ts`
+- 删除 `frontend/src/lib/tableViewport.test.ts`
+- 修改任何过期的引入路径。
 
-Acceptance:
+验收：
 
 ```bash
 cd frontend && rg -n "TrialProductionTable|tableViewport|data-step4-cell-id|data-step2-cell-id" src 2>&1 | head -c 12000
@@ -512,33 +512,33 @@ cd frontend && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run test 2
 cd frontend && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run lint 2>&1 | head -c 12000
 ```
 
-Expected:
+预期结果：
 
-- No production import references `TrialProductionTable`.
-- No production code relies on old DOM targeting attributes for sheet focus.
-- Tests and type-check pass.
+- 没有生产引入引用 `TrialProductionTable`。
+- 没有生产代码依赖旧的 DOM 定位属性进行 sheet 聚焦。
+- 测试和类型检查通过。
 
-### Task 6.2: Update Project Docs And Index
+### Task 6.2：更新项目文档和索引
 
-**Files:**
+**文件：**
 
-- Modify `AGENTS.md` if it is intended to be tracked.
-- Modify `PROJECT-INDEX.json`.
-- Modify `README.md` if it documents launch/build commands.
-- Remove stale `metadata.json` references from docs because desktop is now canonical.
-- Do not modify the current untracked `AGENTS.md` unless the user explicitly asks to stage or track it.
+- 如果 `AGENTS.md` 打算被追踪，则修改它。
+- 修改 `PROJECT-INDEX.json`。
+- 如果 `README.md` 记录了启动/构建命令，则修改它。
+- 从文档中移除过时的 `metadata.json` 引用，因为桌面端现在是规范的。
+- 除非用户明确要求暂存或追踪，否则不修改当前未追踪的 `AGENTS.md`。
 
-Acceptance:
+验收：
 
-- Commands in docs match root desktop scripts and `frontend/` scripts.
-- Docs state `.exe` is built on Windows/CI and `.dmg` locally on macOS.
-- Docs do not present static SPA deployment as the canonical runtime.
+- 文档中的命令与根桌面端脚本和 `frontend/` 脚本一致。
+- 文档说明 `.exe` 在 Windows/CI 上构建，`.dmg` 在 macOS 上本地构建。
+- 文档不将静态 SPA 部署作为规范运行时呈现。
 
-## Phase 7: End-To-End Verification
+## Phase 7：端到端验证
 
-### Task 7.1: Full Local Verification
+### Task 7.1：完整本地验证
 
-Commands:
+命令：
 
 ```bash
 /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run test 2>&1 | head -c 12000
@@ -547,54 +547,54 @@ Commands:
 /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npm run build-m 2>&1 | head -c 12000
 ```
 
-Acceptance:
+验收：
 
-- All tests pass.
-- Type-check passes.
-- Electron build completes.
-- `.dmg` exists in the configured output directory and opens locally.
+- 所有测试通过。
+- 类型检查通过。
+- Electron 构建完成。
+- `.dmg` 存在于配置的输出目录中，且可在本地打开。
 
-### Task 7.2: Manual Product Flow Verification
+### Task 7.2：手动产品流程验证
 
-Required screenshots:
+所需截图：
 
-- Electron window loaded on Step 1.
-- Step 2 Univer sheet with an unresolved conflict.
-- Step 2 candidate panel open.
-- Step 3 copy/paste SKU controls visible.
-- Step 4 validation card focuses a Univer cell.
-- Step 5 read-only preview.
-- macOS `.dmg` app launched.
-- Windows `.exe` app launched in Windows/CI.
+- Electron 窗口加载到 Step 1。
+- Step 2 Univer sheet 包含未解决的冲突。
+- Step 2 候选面板已打开。
+- Step 3 复制/粘贴 SKU 控制可见。
+- Step 4 校验卡片聚焦到 Univer 单元格。
+- Step 5 只读预览。
+- macOS `.dmg` 应用已启动。
+- Windows `.exe` 应用在 Windows/CI 中已启动。
 
-Acceptance:
+验收：
 
-- Five-step flow can complete.
-- Conflict blocking still works.
-- Validation cards still navigate to cells.
-- Exported `.xlsx` opens and matches the expected business workbook structure.
-- Univer UI appears in Chinese.
+- 五步流程可完成。
+- 冲突阻断仍然有效。
+- 校验卡片仍能导航到单元格。
+- 导出的 `.xlsx` 可打开，且与预期的业务 workbook 结构匹配。
+- Univer UI 显示为中文。
 
-### Task 7.3: Windows/CI Packaging Verification
+### Task 7.3：Windows/CI 打包验证
 
-Command on Windows or CI:
+Windows 或 CI 上的命令：
 
 ```bash
 npm run build-w
 ```
 
-Acceptance:
+验收：
 
-- NSIS `.exe` artifact is produced.
-- Installed app launches to the trial-production wizard.
-- This result is recorded with artifact path and build environment.
+- 生成了 NSIS `.exe` 产物。
+- 安装后的应用启动到试产搭配表向导。
+- 此结果被记录，包含产物路径和构建环境。
 
-## Final Done Criteria
+## 最终完成标准
 
-- One canonical runtime: Electron desktop.
-- One canonical table: Univer-backed `TrialProductionSheet`.
-- One canonical business state: existing React state and business modules.
-- One canonical export path: `buildTrialProductionWorkbook()`.
-- `npm run test`, `npm run lint`, `npm run build`, and `npm run build-m` pass locally.
-- `npm run build-w` passes on Windows/CI.
-- Old hand-built table path is removed, not hidden behind a fallback.
+- [x] 一个规范运行时：Electron 桌面端。
+- [x] 一个规范表格：Univer 驱动的 `TrialProductionSheet`。
+- [x] 一个规范业务状态：现有的 React 状态和业务模块。
+- [x] 一个规范导出路径：`buildTrialProductionWorkbook()`。
+- [x] `npm run test`、`npm run lint`、`npm run build` 和 `npm run build-m` 在本地通过。
+- [ ] `npm run build-w` 在 Windows/CI 上通过。（需要 Windows/CI 环境）
+- [x] 旧的手工构建表格路径已被移除，而非隐藏在回退后面。
