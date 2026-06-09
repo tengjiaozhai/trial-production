@@ -1,0 +1,855 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Electron + Univer 桌面原型</title>
+    <style>
+      :root {
+        --ink: #0b1f33;
+        --muted: #64748b;
+        --line: #dbe7f5;
+        --panel: #ffffff;
+        --soft: #f6f9ff;
+        --brand: #2563eb;
+        --cyan: #06b6d4;
+        --green: #10b981;
+        --rose: #e11d48;
+        --rose-soft: #fff1f2;
+        --amber: #f59e0b;
+        --shadow: 0 24px 70px rgba(15, 23, 42, 0.16);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        color: var(--ink);
+        font-family: "Avenir Next", "PingFang SC", "Microsoft YaHei", sans-serif;
+        background:
+          radial-gradient(circle at 8% 10%, rgba(37, 99, 235, 0.16), transparent 28%),
+          radial-gradient(circle at 92% 6%, rgba(6, 182, 212, 0.18), transparent 30%),
+          linear-gradient(135deg, #eef6ff 0%, #f9fbff 48%, #edf7f4 100%);
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .page {
+        padding: 28px;
+      }
+
+      .prototype-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 20px;
+        margin: 0 auto 18px;
+        max-width: 1500px;
+      }
+
+      .prototype-title h1 {
+        margin: 0;
+        font-size: 26px;
+        letter-spacing: -0.03em;
+      }
+
+      .prototype-title p {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .prototype-title .badge {
+        border: 1px solid rgba(37, 99, 235, 0.22);
+        background: rgba(255, 255, 255, 0.7);
+        color: #1d4ed8;
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+
+      .desktop {
+        max-width: 1500px;
+        min-height: 840px;
+        margin: 0 auto;
+        border: 1px solid rgba(148, 163, 184, 0.45);
+        border-radius: 28px;
+        background: rgba(255, 255, 255, 0.78);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+        backdrop-filter: blur(22px);
+      }
+
+      .titlebar {
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 18px;
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(246,249,255,0.84));
+      }
+
+      .traffic {
+        display: flex;
+        gap: 8px;
+      }
+
+      .dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+      }
+
+      .red { background: #ff5f57; }
+      .yellow { background: #ffbd2e; }
+      .green { background: #28c840; }
+
+      .titlebar strong {
+        font-size: 13px;
+        letter-spacing: 0.04em;
+      }
+
+      .app {
+        height: 798px;
+        display: grid;
+        grid-template-rows: auto 1fr;
+      }
+
+      .top {
+        padding: 18px 24px 16px;
+        border-bottom: 1px solid var(--line);
+        background:
+          linear-gradient(90deg, rgba(37, 99, 235, 0.08), transparent 52%),
+          rgba(255,255,255,0.68);
+      }
+
+      .headline {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 24px;
+      }
+
+      .headline h2 {
+        margin: 0;
+        font-size: 20px;
+        letter-spacing: -0.02em;
+      }
+
+      .headline small {
+        color: var(--muted);
+      }
+
+      .steps {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      .step {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: rgba(255,255,255,0.75);
+        padding: 10px 12px;
+        text-align: left;
+        color: var(--muted);
+        cursor: pointer;
+        transition: 160ms ease;
+      }
+
+      .step.active {
+        border-color: rgba(37, 99, 235, 0.42);
+        background: linear-gradient(135deg, #eef6ff, #ffffff);
+        color: var(--ink);
+        box-shadow: 0 12px 28px rgba(37, 99, 235, 0.12);
+      }
+
+      .step b {
+        display: block;
+        color: inherit;
+        font-size: 13px;
+      }
+
+      .step span {
+        display: block;
+        margin-top: 4px;
+        font-size: 12px;
+      }
+
+      .body {
+        display: grid;
+        grid-template-columns: 300px 1fr;
+        min-height: 0;
+      }
+
+      .sidebar {
+        border-right: 1px solid var(--line);
+        background: rgba(255,255,255,0.74);
+        padding: 18px;
+        overflow: auto;
+      }
+
+      .sidebar h3 {
+        margin: 0 0 12px;
+        font-size: 14px;
+      }
+
+      .status-card,
+      .issue-card {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        border-radius: 18px;
+        padding: 14px;
+        margin-bottom: 12px;
+        box-shadow: 0 10px 24px rgba(15,23,42,0.05);
+      }
+
+      .status-card .metric {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 8px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .issue-card.conflict {
+        border-color: rgba(225, 29, 72, 0.28);
+        background: linear-gradient(135deg, #fff7f8, #ffffff);
+      }
+
+      .issue-card.warn {
+        border-color: rgba(245, 158, 11, 0.34);
+        background: linear-gradient(135deg, #fffbeb, #ffffff);
+      }
+
+      .issue-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        font-weight: 800;
+        font-size: 13px;
+      }
+
+      .issue-card p {
+        margin: 8px 0 10px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .link-button {
+        border: 0;
+        background: transparent;
+        padding: 0;
+        color: var(--brand);
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+      }
+
+      .actions {
+        display: grid;
+        gap: 8px;
+        margin-top: 18px;
+      }
+
+      .primary,
+      .secondary {
+        border-radius: 14px;
+        padding: 10px 12px;
+        cursor: pointer;
+        font-weight: 800;
+      }
+
+      .primary {
+        border: 1px solid var(--brand);
+        color: white;
+        background: linear-gradient(135deg, var(--brand), #1d4ed8);
+      }
+
+      .secondary {
+        border: 1px solid var(--line);
+        color: var(--ink);
+        background: white;
+      }
+
+      .workspace {
+        min-width: 0;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        background: var(--soft);
+      }
+
+      .workspace-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255,255,255,0.86);
+      }
+
+      .toolbar-left,
+      .toolbar-right {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .tool-pill {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 7px 10px;
+        background: white;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .tool-pill.strong {
+        color: var(--brand);
+        border-color: rgba(37,99,235,0.28);
+        background: #eef6ff;
+      }
+
+      .sheet-stage {
+        position: relative;
+        padding: 16px;
+        min-height: 0;
+        overflow: hidden;
+      }
+
+      .sheet {
+        height: 100%;
+        min-height: 560px;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        overflow: hidden;
+        background: white;
+        box-shadow: 0 16px 40px rgba(15,23,42,0.08);
+        display: grid;
+        grid-template-rows: 40px 1fr;
+      }
+
+      .sheet-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--line);
+        background: linear-gradient(180deg, #ffffff, #f8fafc);
+      }
+
+      .formula {
+        flex: 1;
+        margin-left: 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 5px 10px;
+        color: var(--muted);
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 12px;
+      }
+
+      .grid-wrap {
+        overflow: auto;
+      }
+
+      table.grid {
+        border-collapse: collapse;
+        min-width: 1120px;
+        width: 1120px;
+        font-size: 12px;
+      }
+
+      .grid th,
+      .grid td {
+        border: 1px solid #e2e8f0;
+        height: 36px;
+        padding: 7px 9px;
+        background: white;
+        white-space: nowrap;
+      }
+
+      .grid th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #f8fafc;
+        color: #334155;
+        font-weight: 800;
+        text-align: center;
+      }
+
+      .grid .row-head {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        background: #f8fafc;
+        color: #475569;
+        font-weight: 800;
+      }
+
+      .grid .group-row td {
+        background: #eef6ff;
+        color: #1d4ed8;
+        font-weight: 900;
+        text-align: center;
+        letter-spacing: 0.12em;
+      }
+
+      .grid .conflict-cell {
+        outline: 2px solid var(--rose);
+        outline-offset: -2px;
+        background: var(--rose-soft);
+        color: var(--rose);
+        font-weight: 900;
+      }
+
+      .grid .selected-cell {
+        outline: 2px solid var(--brand);
+        outline-offset: -2px;
+        background: #eff6ff;
+      }
+
+      .grid .readonly {
+        background: #f8fafc;
+        color: #334155;
+      }
+
+      .candidate-panel {
+        position: absolute;
+        top: 28px;
+        right: 28px;
+        width: 320px;
+        border: 1px solid rgba(225, 29, 72, 0.25);
+        border-radius: 20px;
+        background: rgba(255,255,255,0.96);
+        box-shadow: 0 24px 52px rgba(15,23,42,0.18);
+        padding: 16px;
+      }
+
+      .candidate-panel h3 {
+        margin: 0 0 4px;
+        font-size: 15px;
+      }
+
+      .candidate-panel p {
+        margin: 0 0 12px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      .candidate-grid {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .candidate {
+        border: 1px solid rgba(37, 99, 235, 0.28);
+        border-radius: 999px;
+        background: #eef6ff;
+        color: #1d4ed8;
+        padding: 8px 11px;
+        font-size: 12px;
+        font-weight: 900;
+        cursor: pointer;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      .empty-state {
+        height: 100%;
+        display: grid;
+        place-items: center;
+        padding: 40px;
+      }
+
+      .empty-card {
+        width: min(620px, 100%);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        padding: 28px;
+        background: white;
+        text-align: center;
+        box-shadow: 0 16px 42px rgba(15,23,42,0.08);
+      }
+
+      .empty-card h3 {
+        margin: 0 0 10px;
+        font-size: 20px;
+      }
+
+      .empty-card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.7;
+      }
+
+      @media (max-width: 1100px) {
+        .page {
+          padding: 14px;
+        }
+
+        .desktop {
+          min-height: 900px;
+        }
+
+        .app {
+          height: auto;
+          min-height: 850px;
+        }
+
+        .body {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 12px;
+        }
+
+        .steps {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .candidate-panel {
+          position: static;
+          width: auto;
+          margin-top: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <section class="prototype-title">
+        <div>
+          <h1>试产搭配表桌面版 · Univer 表格原型</h1>
+          <p>展示 Electron 壳、五步向导、Univer 工作区、冲突候选面板、校验定位和导出预览。</p>
+        </div>
+        <span class="badge">设计产物，不是生产实现</span>
+      </section>
+
+      <section class="desktop">
+        <div class="titlebar">
+          <div class="traffic">
+            <span class="dot red"></span>
+            <span class="dot yellow"></span>
+            <span class="dot green"></span>
+          </div>
+          <strong>试产搭配表自动生成</strong>
+          <span class="tool-pill">Electron</span>
+        </div>
+
+        <div class="app">
+          <header class="top">
+            <div class="headline">
+              <div>
+                <h2 id="screen-title">Step 2 · 自动获取</h2>
+                <small id="screen-subtitle">Univer 工作区展示 PCBA 解析结果与待处理冲突。</small>
+              </div>
+              <div class="toolbar-right">
+                <span class="tool-pill strong">qwen3.7-max 匹配完成</span>
+                <span class="tool-pill">中文语言包</span>
+              </div>
+            </div>
+
+            <nav class="steps" aria-label="原型步骤切换">
+              <button class="step" data-step="1" type="button"><b>1 填写必填项</b><span>项目信息 + 文件上传</span></button>
+              <button class="step active" data-step="2" type="button"><b>2 自动获取</b><span>PCBA + 冲突处理</span></button>
+              <button class="step" data-step="3" type="button"><b>3 补充完善</b><span>SKU 数据编辑</span></button>
+              <button class="step" data-step="4" type="button"><b>4 计算与校验</b><span>规则卡定位单元格</span></button>
+              <button class="step" data-step="5" type="button"><b>5 导出预览</b><span>只读预览 + Excel</span></button>
+            </nav>
+          </header>
+
+          <section class="body">
+            <aside class="sidebar" id="sidebar"></aside>
+            <section class="workspace">
+              <div class="workspace-toolbar" id="workspace-toolbar"></div>
+              <div class="sheet-stage" id="stage"></div>
+            </section>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const copyActions = `
+        <span class="tool-pill strong">选中主板块 A1</span>
+        <button class="secondary" type="button">复制选中主板块</button>
+        <button class="primary" type="button">粘贴到新块</button>
+      `;
+
+      const sidebarByStep = {
+        1: `
+          <h3>流程状态</h3>
+          <div class="status-card">
+            <strong>待上传文件</strong>
+            <div class="metric"><span>配置表</span><b>未上传</b></div>
+            <div class="metric"><span>物料表</span><b>未上传</b></div>
+            <div class="metric"><span>样机收集表</span><b>未上传</b></div>
+            <div class="metric"><span>关键物料模板</span><b>未上传</b></div>
+          </div>
+          <div class="actions">
+            <button class="secondary" type="button">保存草稿</button>
+            <button class="primary" type="button">开始解析</button>
+          </div>
+        `,
+        2: `
+          <h3>Step 2 冲突</h3>
+          <div class="issue-card conflict">
+            <div class="issue-title"><span>LCD 候选冲突</span><span>错误</span></div>
+            <p>A1 · 一供 · LCD 存在多个候选值，需要选择一个后才能进入下一步。</p>
+            <button class="link-button" type="button" onclick="selectConflict()">点击定位</button>
+          </div>
+          <div class="issue-card conflict">
+            <div class="issue-title"><span>频段整列冲突</span><span>错误</span></div>
+            <p>D1 · 整列 · 频段存在多个候选值。</p>
+            <button class="link-button" type="button" onclick="selectConflict()">点击定位</button>
+          </div>
+          <div class="actions">
+            <button class="secondary" type="button">上一步</button>
+            <button class="primary" type="button">解决冲突后继续</button>
+          </div>
+        `,
+        3: `
+          <h3>SKU 操作</h3>
+          <div class="status-card">
+            <strong>当前选择</strong>
+            <div class="metric"><span>主板块</span><b>A1</b></div>
+            <div class="metric"><span>供应数</span><b>2</b></div>
+            <div class="metric"><span>可编辑字段</span><b>常用项</b></div>
+          </div>
+          <div class="actions">
+            <button class="secondary" type="button">插入字段行</button>
+            <button class="secondary" type="button">复制选中主板块</button>
+            <button class="primary" type="button">粘贴到新块</button>
+          </div>
+        `,
+        4: `
+          <h3>校验结果</h3>
+          <div class="issue-card warn">
+            <div class="issue-title"><span>存储与 flash EMMC 冲突</span><span>错误</span></div>
+            <p>X6728 · 一供：存储 4+128 与 EMMC 64G 不匹配。</p>
+            <button class="link-button" type="button" onclick="selectValidation()">点击定位</button>
+          </div>
+          <div class="issue-card">
+            <div class="issue-title"><span>颜色一致性通过</span><span>通过</span></div>
+            <p>颜色与 MBOM/PBOM 任一描述匹配。</p>
+          </div>
+          <div class="actions">
+            <button class="secondary" type="button">重新校验</button>
+            <button class="primary" type="button">进入导出预览</button>
+          </div>
+        `,
+        5: `
+          <h3>导出</h3>
+          <div class="status-card">
+            <strong>最终预览</strong>
+            <div class="metric"><span>工作表</span><b>搭配表</b></div>
+            <div class="metric"><span>模式</span><b>只读</b></div>
+            <div class="metric"><span>导出源</span><b>xlsx 业务导出</b></div>
+          </div>
+          <div class="actions">
+            <button class="secondary" type="button">返回修改</button>
+            <button class="primary" type="button">导出 .xlsx</button>
+          </div>
+        `
+      };
+
+      const toolbarByStep = {
+        1: `
+          <div class="toolbar-left">
+            <span class="tool-pill strong">桌面端文件输入</span>
+            <span class="tool-pill">保持现有上传流程</span>
+          </div>
+          <div class="toolbar-right"><button class="secondary" type="button">选择文件</button></div>
+        `,
+        2: `
+          <div class="toolbar-left">
+            <span class="tool-pill strong">Univer Sheets</span>
+            <span class="tool-pill">撤销</span>
+            <span class="tool-pill">复制/粘贴</span>
+            <span class="tool-pill">列宽</span>
+          </div>
+          <div class="toolbar-right"><span class="tool-pill">结构变更由业务按钮控制</span></div>
+        `,
+        3: `
+          <div class="toolbar-left">${copyActions}</div>
+          <div class="toolbar-right"><span class="tool-pill">禁用 Univer 原生插入/删除列</span></div>
+        `,
+        4: `
+          <div class="toolbar-left">
+            <span class="tool-pill strong">校验定位已接入</span>
+            <span class="tool-pill">targetFieldId 优先</span>
+          </div>
+          <div class="toolbar-right"><button class="secondary" type="button" onclick="selectValidation()">模拟点击定位</button></div>
+        `,
+        5: `
+          <div class="toolbar-left">
+            <span class="tool-pill strong">只读预览</span>
+            <span class="tool-pill">读取行高列宽</span>
+          </div>
+          <div class="toolbar-right"><button class="primary" type="button">导出 Excel</button></div>
+        `
+      };
+
+      function buildSheet(step) {
+        const readonly = step === 5 ? 'readonly' : '';
+        const conflictClass = step === 2 ? 'conflict-cell' : '';
+        const selectedClass = step === 4 ? 'selected-cell' : '';
+        return `
+          <div class="sheet">
+            <div class="sheet-bar">
+              <strong>Univer · 搭配表</strong>
+              <div class="formula">fx ${step === 5 ? '只读预览：buildStep5TableModel()' : '业务状态映射：skuData / activeFields'}</div>
+            </div>
+            <div class="grid-wrap">
+              <table class="grid">
+                <thead>
+                  <tr>
+                    <th style="width: 160px;">字段</th>
+                    <th>A1 · 一供</th>
+                    <th>A1 · 二供</th>
+                    <th>D1 · 一供</th>
+                    <th>D1 · 二供</th>
+                    <th>U1 · 一供</th>
+                    <th>U1 · 二供</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr class="group-row"><td colspan="7">基本信息</td></tr>
+                  <tr>
+                    <td class="row-head">项目</td>
+                    <td class="${readonly}">X6728</td><td class="${readonly}">X6728</td><td class="${readonly}">X6728</td><td class="${readonly}">X6728</td><td class="${readonly}">X6728</td><td class="${readonly}">X6728</td>
+                  </tr>
+                  <tr>
+                    <td class="row-head">主板标识</td>
+                    <td class="${readonly}">A1</td><td class="${readonly}">A1</td><td class="${readonly}">D1</td><td class="${readonly}">D1</td><td class="${readonly}">U1</td><td class="${readonly}">U1</td>
+                  </tr>
+                  <tr>
+                    <td class="row-head">频段</td>
+                    <td>拉美</td><td>拉美</td><td class="${step === 2 ? 'conflict-cell' : readonly}">待选择</td><td class="${step === 2 ? 'conflict-cell' : readonly}">待选择</td><td>欧洲</td><td>欧洲</td>
+                  </tr>
+                  <tr>
+                    <td class="row-head">存储</td>
+                    <td class="${step === 4 ? selectedClass : readonly}">4+128</td><td>4+128</td><td>6+128</td><td>6+128</td><td>8+256</td><td>8+256</td>
+                  </tr>
+                  <tr class="group-row"><td colspan="7">核心器件</td></tr>
+                  <tr>
+                    <td class="row-head">LCD</td>
+                    <td id="conflict-cell" class="${conflictClass}">${step === 2 ? '待选择' : 'BOE'}</td><td>CSOT</td><td>BOE</td><td>BOE</td><td>天马</td><td>天马</td>
+                  </tr>
+                  <tr>
+                    <td class="row-head">flash EMMC</td>
+                    <td id="validation-cell" class="${step === 4 ? selectedClass : readonly}">64G 宏芯宇</td><td>128G 宏芯宇</td><td>128G 三星</td><td>128G 三星</td><td>256G 海力士</td><td>256G 海力士</td>
+                  </tr>
+                  <tr>
+                    <td class="row-head">flash DDR</td>
+                    <td>4G 三星</td><td>4G 三星</td><td>6G 海力士</td><td>6G 海力士</td><td>8G 三星</td><td>8G 三星</td>
+                  </tr>
+                  <tr class="group-row"><td colspan="7">生产与校验</td></tr>
+                  <tr>
+                    <td class="row-head">颜色</td>
+                    <td>曜石黑</td><td>月光银</td><td>曜石黑</td><td>月光银</td><td>深海蓝</td><td>深海蓝</td>
+                  </tr>
+                  <tr>
+                    <td class="row-head">样机总数</td>
+                    <td class="${readonly}">18</td><td class="${readonly}">16</td><td class="${readonly}">20</td><td class="${readonly}">20</td><td class="${readonly}">22</td><td class="${readonly}">22</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="candidate-panel ${step === 2 ? '' : 'hidden'}" id="candidate-panel">
+            <h3>LCD 候选冲突</h3>
+            <p>A1 · 一供 · LCD。选择一个候选值以解除冲突，写回业务状态后重新计算冲突。</p>
+            <div class="candidate-grid">
+              <button class="candidate" type="button" onclick="resolveCandidate('BOE')">BOE</button>
+              <button class="candidate" type="button" onclick="resolveCandidate('CSOT')">CSOT</button>
+              <button class="candidate" type="button" onclick="resolveCandidate('天马')">天马</button>
+            </div>
+          </div>
+        `;
+      }
+
+      function renderStep(step) {
+        document.querySelectorAll('.step').forEach((el) => {
+          el.classList.toggle('active', el.dataset.step === String(step));
+        });
+        const titles = {
+          1: ['Step 1 · 填写必填项', '桌面应用仍保留现有项目表单和 Excel 上传入口。'],
+          2: ['Step 2 · 自动获取', 'Univer 工作区展示 PCBA 解析结果与待处理冲突。'],
+          3: ['Step 3 · 补充完善', '结构变更由业务按钮控制，单元格编辑由 Univer 承载。'],
+          4: ['Step 4 · 计算与校验', '校验卡通过业务 key 聚焦 Univer 单元格。'],
+          5: ['Step 5 · 导出预览', '只读预览来自 buildStep5TableModel，Excel 导出仍走 xlsx。']
+        };
+        document.getElementById('screen-title').textContent = titles[step][0];
+        document.getElementById('screen-subtitle').textContent = titles[step][1];
+        document.getElementById('sidebar').innerHTML = sidebarByStep[step];
+        document.getElementById('workspace-toolbar').innerHTML = toolbarByStep[step];
+
+        if (step === 1) {
+          document.getElementById('stage').innerHTML = `
+            <div class="empty-state">
+              <div class="empty-card">
+                <h3>填写项目并上传四类 Excel</h3>
+                <p>Step 1 不引入 Univer。保持现有上传、解析和 LLM 匹配反馈，进入 Step 2 后切换到电子表格工作区。</p>
+              </div>
+            </div>
+          `;
+        } else {
+          document.getElementById('stage').innerHTML = buildSheet(step);
+        }
+      }
+
+      function selectConflict() {
+        renderStep(2);
+        setTimeout(() => document.getElementById('conflict-cell')?.scrollIntoView({ block: 'center', inline: 'center' }), 0);
+      }
+
+      function selectValidation() {
+        renderStep(4);
+        setTimeout(() => document.getElementById('validation-cell')?.scrollIntoView({ block: 'center', inline: 'center' }), 0);
+      }
+
+      function resolveCandidate(value) {
+        const cell = document.getElementById('conflict-cell');
+        if (cell) {
+          cell.textContent = value;
+          cell.classList.remove('conflict-cell');
+          cell.classList.add('selected-cell');
+        }
+        const panel = document.getElementById('candidate-panel');
+        if (panel) panel.classList.add('hidden');
+      }
+
+      document.querySelectorAll('.step').forEach((button) => {
+        button.addEventListener('click', () => renderStep(Number(button.dataset.step)));
+      });
+
+      renderStep(2);
+    </script>
+  </body>
+</html>
