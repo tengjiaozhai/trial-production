@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { login, recordUsage, getUserInfo } from '../lib/auth';
 import type { UserInfo } from '../lib/auth';
-import { SSO_BASE } from '../config/ssoConfig';
 
 interface LoginPageProps {
   onLoginSuccess: (token: string, user: UserInfo) => void;
@@ -50,10 +49,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleRegister = () => {
-    window.open(`${SSO_BASE}/sso/register`, '_blank');
   };
 
   return (
@@ -112,17 +107,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           >
             {isLoading ? '登录中...' : '登录'}
           </button>
-
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={handleRegister}
-              disabled={isLoading}
-              className="text-[#2563EB] text-sm hover:underline disabled:text-gray-400"
-            >
-              注册账号
-            </button>
-          </div>
         </form>
       </div>
     </div>
