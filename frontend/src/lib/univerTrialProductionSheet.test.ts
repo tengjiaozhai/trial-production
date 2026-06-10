@@ -157,7 +157,24 @@ describe('buildTrialProductionSheetModel', () => {
         fieldLabel: '频段',
         pcba: 'A1',
         supplyLabel: '一供',
-        candidates: ['SSA', 'MEA'],
+        candidates: [
+          {
+            source: 'key_material',
+            supplyTag: '',
+            vendor: '',
+            materialName: 'SSA',
+            writeValue: 'SSA',
+            label: 'SSA',
+          },
+          {
+            source: 'key_material',
+            supplyTag: '',
+            vendor: '',
+            materialName: 'MEA',
+            writeValue: 'MEA',
+            label: 'MEA',
+          },
+        ],
       },
     ];
 
@@ -182,7 +199,24 @@ describe('buildTrialProductionSheetModel', () => {
         fieldLabel: '频段',
         pcba: 'A1',
         supplyLabel: '整列',
-        candidates: ['拉美', '沙特（艾为PD IC）'],
+        candidates: [
+          {
+            source: 'key_material',
+            supplyTag: '',
+            vendor: '',
+            materialName: '拉美',
+            writeValue: '拉美',
+            label: '拉美',
+          },
+          {
+            source: 'key_material',
+            supplyTag: '',
+            vendor: '',
+            materialName: '沙特（艾为PD IC）',
+            writeValue: '沙特（艾为PD IC）',
+            label: '沙特（艾为PD IC）',
+          },
+        ],
       },
     ];
 

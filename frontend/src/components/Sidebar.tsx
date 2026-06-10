@@ -3,7 +3,7 @@ import { CheckCircle2, Check, Circle, AlertCircle, Info, ArrowLeft, ShieldCheck,
 import { StepId, ProjectInfo, SKUData, ValidationResult } from '@/src/types';
 import { AM_RULE_DEFS } from '@/src/constants';
 import { cn } from '@/src/lib/utils';
-import type { Step2CellConflict } from '../lib/step2CellConflicts';
+import type { Step2CellConflict, Step2CellConflictCandidate } from '../lib/step2CellConflicts';
 
 interface SidebarProps {
   currentStep: StepId;
@@ -21,6 +21,11 @@ interface SidebarProps {
   onFocusCell?: (skuId: string, supplyId: string | undefined, fieldId: string) => void;
   onResolveStep2Conflict?: (conflict: Step2CellConflict, candidate: string) => void;
 }
+
+const STEP2_CANDIDATE_SOURCE_LABELS: Record<Step2CellConflictCandidate['source'], string> = {
+  key_material: '关键物料',
+  managed_material: '管控物料',
+};
 
 export function Sidebar({
   currentStep,
@@ -141,19 +146,45 @@ export function Sidebar({
                           点击候选值直接写回当前单元格
                         </span>
                       </div>
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {c.candidates.map((candidate) => (
-                          <button
-                            key={candidate}
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onResolveStep2Conflict?.(c, candidate);
-                            }}
-                            className="px-2 py-1 rounded-md bg-rose-100 text-[11px] font-bold text-rose-700 border border-rose-200 hover:bg-rose-200 hover:border-rose-300 transition-colors"
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        {c.candidates.map((candidate, index) => (
+                          <div
+                            key={`${candidate.source}-${candidate.writeValue}-${candidate.materialName}-${index}`}
+                            className="flex min-w-[132px] flex-1 flex-col gap-1 rounded-md border border-rose-200 bg-white/80 px-2 py-1.5"
                           >
-                            {candidate}
-                          </button>
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span
+                                className={cn(
+                                  "rounded-full px-1.5 py-0.5 text-[10px] font-black",
+                                  candidate.source === 'managed_material'
+                                    ? "bg-amber-100 text-amber-700"
+                                    : "bg-sky-100 text-sky-700"
+                                )}
+                              >
+                                {STEP2_CANDIDATE_SOURCE_LABELS[candidate.source]}
+                              </span>
+                              {candidate.supplyTag && (
+                                <span className="rounded-full border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[10px] font-black text-rose-500">
+                                  {candidate.supplyTag}
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                onResolveStep2Conflict?.(c, candidate.writeValue);
+                              }}
+                              className="rounded-md bg-rose-100 px-2 py-1 text-left text-[11px] font-bold text-rose-700 border border-rose-200 hover:bg-rose-200 hover:border-rose-300 transition-colors"
+                            >
+                              {candidate.label}
+                            </button>
+                            {(candidate.vendor || candidate.materialName) && (
+                              <p className="text-[11px] font-medium leading-snug text-rose-600/70">
+                                {[candidate.vendor, candidate.materialName].filter(Boolean).join(' · ')}
+                              </p>
+                            )}
+                          </div>
                         ))}
                       </div>
                     </div>

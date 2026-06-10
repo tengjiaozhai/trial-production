@@ -1,5 +1,13 @@
 import * as XLSX from 'xlsx';
-import type { ManagedMaterialCoreMatch, ManagedMaterialCoreRow, PcbaOption, SplitFieldOption, SplitOptionFieldId, SupplyTag } from '../types';
+import type {
+  ManagedMaterialCoreMatch,
+  ManagedMaterialCoreRow,
+  ManagedMaterialDescFieldId,
+  PcbaOption,
+  SplitFieldOption,
+  SplitOptionFieldId,
+  SupplyTag,
+} from '../types';
 import { KEY_MATERIAL_LLM_CONFIG } from '../config/keyMaterialLLM';
 
 const STATIC_TARGETS = [
@@ -9,6 +17,38 @@ const STATIC_TARGETS = [
   { key: 'rf_transceiver' as const, label: '射频收发器', hint: 'RF Transceiver' },
   { key: 'nfc' as const, label: 'NFC', hint: '近场通信芯片' },
 ];
+
+const DESC_MATCH_PATTERNS: Record<ManagedMaterialDescFieldId, RegExp[]> = {
+  battery: [/电池/],
+  speaker: [/喇叭|扬声器|BOX|SPK/i],
+  receiver: [/听筒|receiver|earpiece/i],
+  mic: [/^MIC$|麦克风/i],
+  motor: [/马达|振子|motor/i],
+  fingerprint: [/指纹|fingerprint|FP.*module/i],
+  spk_fpc: [/spk.*fpc|喇叭.*fpc/i],
+  sidekey_fpc: [/sidekey.*fpc|侧键.*fpc/i],
+  ir_fpc: [/ir.*fpc/i],
+  lens: [/镜片|lens/i],
+  housing: [/壳料|housing|后壳|中框/i],
+  battery_cover: [/电池盖|battery.*cover|后盖/i],
+  sim_tray: [/卡托|sim.*tray/i],
+  side_key: [/侧键|side[\s_-]+key/i],
+  aux_material: [/辅料/i],
+  cooling: [/散热|导热|石墨|vc/i],
+};
+
+export function deriveManagedMaterialDescFieldMap(
+  materialNames: string[]
+): Partial<Record<ManagedMaterialDescFieldId, string>> {
+  const result: Partial<Record<ManagedMaterialDescFieldId, string>> = {};
+
+  for (const key of Object.keys(DESC_MATCH_PATTERNS) as ManagedMaterialDescFieldId[]) {
+    const fallback = fallbackMatchDescField(key, materialNames);
+    if (fallback) result[key] = fallback;
+  }
+
+  return result;
+}
 
 function formatTargetLabel(label: string, hint?: string): string {
   return hint ? `${label}（${hint}）` : label;
@@ -101,6 +141,13 @@ function fallbackMatchStaticField(
   }
 }
 
+function fallbackMatchDescField(
+  key: ManagedMaterialDescFieldId,
+  materialNames: string[]
+): string | undefined {
+  return findFirstByRegex(materialNames, DESC_MATCH_PATTERNS[key]);
+}
+
 function fallbackMatchEmmcBySize(materialNames: string[], size: string): string | undefined {
   if (!size) return undefined;
   const sizePattern = new RegExp(`${size}\\s*G?`, 'i');
@@ -180,7 +227,7 @@ export async function matchManagedMaterialNamesWithLLM(args: {
   materialNames: string[];
   emmcSizes: string[];
   ddrSizes: string[];
-}): Promise<Pick<ManagedMaterialCoreMatch, 'materialNameByStaticField' | 'materialNameByEmmcSize' | 'materialNameByDdrSize'>> {
+}): Promise<Pick<ManagedMaterialCoreMatch, 'materialNameByStaticField' | 'materialNameByDescField' | 'materialNameByEmmcSize' | 'materialNameByDdrSize'>> {
   const staticTargets = STATIC_TARGETS.map((item) => ({
     key: item.key,
     label: formatTargetLabel(item.label, item.hint),
@@ -225,6 +272,7 @@ export async function matchManagedMaterialNamesWithLLM(args: {
     const allowed = new Set(args.materialNames);
 
     const materialNameByStaticField: ManagedMaterialCoreMatch['materialNameByStaticField'] = {};
+    const materialNameByDescField: NonNullable<ManagedMaterialCoreMatch['materialNameByDescField']> = {};
     const materialNameByEmmcSize: Record<string, string> = {};
     const materialNameByDdrSize: Record<string, string> = {};
     const staticMap = materialNameByStaticField as Record<string, string | undefined>;
@@ -258,10 +306,11 @@ export async function matchManagedMaterialNamesWithLLM(args: {
       const fallback = fallbackMatchDdrBySize(args.materialNames, size);
       if (fallback) materialNameByDdrSize[size] = fallback;
     }
+    Object.assign(materialNameByDescField, deriveManagedMaterialDescFieldMap(args.materialNames));
 
-    return { materialNameByStaticField, materialNameByEmmcSize, materialNameByDdrSize };
+    return { materialNameByStaticField, materialNameByDescField, materialNameByEmmcSize, materialNameByDdrSize };
   } catch {
-    return { materialNameByStaticField: {}, materialNameByEmmcSize: {}, materialNameByDdrSize: {} };
+    return { materialNameByStaticField: {}, materialNameByDescField: {}, materialNameByEmmcSize: {}, materialNameByDdrSize: {} };
   }
 }
 

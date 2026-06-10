@@ -1,5 +1,27 @@
-import type { PcbaSourceRow, SKUData } from '../types';
+import type {
+  ManagedMaterialCoreMatch,
+  ManagedMaterialCoreRow,
+  ManagedMaterialDescFieldId,
+  PcbaSourceRow,
+  SKUData,
+  SplitFieldOption,
+  SplitOptionFieldId,
+  SupplyTag,
+} from '../types';
 import { FIELD_DEFS } from '../constants';
+import { deriveManagedMaterialDescFieldMap } from './managedMaterialCore';
+
+export type Step2CellConflictCandidateSource = 'key_material' | 'managed_material';
+
+export interface Step2CellConflictCandidate {
+  source: Step2CellConflictCandidateSource;
+  sourceLabel?: '关键物料' | '管控物料';
+  supplyTag: string;
+  vendor: string;
+  materialName: string;
+  writeValue: string;
+  label: string;
+}
 
 export interface Step2CellConflict {
   kind: 'cell_conflict';
@@ -11,10 +33,34 @@ export interface Step2CellConflict {
   fieldLabel: string;
   pcba: string;
   supplyLabel: string;
-  candidates: string[];
+  candidates: Step2CellConflictCandidate[];
 }
 
 const SKU_SCOPED_FIELD_IDS = new Set(['band', 'storage', 'project', 'stage', 'mb_id']);
+const DESC_FIELD_IDS: ManagedMaterialDescFieldId[] = [
+  'battery',
+  'speaker',
+  'receiver',
+  'mic',
+  'motor',
+  'fingerprint',
+  'spk_fpc',
+  'sidekey_fpc',
+  'ir_fpc',
+  'lens',
+  'housing',
+  'battery_cover',
+  'sim_tray',
+  'side_key',
+  'aux_material',
+  'cooling',
+];
+
+const SUPPLY_ORDER: Record<SupplyTag, number> = { '一供': 1, '二供': 2, '三供': 3, '四供': 4, '': 99 };
+
+function toSupplyTag(raw: string): SupplyTag {
+  return raw === '一供' || raw === '二供' || raw === '三供' || raw === '四供' ? raw : '';
+}
 
 function getFieldCandidate(fieldId: string, row: PcbaSourceRow): string {
   if (fieldId === 'project') {
@@ -30,12 +76,59 @@ function getFieldCandidate(fieldId: string, row: PcbaSourceRow): string {
   return String(row.values[fieldId] ?? '').trim();
 }
 
+function getFieldLabel(fieldId: string): string {
+  return FIELD_DEFS.find((field) => field.id === fieldId)?.label ?? fieldId;
+}
+
+function createKeyMaterialCandidate(value: string): Step2CellConflictCandidate {
+  return {
+    source: 'key_material',
+    sourceLabel: '关键物料',
+    supplyTag: '',
+    vendor: '',
+    materialName: value,
+    writeValue: value,
+    label: value,
+  };
+}
+
+function createKeyMaterialCandidateFromOption(option: SplitFieldOption): Step2CellConflictCandidate {
+  return {
+    source: 'key_material',
+    sourceLabel: '关键物料',
+    supplyTag: option.supply,
+    vendor: '',
+    materialName: option.sourceCategory2,
+    writeValue: option.text,
+    label: option.text,
+  };
+}
+
+function createManagedMaterialCandidate(
+  row: ManagedMaterialCoreRow,
+  supplyTag: SupplyTag,
+  materialName: string
+): Step2CellConflictCandidate {
+  const writeValue = `${row.supply}${row.vendor}${materialName}`;
+  return {
+    source: 'managed_material',
+    sourceLabel: '管控物料',
+    supplyTag,
+    vendor: row.vendor,
+    materialName,
+    writeValue,
+    label: row.vendor ? `${row.supply} · ${row.vendor} · ${materialName}` : `${row.supply} · ${materialName}`,
+  };
+}
+
 export function buildStep2CellConflicts(input: {
   checkedPcbaOptions: string[];
   pcbaRows: PcbaSourceRow[];
   skuData: SKUData[];
+  keyMaterialFieldOptions?: Partial<Record<SplitOptionFieldId, SplitFieldOption[]>>;
+  managedMaterialCore?: ManagedMaterialCoreMatch;
 }): Step2CellConflict[] {
-  const { checkedPcbaOptions, pcbaRows, skuData } = input;
+  const { checkedPcbaOptions, pcbaRows, skuData, keyMaterialFieldOptions = {}, managedMaterialCore } = input;
 
   // 1. Group raw rows by PCBA
   const rowsByPcba = new Map<string, PcbaSourceRow[]>();
@@ -87,7 +180,7 @@ export function buildStep2CellConflicts(input: {
           fieldLabel: field.label,
           pcba,
           supplyLabel: '整列',
-          candidates: [...candidates],
+          candidates: [...candidates].map(createKeyMaterialCandidate),
         });
         continue;
       }
@@ -108,8 +201,76 @@ export function buildStep2CellConflicts(input: {
           fieldLabel: field.label,
           pcba,
           supplyLabel: supply.label,
-          candidates: [...candidates],
+          candidates: [...candidates].map(createKeyMaterialCandidate),
         });
+      }
+    }
+  }
+
+  // 5. Compare key-material desc options with managed-material desc options
+  if (managedMaterialCore) {
+    const descFieldMap =
+      managedMaterialCore.materialNameByDescField ??
+      deriveManagedMaterialDescFieldMap(managedMaterialCore.materialNames);
+
+    for (const sku of skuData) {
+      if (!checkedPcbaOptions.includes(sku.project)) continue;
+
+      for (const fieldId of DESC_FIELD_IDS) {
+        const materialName = descFieldMap[fieldId];
+        if (!materialName) continue;
+
+        const keyOptions = keyMaterialFieldOptions[fieldId] ?? [];
+        if (keyOptions.length === 0) continue;
+
+        const managedRows = managedMaterialCore.rows
+          .filter((row) => row.materialName === materialName)
+          .sort((a, b) => (SUPPLY_ORDER[toSupplyTag(a.supply)] ?? 99) - (SUPPLY_ORDER[toSupplyTag(b.supply)] ?? 99));
+
+        if (managedRows.length === 0) continue;
+
+        const managedBySupply = new Map<SupplyTag, ManagedMaterialCoreRow>();
+        for (const row of managedRows) {
+          const supplyTag = toSupplyTag(row.supply);
+          if (!supplyTag || managedBySupply.has(supplyTag)) continue;
+          managedBySupply.set(supplyTag, row);
+        }
+
+        const keyBySupply = new Map<SupplyTag, SplitFieldOption>();
+        for (const option of keyOptions) {
+          const supplyTag = toSupplyTag(option.supply);
+          if (!supplyTag || keyBySupply.has(supplyTag)) continue;
+          keyBySupply.set(supplyTag, option);
+        }
+
+        for (const supply of sku.supplies) {
+          const supplyTag = toSupplyTag(supply.supplyKey);
+          if (!supplyTag) continue;
+
+          const keyOption = keyBySupply.get(supplyTag);
+          const managedRow = managedBySupply.get(supplyTag);
+          if (!keyOption || !managedRow) continue;
+
+          const keyCandidate = createKeyMaterialCandidateFromOption(keyOption);
+          const managedCandidate = createManagedMaterialCandidate(managedRow, supplyTag, materialName);
+
+          // Intentionally compare by the same supply tag only.
+          // If key-material 一供/二供 is swapped against managed-material, that remains a conflict.
+          if (keyCandidate.writeValue === managedCandidate.writeValue) continue;
+
+          conflicts.push({
+            kind: 'cell_conflict',
+            scope: 'supply',
+            cellId: `step2-cell-${sku.id}-${supply.id}-${fieldId}`,
+            skuId: sku.id,
+            supplyId: supply.id,
+            fieldId,
+            fieldLabel: getFieldLabel(fieldId),
+            pcba: sku.project,
+            supplyLabel: supply.label,
+            candidates: [keyCandidate, managedCandidate],
+          });
+        }
       }
     }
   }

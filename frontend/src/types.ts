@@ -109,14 +109,52 @@ export interface ManagedMaterialCoreRow {
   supply: string;
 }
 
+export type ManagedMaterialDescFieldId =
+  | 'battery'
+  | 'speaker'
+  | 'receiver'
+  | 'mic'
+  | 'motor'
+  | 'fingerprint'
+  | 'spk_fpc'
+  | 'sidekey_fpc'
+  | 'ir_fpc'
+  | 'lens'
+  | 'housing'
+  | 'battery_cover'
+  | 'sim_tray'
+  | 'side_key'
+  | 'aux_material'
+  | 'cooling';
+
 export interface ManagedMaterialCoreMatch {
   sourceFileName: string;
   sourceSheetName: string;
   rows: ManagedMaterialCoreRow[];
   materialNames: string[];
   materialNameByStaticField: Partial<Record<'cpu' | 'pmu' | 'tx' | 'rf_transceiver' | 'nfc', string>>;
+  materialNameByDescField?: Partial<Record<ManagedMaterialDescFieldId, string>>;
   materialNameByEmmcSize: Record<string, string>;
   materialNameByDdrSize: Record<string, string>;
+}
+
+export type ManagedMaterialAlignmentSource = 'key-material' | 'managed-material';
+
+export interface ManagedMaterialAlignmentCandidate extends SplitFieldOption {
+  source: ManagedMaterialAlignmentSource;
+  sourceLabel: '关键物料' | '管控物料';
+  writeValue: string;
+}
+
+export interface ManagedMaterialSupplierAlignmentInput {
+  keyMaterialFieldOptions: Partial<Record<SplitOptionFieldId, SplitFieldOption[]>>;
+  managedMaterialMatch: ManagedMaterialCoreMatch;
+  pcbaOption?: PcbaOption;
+}
+
+export interface ManagedMaterialSupplierAlignmentResult {
+  conflictCandidatesByField: Partial<Record<SplitOptionFieldId, ManagedMaterialAlignmentCandidate[]>>;
+  managedOnlySupplyAdditionsByField: Partial<Record<SplitOptionFieldId, ManagedMaterialAlignmentCandidate[]>>;
 }
 
 export interface SampleCollectionRow {

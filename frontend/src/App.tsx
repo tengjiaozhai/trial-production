@@ -29,7 +29,8 @@ import {
 } from './constants';
 import { cn, extractPcbaOptions, extractPcbaWorkbookData, normalizeStorage, extractManagedMaterialWorkbook, resolveLcdOptionsForProject, serializeLcdOptions, resolveFrontCamOptionsForProject, resolveMainCamOptionsForProject, resolveSubCamOptionsForProject } from './lib/utils';
 import { parseKeyMaterialTemplate, matchCategory2WithLLM, buildOptionsByField } from './lib/keyMaterialTemplate';
-import { parseManagedMaterialCoreWorkbook, matchManagedMaterialNamesWithLLM, buildManagedMaterialCoreFieldOptions } from './lib/managedMaterialCore';
+import { parseManagedMaterialCoreWorkbook, matchManagedMaterialNamesWithLLM, buildManagedMaterialCoreFieldOptions, deriveManagedMaterialDescFieldMap } from './lib/managedMaterialCore';
+import { buildManagedMaterialSupplierAlignment } from './lib/managedMaterialSupplierAlignment';
 import { parseSampleCollectionWorkbook, matchSampleCollectionRowsWithLLM, buildSampleCollectionFieldOptions } from './lib/sampleCollectionWorkbook';
 import { buildSupplyValuesForSupplyKey, deriveSupplyColumnsFromFieldOptions, recomputeStep4Values } from './lib/step4SampleCalc';
 import { buildStep2CellConflicts } from './lib/step2CellConflicts';
@@ -84,8 +85,10 @@ export default function App() {
         checkedPcbaOptions: projectInfo.checkedPcbaOptions ?? [],
         pcbaRows: projectInfo.pcbaRows ?? [],
         skuData,
+        keyMaterialFieldOptions: projectInfo.keyMaterialTemplate?.optionsByField,
+        managedMaterialCore: projectInfo.managedMaterialCore,
       }),
-    [projectInfo.checkedPcbaOptions, projectInfo.pcbaRows, skuData]
+    [projectInfo.checkedPcbaOptions, projectInfo.pcbaRows, projectInfo.keyMaterialTemplate?.optionsByField, projectInfo.managedMaterialCore, skuData]
   );
 
   // Load history from localStorage
@@ -105,6 +108,28 @@ export default function App() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    const current = projectInfo.managedMaterialCore;
+    if (!current || current.materialNameByDescField) return;
+
+    const materialNameByDescField = deriveManagedMaterialDescFieldMap(current.materialNames);
+    if (Object.keys(materialNameByDescField).length === 0) return;
+
+    setProjectInfo((prev) => {
+      if (!prev.managedMaterialCore || prev.managedMaterialCore.materialNameByDescField) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        managedMaterialCore: {
+          ...prev.managedMaterialCore,
+          materialNameByDescField,
+        },
+      };
+    });
+  }, [projectInfo.managedMaterialCore]);
 
   const handleSaveToHistoryAction = (action: 'overwrite' | 'new', isExport = false, cb?: () => void) => {
     let baseId = `history_${Date.now()}`;
@@ -618,6 +643,34 @@ export default function App() {
           // Sample collection team fields (lowest priority, merged last for team fields)
           ...sampleOptions,
         };
+
+        if (projectInfo.managedMaterialCore) {
+          const managedAlignment = buildManagedMaterialSupplierAlignment({
+            keyMaterialFieldOptions: keyMaterialOptions,
+            managedMaterialMatch: projectInfo.managedMaterialCore,
+            pcbaOption: opt,
+          });
+
+          for (const [fieldId, additions] of Object.entries(managedAlignment.managedOnlySupplyAdditionsByField)) {
+            const typedFieldId = fieldId as SplitOptionFieldId;
+            const merged = [...(fieldOptions[typedFieldId] ?? [])];
+            const existingSupplies = new Set(merged.map((option) => option.supply));
+
+            for (const addition of additions ?? []) {
+              if (!addition.supply || existingSupplies.has(addition.supply)) continue;
+              merged.push({
+                supply: addition.supply,
+                text: addition.writeValue,
+                sourceCategory2: addition.sourceCategory2,
+              });
+              existingSupplies.add(addition.supply);
+            }
+
+            if (merged.length > 0) {
+              fieldOptions[typedFieldId] = merged;
+            }
+          }
+        }
 
         const supplyColumns = deriveSupplyColumnsFromFieldOptions(fieldOptions);
         const supplies = supplyColumns.map((col, colIndex) => {

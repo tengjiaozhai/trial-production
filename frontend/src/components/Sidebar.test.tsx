@@ -41,8 +41,25 @@ describe('Sidebar step 2 duplicate PCBA conflicts', () => {
             fieldLabel: '主板标识',
             pcba: 'MB-001',
             supplyLabel: '一供',
-            candidates: ['MB-001', 'MB-002'],
-          } as Step2CellConflict,
+            candidates: [
+              {
+                source: 'key_material',
+                supplyTag: '',
+                vendor: '',
+                materialName: 'MB-001',
+                writeValue: 'MB-001',
+                label: 'MB-001',
+              },
+              {
+                source: 'key_material',
+                supplyTag: '',
+                vendor: '',
+                materialName: 'MB-002',
+                writeValue: 'MB-002',
+                label: 'MB-002',
+              },
+            ],
+          },
         ]}
       />
     );
@@ -77,8 +94,25 @@ describe('Sidebar step 2 duplicate PCBA conflicts', () => {
             fieldLabel: '主板标识',
             pcba: 'MB-001',
             supplyLabel: '一供',
-            candidates: ['MB-001', 'MB-002'],
-          } as Step2CellConflict,
+            candidates: [
+              {
+                source: 'key_material',
+                supplyTag: '',
+                vendor: '',
+                materialName: 'MB-001',
+                writeValue: 'MB-001',
+                label: 'MB-001',
+              },
+              {
+                source: 'key_material',
+                supplyTag: '',
+                vendor: '',
+                materialName: 'MB-002',
+                writeValue: 'MB-002',
+                label: 'MB-002',
+              },
+            ],
+          },
         ]}
       />
     );
@@ -120,8 +154,25 @@ describe('Sidebar step 2 duplicate PCBA conflicts', () => {
             fieldLabel: 'LCD',
             pcba: 'D1',
             supplyLabel: '一供',
-            candidates: ['BOE', 'CSOT'],
-          } as Step2CellConflict,
+            candidates: [
+              {
+                source: 'key_material',
+                supplyTag: '',
+                vendor: '',
+                materialName: 'BOE',
+                writeValue: 'BOE',
+                label: 'BOE',
+              },
+              {
+                source: 'key_material',
+                supplyTag: '',
+                vendor: '',
+                materialName: 'CSOT',
+                writeValue: 'CSOT',
+                label: 'CSOT',
+              },
+            ],
+          },
         ]}
       />
     );
@@ -158,14 +209,96 @@ describe('Sidebar step2 cell_conflict targeting', () => {
             fieldLabel: 'LCD',
             pcba: 'D1',
             supplyLabel: '一供',
-            candidates: ['BOE', 'CSOT'],
-          } as Step2CellConflict,
+            candidates: [
+              {
+                source: 'key_material',
+                supplyTag: '',
+                vendor: '',
+                materialName: 'BOE',
+                writeValue: 'BOE',
+                label: 'BOE',
+              },
+              {
+                source: 'key_material',
+                supplyTag: '',
+                vendor: '',
+                materialName: 'CSOT',
+                writeValue: 'CSOT',
+                label: 'CSOT',
+              },
+            ],
+          },
         ]}
       />
     );
 
     fireEvent.click(screen.getByRole('button', { name: '点击定位' }));
     expect(onFocusCell).toHaveBeenCalledWith('sku-1', 'sup-1', 'lcd');
+  });
+});
+
+describe('Sidebar step 2 source-aware candidate rendering', () => {
+  it('renders source labels and resolves using writeValue', () => {
+    const onResolveStep2Conflict = vi.fn();
+
+    render(
+      <Sidebar
+        currentStep={2}
+        projectInfo={baseProjectInfo}
+        skuData={[]}
+        validationResults={[]}
+        onGoBack={vi.fn()}
+        isFlowComplete={false}
+        setIsFlowComplete={vi.fn()}
+        onRunValidation={vi.fn()}
+        onResolveStep2Conflict={onResolveStep2Conflict}
+        step2Conflicts={[
+          {
+            kind: 'cell_conflict',
+            scope: 'supply',
+            cellId: 'step2-cell-sku-1-sup-1-lcd',
+            skuId: 'sku-1',
+            supplyId: 'sup-1',
+            fieldId: 'lcd',
+            fieldLabel: 'LCD',
+            pcba: 'D1',
+            supplyLabel: '一供',
+            candidates: [
+              {
+                source: 'key_material',
+                supplyTag: '',
+                vendor: '',
+                materialName: 'BOE',
+                writeValue: 'BOE',
+                label: 'BOE',
+              },
+              {
+                source: 'managed_material',
+                supplyTag: '三供',
+                vendor: 'Hynix',
+                materialName: '128GB EMMC',
+                writeValue: '三供Hynix128GB EMMC',
+                label: '三供 · Hynix · 128GB EMMC',
+              },
+            ],
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByText('关键物料')).toBeInTheDocument();
+    expect(screen.getByText('管控物料')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '三供 · Hynix · 128GB EMMC' }));
+
+    expect(onResolveStep2Conflict).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skuId: 'sku-1',
+        supplyId: 'sup-1',
+        fieldId: 'lcd',
+      }),
+      '三供Hynix128GB EMMC'
+    );
   });
 });
 

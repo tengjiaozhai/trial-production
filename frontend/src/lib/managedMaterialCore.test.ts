@@ -222,4 +222,54 @@ describe('matchManagedMaterialNamesWithLLM fallback', () => {
     expect(result.materialNameByEmmcSize['128']).toBe('128GB EMMC');
     expect(result.materialNameByDdrSize['4']).toBe('LPD4X 4GB');
   });
+
+  it('matches desc fields against managed material names when LLM request fails', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch' as any).mockRejectedValue(new Error('network down'));
+    const result = await matchManagedMaterialNamesWithLLM({
+      materialNames: [
+        '电池',
+        '喇叭',
+        '听筒',
+        'MIC',
+        '马达',
+        '指纹模组',
+        '喇叭FPC',
+        'Sidekey FPC',
+        'IR FPC',
+        '镜片',
+        '后壳',
+        'Battery Cover',
+        'SIM Tray',
+        'Side Key',
+        '辅料',
+        '石墨散热片',
+      ],
+      emmcSizes: [],
+      ddrSizes: [],
+    });
+    fetchSpy.mockRestore();
+
+    const expectedDescMatches = {
+      battery: '电池',
+      speaker: '喇叭',
+      receiver: '听筒',
+      mic: 'MIC',
+      motor: '马达',
+      fingerprint: '指纹模组',
+      spk_fpc: '喇叭FPC',
+      sidekey_fpc: 'Sidekey FPC',
+      ir_fpc: 'IR FPC',
+      lens: '镜片',
+      housing: '后壳',
+      battery_cover: 'Battery Cover',
+      sim_tray: 'SIM Tray',
+      side_key: 'Side Key',
+      aux_material: '辅料',
+      cooling: '石墨散热片',
+    } as const;
+
+    for (const [fieldId, materialName] of Object.entries(expectedDescMatches)) {
+      expect((result as any).materialNameByDescField?.[fieldId]).toBe(materialName);
+    }
+  });
 });

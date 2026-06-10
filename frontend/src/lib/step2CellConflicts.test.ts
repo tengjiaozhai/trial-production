@@ -32,7 +32,26 @@ it('emits one unresolved supply cell conflict when duplicate source rows produce
       fieldLabel: 'LCD',
       pcba: 'A1',
       supplyLabel: '一供',
-      candidates: ['BOE', 'CSOT'],
+      candidates: [
+        {
+          source: 'key_material',
+          sourceLabel: '关键物料',
+          supplyTag: '',
+          vendor: '',
+          materialName: 'BOE',
+          writeValue: 'BOE',
+          label: 'BOE',
+        },
+        {
+          source: 'key_material',
+          sourceLabel: '关键物料',
+          supplyTag: '',
+          vendor: '',
+          materialName: 'CSOT',
+          writeValue: 'CSOT',
+          label: 'CSOT',
+        },
+      ],
     },
   ]);
 });
@@ -92,7 +111,238 @@ it('emits one sku-scoped conflict for band instead of one per supply', () => {
       fieldLabel: '频段',
       pcba: 'D1',
       supplyLabel: '整列',
-      candidates: ['拉美', '沙特（艾为PD IC）'],
+      candidates: [
+        {
+          source: 'key_material',
+          sourceLabel: '关键物料',
+          supplyTag: '',
+          vendor: '',
+          materialName: '拉美',
+          writeValue: '拉美',
+          label: '拉美',
+        },
+        {
+          source: 'key_material',
+          sourceLabel: '关键物料',
+          supplyTag: '',
+          vendor: '',
+          materialName: '沙特（艾为PD IC）',
+          writeValue: '沙特（艾为PD IC）',
+          label: '沙特（艾为PD IC）',
+        },
+      ],
     },
   ]);
+});
+
+it('emits a managed material conflict for the same supply when key and managed desc values diverge', () => {
+  const result = buildStep2CellConflicts({
+    checkedPcbaOptions: ['A1'],
+    pcbaRows: [],
+    skuData: [
+      {
+        id: 'sku-1',
+        stage: 'PR1',
+        orderNo: '',
+        project: 'A1',
+        supplies: [
+          { id: 'sup-1', supplyKey: '一供', label: '一供', values: { battery: '' } },
+        ],
+      },
+    ],
+    keyMaterialFieldOptions: {
+      battery: [
+        { supply: '一供', text: '一供ATL5000mAh', sourceCategory2: '电池' },
+      ],
+    },
+    managedMaterialCore: {
+      sourceFileName: 'X6728管控物料表.xlsx',
+      sourceSheetName: 'X6728',
+      rows: [
+        { materialName: '电池', code: 'M-01', vendor: 'BYD', supply: '一供' },
+        { materialName: '电池', code: 'M-02', vendor: 'BYD', supply: '二供' },
+      ],
+      materialNames: ['电池'],
+      materialNameByStaticField: {},
+      materialNameByDescField: { battery: '电池' },
+      materialNameByEmmcSize: {},
+      materialNameByDdrSize: {},
+    },
+  } as any);
+
+  expect(result).toEqual([
+    {
+      kind: 'cell_conflict',
+      scope: 'supply',
+      cellId: 'step2-cell-sku-1-sup-1-battery',
+      skuId: 'sku-1',
+      supplyId: 'sup-1',
+      fieldId: 'battery',
+      fieldLabel: '电池',
+      pcba: 'A1',
+      supplyLabel: '一供',
+      candidates: [
+        {
+          source: 'key_material',
+          sourceLabel: '关键物料',
+          supplyTag: '一供',
+          vendor: '',
+          materialName: '电池',
+          writeValue: '一供ATL5000mAh',
+          label: '一供ATL5000mAh',
+        },
+        {
+          source: 'managed_material',
+          sourceLabel: '管控物料',
+          supplyTag: '一供',
+          vendor: 'BYD',
+          materialName: '电池',
+          writeValue: '一供BYD电池',
+          label: '一供 · BYD · 电池',
+        },
+      ],
+    },
+  ]);
+});
+
+it('keeps conflicts when key and managed battery vendors are swapped between first and second supply', () => {
+  const result = buildStep2CellConflicts({
+    checkedPcbaOptions: ['A1'],
+    pcbaRows: [],
+    skuData: [
+      {
+        id: 'sku-1',
+        stage: 'PR1',
+        orderNo: '',
+        project: 'A1',
+        supplies: [
+          { id: 'sup-1', supplyKey: '一供', label: '一供', values: { battery: '' } },
+          { id: 'sup-2', supplyKey: '二供', label: '二供', values: { battery: '' } },
+        ],
+      },
+    ],
+    keyMaterialFieldOptions: {
+      battery: [
+        { supply: '一供', text: '一供锂威聚合物_BL-58HX_5850mAh_CB_LW', sourceCategory2: '电池' },
+        { supply: '二供', text: '二供ATL聚合物_BL-58HX_5850mAh_CB_ATL', sourceCategory2: '电池' },
+      ],
+    },
+    managedMaterialCore: {
+      sourceFileName: 'X6728管控物料表.xlsx',
+      sourceSheetName: 'X6728',
+      rows: [
+        { materialName: '电池', code: 'M-01', vendor: 'ATL', supply: '一供' },
+        { materialName: '电池', code: 'M-02', vendor: '锂威', supply: '二供' },
+      ],
+      materialNames: ['电池'],
+      materialNameByStaticField: {},
+      materialNameByDescField: { battery: '电池' },
+      materialNameByEmmcSize: {},
+      materialNameByDdrSize: {},
+    },
+  } as any);
+
+  expect(result).toEqual([
+    {
+      kind: 'cell_conflict',
+      scope: 'supply',
+      cellId: 'step2-cell-sku-1-sup-1-battery',
+      skuId: 'sku-1',
+      supplyId: 'sup-1',
+      fieldId: 'battery',
+      fieldLabel: '电池',
+      pcba: 'A1',
+      supplyLabel: '一供',
+      candidates: [
+        {
+          source: 'key_material',
+          sourceLabel: '关键物料',
+          supplyTag: '一供',
+          vendor: '',
+          materialName: '电池',
+          writeValue: '一供锂威聚合物_BL-58HX_5850mAh_CB_LW',
+          label: '一供锂威聚合物_BL-58HX_5850mAh_CB_LW',
+        },
+        {
+          source: 'managed_material',
+          sourceLabel: '管控物料',
+          supplyTag: '一供',
+          vendor: 'ATL',
+          materialName: '电池',
+          writeValue: '一供ATL电池',
+          label: '一供 · ATL · 电池',
+        },
+      ],
+    },
+    {
+      kind: 'cell_conflict',
+      scope: 'supply',
+      cellId: 'step2-cell-sku-1-sup-2-battery',
+      skuId: 'sku-1',
+      supplyId: 'sup-2',
+      fieldId: 'battery',
+      fieldLabel: '电池',
+      pcba: 'A1',
+      supplyLabel: '二供',
+      candidates: [
+        {
+          source: 'key_material',
+          sourceLabel: '关键物料',
+          supplyTag: '二供',
+          vendor: '',
+          materialName: '电池',
+          writeValue: '二供ATL聚合物_BL-58HX_5850mAh_CB_ATL',
+          label: '二供ATL聚合物_BL-58HX_5850mAh_CB_ATL',
+        },
+        {
+          source: 'managed_material',
+          sourceLabel: '管控物料',
+          supplyTag: '二供',
+          vendor: '锂威',
+          materialName: '电池',
+          writeValue: '二供锂威电池',
+          label: '二供 · 锂威 · 电池',
+        },
+      ],
+    },
+  ]);
+});
+
+it('still emits swapped battery conflicts when managed material state is missing desc match metadata', () => {
+  const result = buildStep2CellConflicts({
+    checkedPcbaOptions: ['A1'],
+    pcbaRows: [],
+    skuData: [
+      {
+        id: 'sku-1',
+        stage: 'PR1',
+        orderNo: '',
+        project: 'A1',
+        supplies: [
+          { id: 'sup-1', supplyKey: '一供', label: '一供', values: { battery: '一供锂威聚合物_BL-58HX_5850mAh_CB_LW' } },
+          { id: 'sup-2', supplyKey: '二供', label: '二供', values: { battery: '二供ATL聚合物_BL-58HX_5850mAh_CB_ATL' } },
+        ],
+      },
+    ],
+    keyMaterialFieldOptions: {
+      battery: [
+        { supply: '一供', text: '一供锂威聚合物_BL-58HX_5850mAh_CB_LW', sourceCategory2: '电池' },
+        { supply: '二供', text: '二供ATL聚合物_BL-58HX_5850mAh_CB_ATL', sourceCategory2: '电池' },
+      ],
+    },
+    managedMaterialCore: {
+      sourceFileName: 'X6728管控物料表.xlsx',
+      sourceSheetName: 'X6728',
+      rows: [
+        { materialName: '电池', code: 'M-01', vendor: 'ATL', supply: '一供' },
+        { materialName: '电池', code: 'M-02', vendor: '锂威', supply: '二供' },
+      ],
+      materialNames: ['电池'],
+      materialNameByStaticField: {},
+      materialNameByEmmcSize: {},
+      materialNameByDdrSize: {},
+    },
+  } as any);
+
+  expect(result.filter((item) => item.fieldId === 'battery')).toHaveLength(2);
 });
