@@ -15,6 +15,7 @@ export interface SheetRow {
   fieldId?: string;
   fieldLabel?: string;
   groupTitle?: string;
+  groupIndex?: number;
 }
 
 export interface TrialProductionSheetModel {
@@ -79,6 +80,7 @@ export function buildTrialProductionSheetModel(args: {
       kind: gi === 0 ? 'title' : 'group',
       rowIndex,
       groupTitle: group,
+      groupIndex: gi,
     });
     rowIndex++;
 
@@ -89,6 +91,7 @@ export function buildTrialProductionSheetModel(args: {
         rowIndex,
         fieldId: field.id,
         fieldLabel: field.label,
+        groupIndex: gi,
       });
 
       for (let ci = 0; ci < columns.length; ci++) {

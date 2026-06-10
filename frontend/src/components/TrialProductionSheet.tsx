@@ -257,8 +257,22 @@ export function buildWorkbookSnapshot(
   activeFields: FieldDefinition[],
   currentStep: StepId
 ) {
-  const centeredStyle = { ht: 2, vt: 2, tb: 2 }; // tb: 2 = 截断溢出
-  const groupTitleStyle = { ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 }; // bold 14px
+  // ABAB color scheme
+  const BLOCK_A = {
+    title: { bg: { rgb: '#EAF3FF' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 },
+    body: { bg: { rgb: '#F7FBFF' }, ht: 2, vt: 2, tb: 2 },
+  };
+  const BLOCK_B = {
+    title: { bg: { rgb: '#EAFBF7' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 },
+    body: { bg: { rgb: '#F6FFFC' }, ht: 2, vt: 2, tb: 2 },
+  };
+
+  const getStyleForGroup = (groupIndex: number | undefined, isTitle: boolean) => {
+    const block = (groupIndex ?? 0) % 2 === 0 ? BLOCK_A : BLOCK_B;
+    return isTitle ? block.title : block.body;
+  };
+
+  const centeredStyle = { ht: 2, vt: 2, tb: 2 };
   const cellData: Record<number, Record<number, { v?: string; s?: any }>> = {};
   const mergeData: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }> = [];
 
@@ -267,11 +281,12 @@ export function buildWorkbookSnapshot(
     let rowIdx = 0;
     for (const row of model.rows) {
       cellData[rowIdx] = {};
+      const groupStyle = getStyleForGroup(row.groupIndex, row.kind === 'title' || row.kind === 'group');
 
       if (row.kind === 'title' || row.kind === 'group') {
         // Group header: put group title in first column with merge across all columns
         const lastColumn = model.columns.length;
-        cellData[rowIdx][0] = { v: row.groupTitle ?? '', s: groupTitleStyle };
+        cellData[rowIdx][0] = { v: row.groupTitle ?? '', s: groupStyle };
         // Merge from column 0 to last column
         if (lastColumn > 0) {
           mergeData.push({
@@ -283,7 +298,7 @@ export function buildWorkbookSnapshot(
         }
       } else if (row.kind === 'field' && row.fieldId) {
         // Field row: label in first column, values in subsequent columns
-        cellData[rowIdx][0] = { v: row.fieldLabel ?? '', s: centeredStyle };
+        cellData[rowIdx][0] = { v: row.fieldLabel ?? '', s: groupStyle };
 
         if (isSkuSpanningField(row.fieldId)) {
           let ci = 0;
@@ -299,7 +314,7 @@ export function buildWorkbookSnapshot(
 
             const sku = skuData.find((s) => s.id === skuId);
             const value = sku?.supplies[0]?.values[row.fieldId] ?? '';
-            cellData[rowIdx][startColumn] = { v: value, s: centeredStyle };
+            cellData[rowIdx][startColumn] = { v: value, s: groupStyle };
             if (endColumn > startColumn) {
               mergeData.push({
                 startRow: rowIdx,
@@ -319,7 +334,7 @@ export function buildWorkbookSnapshot(
             if (!supply) continue;
 
             const value = supply.values[row.fieldId] ?? '';
-            cellData[rowIdx][ci + 1] = { v: value, s: centeredStyle };
+            cellData[rowIdx][ci + 1] = { v: value, s: groupStyle };
           }
         }
       }

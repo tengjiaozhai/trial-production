@@ -276,6 +276,7 @@ describe('buildWorkbookSnapshot - group rows merge', () => {
   const fields: FieldDefinition[] = [
     { id: 'project', label: '项目名称', group: '基本信息', behavior: 'auto' },
     { id: 'stage', label: '试产阶段', group: '常用项', behavior: 'auto' },
+    { id: 'band', label: '频段', group: '存储/PCBA', behavior: 'auto' },
   ];
 
   const skuData: SKUData[] = [
@@ -285,8 +286,8 @@ describe('buildWorkbookSnapshot - group rows merge', () => {
       orderNo: '',
       project: 'X6728',
       supplies: [
-        { id: 's1', supplyKey: '一供', label: '一供', values: { project: 'X6728', stage: 'PR1' } },
-        { id: 's2', supplyKey: '二供', label: '二供', values: { project: 'X6728', stage: 'PR1' } },
+        { id: 's1', supplyKey: '一供', label: '一供', values: { project: 'X6728', stage: 'PR1', band: 'SSA' } },
+        { id: 's2', supplyKey: '二供', label: '二供', values: { project: 'X6728', stage: 'PR1', band: 'SSA' } },
       ],
     },
   ];
@@ -323,5 +324,60 @@ describe('buildWorkbookSnapshot - group rows merge', () => {
     expect(titleCell?.s).toBeDefined();
     expect(titleCell?.s.bl).toBe(1); // bold
     expect(titleCell?.s.fs).toBe(14); // font size 14
+  });
+
+  it('should apply ABAB color scheme to group rows', () => {
+    const model = buildTrialProductionSheetModel({
+      activeFields: fields,
+      skuData,
+      currentStep: 3,
+    });
+
+    const snapshot = buildWorkbookSnapshot(model, skuData, fields, 3);
+
+    // Block A colors
+    const blockATitleBg = '#EAF3FF';
+    const blockABodyBg = '#F7FBFF';
+
+    // Block B colors
+    const blockBTitleBg = '#EAFBF7';
+    const blockBBodyBg = '#F6FFFC';
+
+    // Group 0 (基本信息) - Block A
+    const group0TitleCell = snapshot.sheets.sheet1.cellData[0]?.[0];
+    expect(group0TitleCell?.s?.bg?.rgb).toBe(blockATitleBg);
+
+    // Group 1 (常用项) - Block B
+    const group1TitleRow = model.rows.find(r => r.kind === 'group' && r.groupTitle === '常用项');
+    const group1TitleCell = snapshot.sheets.sheet1.cellData[group1TitleRow!.rowIndex]?.[0];
+    expect(group1TitleCell?.s?.bg?.rgb).toBe(blockBTitleBg);
+
+    // Group 2 (存储/PCBA) - Block A
+    const group2TitleRow = model.rows.find(r => r.kind === 'group' && r.groupTitle === '存储/PCBA');
+    const group2TitleCell = snapshot.sheets.sheet1.cellData[group2TitleRow!.rowIndex]?.[0];
+    expect(group2TitleCell?.s?.bg?.rgb).toBe(blockATitleBg);
+  });
+
+  it('should apply ABAB color scheme to field rows', () => {
+    const model = buildTrialProductionSheetModel({
+      activeFields: fields,
+      skuData,
+      currentStep: 3,
+    });
+
+    const snapshot = buildWorkbookSnapshot(model, skuData, fields, 3);
+
+    const blockABodyBg = '#F7FBFF';
+    const blockBBodyBg = '#F6FFFC';
+
+    // Field in group 0 (基本信息) - Block A
+    const projectRow = model.rows.find(r => r.kind === 'field' && r.fieldId === 'project');
+    const projectCell = snapshot.sheets.sheet1.cellData[projectRow!.rowIndex]?.[0];
+    expect(projectCell?.s?.bg?.rgb).toBe(blockABodyBg);
+
+    // Field in group 1 (常用项) - Block B
+    const stageRow = model.rows.find(r => r.kind === 'field' && r.fieldId === 'stage');
+    const stageCell = snapshot.sheets.sheet1.cellData[stageRow!.rowIndex]?.[0];
+    expect(stageCell?.s?.bg?.rgb).toBe(blockBBodyBg);
   });
 });

@@ -6,6 +6,21 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
+:root {
+  --table-grid: #D9E3F0;
+  --table-text: #24324A;
+  --table-subtext: #5B6B84;
+  --field-col-bg: #F5F7FA;
+
+  --block-a-title: #EAF3FF;
+  --block-a-body: #F7FBFF;
+  --block-a-accent: #2F6BDE;
+
+  --block-b-title: #EAFBF7;
+  --block-b-body: #F6FFFC;
+  --block-b-accent: #1D8F6A;
+}
+
 html,
 body,
 #root {
