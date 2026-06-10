@@ -35,6 +35,7 @@ import { parseSampleCollectionWorkbook, matchSampleCollectionRowsWithLLM, buildS
 import { buildSupplyValuesForSupplyKey, deriveSupplyColumnsFromFieldOptions, recomputeStep4Values } from './lib/step4SampleCalc';
 import { buildStep2CellConflicts } from './lib/step2CellConflicts';
 import type { Step2CellConflict } from './lib/step2CellConflicts';
+import { clearStep2ConflictValues } from './lib/step2ConflictResolution';
 import { buildStep4StorageValidationResults } from './lib/step4StorageValidationResults';
 import {
   validateColorAgainstBom,
@@ -48,6 +49,9 @@ import { isSkuSpanningField } from './lib/step5TableModel';
 import { normalizeSelectedSupplyKey, projectSkuForStep, projectSkusForStep, listSupplyKeys } from './lib/supplyProjection';
 import { insertFieldAfter, createInsertedField, createBlankSkuFromTemplate, buildNewSkuId, captureCopyFromSku, pasteCopiedIntoTarget, buildNewSupplyId } from './lib/tableOperations';
 import type { CopiedSku } from './lib/tableOperations';
+import { LoginPage } from './components/LoginPage';
+import { checkLoginStatus } from './lib/auth';
+import type { UserInfo } from './lib/auth';
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState<StepId>(1);
@@ -78,6 +82,26 @@ export default function App() {
   const [selectedSkuId, setSelectedSkuId] = useState<string | null>(null);
   const [copiedSku, setCopiedSku] = useState<CopiedSku | null>(null);
   const [step1Errors, setStep1Errors] = useState<Record<string, boolean>>({});
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isChecking, setIsChecking] = useState(true);
+  const [currentUser, setCurrentUser] = useState<UserInfo | null>(null);
+
+  // Check login status on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      const status = await checkLoginStatus();
+      setIsLoggedIn(status.isLoggedIn);
+      setCurrentUser(status.user || null);
+      setIsChecking(false);
+    };
+    checkAuth();
+  }, []);
+
+  const handleLoginSuccess = (token: string, user: UserInfo) => {
+    localStorage.setItem('sso_token', token);
+    setIsLoggedIn(true);
+    setCurrentUser(user);
+  };
 
   const step2Conflicts = useMemo(
     () =>
@@ -718,7 +742,17 @@ export default function App() {
       })),
     }));
 
-    setSkuData(baseData.map(normalizeSelectedSupplyKey));
+    const normalizedBaseData = baseData.map(normalizeSelectedSupplyKey);
+    const initialStep2Conflicts = buildStep2CellConflicts({
+      checkedPcbaOptions: projectInfo.checkedPcbaOptions ?? [],
+      pcbaRows: projectInfo.pcbaRows ?? [],
+      skuData: normalizedBaseData,
+      keyMaterialFieldOptions: projectInfo.keyMaterialTemplate?.optionsByField,
+      managedMaterialCore: projectInfo.managedMaterialCore,
+      respectCurrentValues: false,
+    });
+
+    setSkuData(clearStep2ConflictValues(normalizedBaseData, initialStep2Conflicts));
     setLoading(false);
     setCurrentStep(2);
   };
@@ -940,6 +974,17 @@ export default function App() {
   };
 
   return (
+    <>
+      {isChecking ? (
+        <div className="flex flex-col h-screen bg-[linear-gradient(135deg,rgba(238,246,255,0.18)_0%,rgba(249,251,255,0.12)_48%,rgba(237,247,244,0.18)_100%)] items-center justify-center">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#2563EB]"></div>
+            <p className="mt-4 text-[#64748B]">正在验证登录状态...</p>
+          </div>
+        </div>
+      ) : !isLoggedIn ? (
+        <LoginPage onLoginSuccess={handleLoginSuccess} />
+      ) : (
     <div className="flex flex-col h-screen bg-[linear-gradient(135deg,rgba(238,246,255,0.18)_0%,rgba(249,251,255,0.12)_48%,rgba(237,247,244,0.18)_100%)] text-[#0B1F33] font-sans overflow-hidden">
       <header className="h-[60px] bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(246,249,255,0.78)_100%)] backdrop-blur-xl border-b border-[#DDE7F3]/80 flex items-center justify-between px-6 shrink-0 z-[110]">
         <div className="flex items-center gap-6">
@@ -1433,11 +1478,13 @@ export default function App() {
                    }} className="px-5 py-2.5 text-sm text-white bg-[#2563EB] hover:bg-[#1d4ed8] font-bold rounded-xl shadow-lg shadow-[#2563EB]/20 transition-all">
                      保存并新建
                    </button>
-                </div>
-             </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
+                 </div>
+              </motion.div>
+           </div>
+         )}
+       </AnimatePresence>
+     </div>
+      )}
+    </>
   );
 }

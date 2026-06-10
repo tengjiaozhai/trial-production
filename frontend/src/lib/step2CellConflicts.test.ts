@@ -79,6 +79,33 @@ it('does not emit a conflict when the current cell already has a resolved non-em
   expect(result).toEqual([]);
 });
 
+it('keeps a duplicate-row conflict when the current cell is non-empty but does not match any candidate', () => {
+  const result = buildStep2CellConflicts({
+    checkedPcbaOptions: ['A1'],
+    pcbaRows: [
+      { pcba: 'A1', sourceIndex: 0, values: { stage: 'PR1' } },
+      { pcba: 'A1', sourceIndex: 1, values: { stage: 'PR2' } },
+    ],
+    skuData: [
+      {
+        id: 'sku-1',
+        stage: 'PR1',
+        orderNo: '',
+        project: 'A1',
+        supplies: [
+          { id: 'sup-1', supplyKey: '一供', label: '一供', values: { stage: '手工值' } },
+        ],
+      },
+    ],
+  });
+
+  expect(result).toHaveLength(1);
+  expect(result[0]).toMatchObject({
+    scope: 'sku',
+    fieldId: 'stage',
+  });
+});
+
 it('emits one sku-scoped conflict for band instead of one per supply', () => {
   const result = buildStep2CellConflicts({
     checkedPcbaOptions: ['D1'],
@@ -308,7 +335,7 @@ it('keeps conflicts when key and managed battery vendors are swapped between fir
   ]);
 });
 
-it('still emits swapped battery conflicts when managed material state is missing desc match metadata', () => {
+it('still emits swapped battery conflicts when managed material state is missing desc match metadata for initial conflict clearing', () => {
   const result = buildStep2CellConflicts({
     checkedPcbaOptions: ['A1'],
     pcbaRows: [],
@@ -339,6 +366,47 @@ it('still emits swapped battery conflicts when managed material state is missing
       ],
       materialNames: ['电池'],
       materialNameByStaticField: {},
+      materialNameByEmmcSize: {},
+      materialNameByDdrSize: {},
+    },
+    respectCurrentValues: false,
+  } as any);
+
+  expect(result.filter((item) => item.fieldId === 'battery')).toHaveLength(2);
+});
+
+it('keeps swapped battery conflicts when current values are non-empty but do not match either candidate', () => {
+  const result = buildStep2CellConflicts({
+    checkedPcbaOptions: ['A1'],
+    pcbaRows: [],
+    skuData: [
+      {
+        id: 'sku-1',
+        stage: 'PR1',
+        orderNo: '',
+        project: 'A1',
+        supplies: [
+          { id: 'sup-1', supplyKey: '一供', label: '一供', values: { battery: '手工一供' } },
+          { id: 'sup-2', supplyKey: '二供', label: '二供', values: { battery: '手工二供' } },
+        ],
+      },
+    ],
+    keyMaterialFieldOptions: {
+      battery: [
+        { supply: '一供', text: '一供锂威聚合物_BL-58HX_5850mAh_CB_LW', sourceCategory2: '电池' },
+        { supply: '二供', text: '二供ATL聚合物_BL-58HX_5850mAh_CB_ATL', sourceCategory2: '电池' },
+      ],
+    },
+    managedMaterialCore: {
+      sourceFileName: 'X6728管控物料表.xlsx',
+      sourceSheetName: 'X6728',
+      rows: [
+        { materialName: '电池', code: 'M-01', vendor: 'ATL', supply: '一供' },
+        { materialName: '电池', code: 'M-02', vendor: '锂威', supply: '二供' },
+      ],
+      materialNames: ['电池'],
+      materialNameByStaticField: {},
+      materialNameByDescField: { battery: '电池' },
       materialNameByEmmcSize: {},
       materialNameByDdrSize: {},
     },

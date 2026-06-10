@@ -121,14 +121,55 @@ function createManagedMaterialCandidate(
   };
 }
 
+function normalizeCompareValue(value: string | undefined): string {
+  return String(value ?? '').trim();
+}
+
+function matchesAnyCandidateValue(value: string | undefined, candidates: Step2CellConflictCandidate[]): boolean {
+  const normalized = normalizeCompareValue(value);
+  if (!normalized) return false;
+  return candidates.some((candidate) => normalizeCompareValue(candidate.writeValue) === normalized);
+}
+
+function isSkuConflictResolved(
+  sku: SKUData,
+  fieldId: string,
+  candidates: Step2CellConflictCandidate[],
+  respectCurrentValues: boolean
+): boolean {
+  if (!respectCurrentValues || sku.supplies.length === 0) return false;
+  const currentValues = sku.supplies.map((supply) => normalizeCompareValue(supply.values[fieldId]));
+  const firstValue = currentValues[0];
+  if (!firstValue) return false;
+  if (currentValues.some((value) => value !== firstValue)) return false;
+  return matchesAnyCandidateValue(firstValue, candidates);
+}
+
+function isSupplyConflictResolved(
+  currentValue: string | undefined,
+  candidates: Step2CellConflictCandidate[],
+  respectCurrentValues: boolean
+): boolean {
+  if (!respectCurrentValues) return false;
+  return matchesAnyCandidateValue(currentValue, candidates);
+}
+
 export function buildStep2CellConflicts(input: {
   checkedPcbaOptions: string[];
   pcbaRows: PcbaSourceRow[];
   skuData: SKUData[];
   keyMaterialFieldOptions?: Partial<Record<SplitOptionFieldId, SplitFieldOption[]>>;
   managedMaterialCore?: ManagedMaterialCoreMatch;
+  respectCurrentValues?: boolean;
 }): Step2CellConflict[] {
-  const { checkedPcbaOptions, pcbaRows, skuData, keyMaterialFieldOptions = {}, managedMaterialCore } = input;
+  const {
+    checkedPcbaOptions,
+    pcbaRows,
+    skuData,
+    keyMaterialFieldOptions = {},
+    managedMaterialCore,
+    respectCurrentValues = true,
+  } = input;
 
   // 1. Group raw rows by PCBA
   const rowsByPcba = new Map<string, PcbaSourceRow[]>();
@@ -167,9 +208,10 @@ export function buildStep2CellConflicts(input: {
       // Skip if only one unique candidate (auto-fill case)
       if (candidates.size <= 1) continue;
 
+      const conflictCandidates = [...candidates].map(createKeyMaterialCandidate);
+
       if (SKU_SCOPED_FIELD_IDS.has(field.id)) {
-        const currentVal = sku.supplies[0]?.values[field.id];
-        if (currentVal && currentVal.trim()) continue;
+        if (isSkuConflictResolved(sku, field.id, conflictCandidates, respectCurrentValues)) continue;
 
         conflicts.push({
           kind: 'cell_conflict',
@@ -180,7 +222,7 @@ export function buildStep2CellConflicts(input: {
           fieldLabel: field.label,
           pcba,
           supplyLabel: '整列',
-          candidates: [...candidates].map(createKeyMaterialCandidate),
+          candidates: conflictCandidates,
         });
         continue;
       }
@@ -188,7 +230,7 @@ export function buildStep2CellConflicts(input: {
       // Find supply-scoped conflicts
       for (const supply of sku.supplies) {
         const currentVal = supply.values[field.id];
-        if (currentVal && currentVal.trim()) continue; // Already resolved
+        if (isSupplyConflictResolved(currentVal, conflictCandidates, respectCurrentValues)) continue;
 
         const cellId = `step2-cell-${sku.id}-${supply.id}-${field.id}`;
         conflicts.push({
@@ -201,7 +243,7 @@ export function buildStep2CellConflicts(input: {
           fieldLabel: field.label,
           pcba,
           supplyLabel: supply.label,
-          candidates: [...candidates].map(createKeyMaterialCandidate),
+          candidates: conflictCandidates,
         });
       }
     }
@@ -253,10 +295,12 @@ export function buildStep2CellConflicts(input: {
 
           const keyCandidate = createKeyMaterialCandidateFromOption(keyOption);
           const managedCandidate = createManagedMaterialCandidate(managedRow, supplyTag, materialName);
+          const candidates = [keyCandidate, managedCandidate];
 
           // Intentionally compare by the same supply tag only.
           // If key-material 一供/二供 is swapped against managed-material, that remains a conflict.
           if (keyCandidate.writeValue === managedCandidate.writeValue) continue;
+          if (isSupplyConflictResolved(supply.values[fieldId], candidates, respectCurrentValues)) continue;
 
           conflicts.push({
             kind: 'cell_conflict',
@@ -268,7 +312,7 @@ export function buildStep2CellConflicts(input: {
             fieldLabel: getFieldLabel(fieldId),
             pcba: sku.project,
             supplyLabel: supply.label,
-            candidates: [keyCandidate, managedCandidate],
+            candidates,
           });
         }
       }
