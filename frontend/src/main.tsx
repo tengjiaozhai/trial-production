@@ -1,7 +1,5 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
-import '@univerjs/sheets/facade';
-import '@univerjs/sheets-ui/facade';
 import App from './App.tsx';
 import './index.css';
 import '@univerjs/preset-sheets-core/lib/index.css';

@@ -3,18 +3,18 @@ import { mapUniverEditToBusinessEdit } from './univerSheetEvents';
 import type { TrialProductionCellKey } from './univerTrialProductionSheet';
 
 const sampleCellMap: Record<string, TrialProductionCellKey> = {
-  '0-1': { skuId: 'sku1', supplyId: 's1', fieldId: 'project', scope: 'supply' },
-  '0-2': { skuId: 'sku1', supplyId: 's2', fieldId: 'project', scope: 'supply' },
-  '1-1': { skuId: 'sku1', supplyId: 's1', fieldId: 'band', scope: 'sku' },
-  '1-2': { skuId: 'sku1', supplyId: 's2', fieldId: 'band', scope: 'sku' },
-  '2-1': { skuId: 'sku1', fieldId: 'mb_id', scope: 'sku' },
+  '0-0': { skuId: 'sku1', supplyId: 's1', fieldId: 'project', scope: 'supply' },
+  '0-1': { skuId: 'sku1', supplyId: 's2', fieldId: 'project', scope: 'supply' },
+  '1-0': { skuId: 'sku1', supplyId: 's1', fieldId: 'band', scope: 'sku' },
+  '1-1': { skuId: 'sku1', supplyId: 's2', fieldId: 'band', scope: 'sku' },
+  '2-0': { skuId: 'sku1', fieldId: 'mb_id', scope: 'sku' },
 };
 
 describe('mapUniverEditToBusinessEdit', () => {
   it('maps a valid cell to the correct business key', () => {
     const result = mapUniverEditToBusinessEdit({
       row: 0,
-      column: 1,
+      column: 0,
       value: 'X6728',
       cellMap: sampleCellMap,
     });
@@ -29,7 +29,7 @@ describe('mapUniverEditToBusinessEdit', () => {
   it('normalizes value to string', () => {
     const result = mapUniverEditToBusinessEdit({
       row: 0,
-      column: 1,
+      column: 0,
       value: 123,
       cellMap: sampleCellMap,
     });
@@ -41,7 +41,7 @@ describe('mapUniverEditToBusinessEdit', () => {
   it('normalizes null/undefined value to empty string', () => {
     const result = mapUniverEditToBusinessEdit({
       row: 0,
-      column: 1,
+      column: 0,
       value: null,
       cellMap: sampleCellMap,
     });
@@ -64,7 +64,7 @@ describe('mapUniverEditToBusinessEdit', () => {
   it('preserves SKU-scoped key for SKU-scoped fields', () => {
     const result = mapUniverEditToBusinessEdit({
       row: 1,
-      column: 1,
+      column: 0,
       value: 'MEA',
       cellMap: sampleCellMap,
     });
@@ -77,7 +77,7 @@ describe('mapUniverEditToBusinessEdit', () => {
   it('preserves supply-scoped key for supply-scoped fields', () => {
     const result = mapUniverEditToBusinessEdit({
       row: 0,
-      column: 2,
+      column: 1,
       value: 'X6728B',
       cellMap: sampleCellMap,
     });
@@ -90,7 +90,7 @@ describe('mapUniverEditToBusinessEdit', () => {
   it('handles cellMap entries without supplyId', () => {
     const result = mapUniverEditToBusinessEdit({
       row: 2,
-      column: 1,
+      column: 0,
       value: 'MB-A1',
       cellMap: sampleCellMap,
     });

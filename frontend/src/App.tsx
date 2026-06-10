@@ -33,7 +33,6 @@ import { parseManagedMaterialCoreWorkbook, matchManagedMaterialNamesWithLLM, bui
 import { parseSampleCollectionWorkbook, matchSampleCollectionRowsWithLLM, buildSampleCollectionFieldOptions } from './lib/sampleCollectionWorkbook';
 import { buildSupplyValuesForSupplyKey, deriveSupplyColumnsFromFieldOptions, recomputeStep4Values } from './lib/step4SampleCalc';
 import { buildStep2CellConflicts } from './lib/step2CellConflicts';
-import type { Step2CellConflict } from './lib/step2CellConflicts';
 import { buildStep4StorageValidationResults } from './lib/step4StorageValidationResults';
 import {
   validateColorAgainstBom,
@@ -43,7 +42,6 @@ import {
 import type { SplitOptionFieldId } from './types';
 import { buildTrialProductionWorkbook } from './lib/trialProductionWorkbook';
 import type { Step5LayoutSnapshot } from './lib/trialProductionWorkbook';
-import { isSkuSpanningField } from './lib/step5TableModel';
 import { normalizeSelectedSupplyKey, projectSkuForStep, projectSkusForStep, listSupplyKeys } from './lib/supplyProjection';
 import { insertFieldAfter, createInsertedField, createBlankSkuFromTemplate, buildNewSkuId, captureCopyFromSku, pasteCopiedIntoTarget, buildNewSupplyId } from './lib/tableOperations';
 import type { CopiedSku } from './lib/tableOperations';
@@ -788,21 +786,15 @@ export default function App() {
     setSkuData(prev => {
       const next = prev.map(sku => {
         if (sku.id !== skuId) return sku;
-        const updateSupply = (sup: SKUData['supplies'][number]) => {
-          const withInput = { ...sup.values, [fieldId]: value };
-          return { ...sup, values: recomputeStep4Values(withInput) };
-        };
-
-        if (isSkuSpanningField(fieldId)) {
-          return {
-            ...sku,
-            supplies: sku.supplies.map(updateSupply),
-          };
-        }
-
         return {
           ...sku,
-          supplies: sku.supplies.map((sup) => (sup.id === supplyId ? updateSupply(sup) : sup)),
+          supplies: sku.supplies.map(sup => {
+            if (sup.id !== supplyId) return sup;
+            const withInput = { ...sup.values, [fieldId]: value };
+            const newValues = recomputeStep4Values(withInput);
+
+            return { ...sup, values: newValues };
+          })
         };
       });
       return next;
@@ -874,14 +866,6 @@ export default function App() {
     sheetRef.current?.focusCellByBusinessKey(skuId, supplyId, fieldId);
   };
 
-  const handleResolveStep2Conflict = (conflict: Step2CellConflict, candidate: string) => {
-    const supplyId = conflict.scope === 'supply' ? conflict.supplyId ?? '' : '';
-    handleUpdateValue(conflict.skuId, supplyId, conflict.fieldId, candidate);
-    window.setTimeout(() => {
-      handleSheetFocusCell(conflict.skuId, conflict.scope === 'supply' ? conflict.supplyId : undefined, conflict.fieldId);
-    }, 0);
-  };
-
   return (
     <div className="flex flex-col h-screen bg-[#f5f7f9] text-[#0B1F33] font-sans overflow-hidden">
       <header className="h-[60px] bg-white border-b border-[#DDE7F3] flex items-center justify-between px-6 shrink-0 z-[110]">
@@ -943,7 +927,6 @@ export default function App() {
           collapsed={sidebarCollapsed}
           onToggleCollapsed={() => setSidebarCollapsed((prev) => !prev)}
           onFocusCell={handleSheetFocusCell}
-          onResolveStep2Conflict={handleResolveStep2Conflict}
         />
 
         <main className="flex flex-col flex-1 min-w-0 min-h-0 overflow-y-auto p-4 md:p-6 pb-24 scroll-smooth transition-all duration-300 ease-out">

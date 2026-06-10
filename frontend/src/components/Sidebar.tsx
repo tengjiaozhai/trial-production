@@ -19,7 +19,6 @@ interface SidebarProps {
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
   onFocusCell?: (skuId: string, supplyId: string | undefined, fieldId: string) => void;
-  onResolveStep2Conflict?: (conflict: Step2CellConflict, candidate: string) => void;
 }
 
 export function Sidebar({
@@ -36,7 +35,6 @@ export function Sidebar({
   collapsed = false,
   onToggleCollapsed,
   onFocusCell,
-  onResolveStep2Conflict,
 }: SidebarProps) {
   
   const focusStep2CellConflict = (conflict: Step2CellConflict) => {
@@ -119,45 +117,11 @@ export function Sidebar({
                     >
                       <div className="flex justify-between items-center">
                         <span className="text-[13px] font-black text-rose-700">{c.fieldLabel}存在冲突</span>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            focusStep2CellConflict(c);
-                          }}
-                          className="text-[11px] font-bold text-rose-500/80 group-hover:text-rose-600 hover:text-rose-700 transition-colors"
-                        >
-                          点击定位
-                        </button>
+                        <span className="text-[11px] font-bold text-rose-500/80 group-hover:text-rose-600">点击定位</span>
                       </div>
                       <p className="text-[12px] text-rose-600/80 font-medium leading-relaxed">
-                        PCBA: {c.pcba} | 供应商: {c.supplyLabel}
+                        PCBA: {c.pcba} | 供应商: {c.supplyLabel} | 候选: {c.candidates.join(', ')}
                       </p>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="px-2 py-0.5 rounded-full border border-rose-200 bg-white text-[11px] font-black text-rose-500">
-                          {c.candidates.length} 个候选值
-                        </span>
-                        <span className="text-[11px] font-bold text-rose-500/80">
-                          点击候选值直接写回当前单元格
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        {c.candidates.map((candidate) => (
-                          <button
-                            key={candidate}
-                            type="button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              if (onResolveStep2Conflict) {
-                                onResolveStep2Conflict(c, candidate);
-                              }
-                            }}
-                            className="px-2 py-1 rounded-md bg-rose-100 text-[11px] font-bold text-rose-700 border border-rose-200 hover:bg-rose-200 hover:border-rose-300 transition-colors"
-                          >
-                            {candidate}
-                          </button>
-                        ))}
-                      </div>
                     </div>
                   ))}
                 </div>
