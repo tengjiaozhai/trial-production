@@ -887,8 +887,8 @@ export default function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-transparent text-[#0B1F33] font-sans overflow-hidden">
-      <header className="h-[60px] bg-white/75 backdrop-blur-xl border-b border-[#DDE7F3]/80 flex items-center justify-between px-6 shrink-0 z-[110]">
+    <div className="flex flex-col h-screen bg-[linear-gradient(135deg,rgba(238,246,255,0.18)_0%,rgba(249,251,255,0.12)_48%,rgba(237,247,244,0.18)_100%)] text-[#0B1F33] font-sans overflow-hidden">
+      <header className="h-[60px] bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(246,249,255,0.78)_100%)] backdrop-blur-xl border-b border-[#DDE7F3]/80 flex items-center justify-between px-6 shrink-0 z-[110]">
         <div className="flex items-center gap-6">
           <div className="font-black text-xl tracking-tight text-[#0f2e4a] flex items-center gap-2">
             <div className="w-6 h-6 rounded bg-[#0f2e4a] flex items-center justify-center text-white shrink-0">
@@ -1241,7 +1241,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="flex-1 min-h-0 bg-white/78 backdrop-blur-xl rounded-[20px] shadow-[0_16px_40px_rgba(15,23,42,0.08)] border border-[#DDE7F3]/80 overflow-hidden">
+                <div className="flex-1 min-h-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.82)_0%,rgba(239,246,255,0.74)_48%,rgba(246,255,252,0.8)_100%)] backdrop-blur-xl rounded-[20px] shadow-[0_16px_40px_rgba(15,23,42,0.08)] border border-[#DDE7F3]/80 overflow-hidden">
                   <TrialProductionSheet
                     ref={sheetRef}
                     currentStep={currentStep}
@@ -1283,7 +1283,7 @@ export default function App() {
         )}
 
         {/* Fixed Footer Actions */}
-        <div className="fixed bottom-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-xl border-t border-[#DDE7F3]/80 flex items-center justify-end px-8 z-[105] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <div className="fixed bottom-0 left-0 right-0 h-16 bg-[linear-gradient(180deg,rgba(255,255,255,0.86)_0%,rgba(246,249,255,0.78)_100%)] backdrop-blur-xl border-t border-[#DDE7F3]/80 flex items-center justify-end px-8 z-[105] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
           <div className="flex items-center gap-4">
             {currentStep > 1 && (
               <>

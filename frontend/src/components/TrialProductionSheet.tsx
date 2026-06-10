@@ -185,13 +185,32 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
   }
 );
 
+function calculateColumnWidths(
+  model: ReturnType<typeof buildTrialProductionSheetModel>,
+  activeFields: FieldDefinition[]
+): Record<number, number> {
+  const widths: Record<number, number> = {};
+
+  const maxLabelLength = Math.max(
+    ...activeFields.map(f => f.label.length),
+    6
+  );
+  widths[0] = Math.max(maxLabelLength * 16, 120);
+
+  for (let i = 0; i < model.columns.length; i++) {
+    widths[i + 1] = 120;
+  }
+
+  return widths;
+}
+
 function buildWorkbookSnapshot(
   model: ReturnType<typeof buildTrialProductionSheetModel>,
   skuData: SKUData[],
   activeFields: FieldDefinition[],
   currentStep: StepId
 ) {
-  const centeredStyle = { ht: 2, vt: 2 };
+  const centeredStyle = { ht: 2, vt: 2, tb: 2 }; // tb: 2 = 截断溢出
   const cellData: Record<number, Record<number, { v?: string; s?: any }>> = {};
   const mergeData: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }> = [];
 
@@ -260,6 +279,7 @@ function buildWorkbookSnapshot(
         name: '搭配表',
         cellData,
         mergeData,
+        columnData: calculateColumnWidths(model, activeFields),
         rowCount: Math.max(Object.keys(cellData).length + 10, 50),
         columnCount: Math.max(model.columns.length + 5, 20),
       },

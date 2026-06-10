@@ -64,7 +64,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "relative h-full bg-white/74 backdrop-blur-xl border-r border-[#DDE7F3]/80 flex flex-col shrink-0 shadow-none z-10 transition-all duration-300 ease-out",
+        "relative h-full bg-[linear-gradient(180deg,rgba(255,255,255,0.78)_0%,rgba(246,249,255,0.68)_100%)] backdrop-blur-xl border-r border-[#DDE7F3]/80 flex flex-col shrink-0 shadow-none z-10 transition-all duration-300 ease-out",
         collapsed ? "w-12" : "w-80",
       )}
     >
