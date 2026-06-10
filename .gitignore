@@ -10,3 +10,4 @@ coverage/
 frontend/node_modules/
 frontend/dist/
 tmp/
+public/electron/config/config.local.js

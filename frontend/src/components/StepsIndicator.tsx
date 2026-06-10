@@ -20,7 +20,7 @@ const steps = [
 export function StepsIndicator({ currentStep, collapsed, onToggleCollapsed }: StepsIndicatorProps) {
   if (collapsed) {
     return (
-      <div className="flex items-center justify-between w-full h-7 px-6 bg-white shrink-0 border-b border-[#DDE7F3]">
+      <div className="flex items-center justify-between w-full h-7 px-6 bg-white/75 backdrop-blur-xl shrink-0 border-b border-[#DDE7F3]/80">
         <div
           data-testid="collapsed-current-step"
           className="flex items-center gap-2 text-[12px] font-bold text-[#64748B]"
@@ -42,7 +42,7 @@ export function StepsIndicator({ currentStep, collapsed, onToggleCollapsed }: St
   }
 
   return (
-    <div className="relative flex items-center justify-center w-full py-6 bg-white shrink-0">
+    <div className="relative flex items-center justify-center w-full py-6 bg-white/75 backdrop-blur-xl shrink-0 border-b border-[#DDE7F3]/80">
       <div className="flex items-center w-full max-w-5xl px-8">
         {steps.map((step, idx) => (
            <React.Fragment key={step.id}>

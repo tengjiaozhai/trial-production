@@ -64,7 +64,7 @@ export function Sidebar({
   return (
     <aside
       className={cn(
-        "relative h-full bg-white border-r border-[#DDE7F3] flex flex-col shrink-0 shadow-sm z-10 transition-all duration-300 ease-out",
+        "relative h-full bg-white/74 backdrop-blur-xl border-r border-[#DDE7F3]/80 flex flex-col shrink-0 shadow-none z-10 transition-all duration-300 ease-out",
         collapsed ? "w-12" : "w-80",
       )}
     >
@@ -72,7 +72,7 @@ export function Sidebar({
         type="button"
         onClick={onToggleCollapsed}
         aria-label={collapsed ? '展开侧边栏' : '收起侧边栏'}
-        className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-[#DDE7F3] shadow-sm flex items-center justify-center text-[#64748B] hover:text-[#0B1F33] hover:border-[#0B1F33] transition-colors z-20"
+        className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white/90 backdrop-blur-xl border border-[#DDE7F3] flex items-center justify-center text-[#64748B] hover:text-[#0B1F33] hover:border-[#0B1F33] transition-colors z-20"
       >
         <ArrowLeft size={12} className={cn("transition-transform duration-300", collapsed && "rotate-180")} />
       </button>

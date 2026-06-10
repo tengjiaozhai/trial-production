@@ -191,6 +191,7 @@ function buildWorkbookSnapshot(
   activeFields: FieldDefinition[],
   currentStep: StepId
 ) {
+  const centeredStyle = { ht: 2, vt: 2 };
   const cellData: Record<number, Record<number, { v?: string; s?: any }>> = {};
   const mergeData: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }> = [];
 
@@ -202,10 +203,10 @@ function buildWorkbookSnapshot(
 
       if (row.kind === 'title' || row.kind === 'group') {
         // Group header: put group title in first column
-        cellData[rowIdx][0] = { v: row.groupTitle ?? '' };
+        cellData[rowIdx][0] = { v: row.groupTitle ?? '', s: centeredStyle };
       } else if (row.kind === 'field' && row.fieldId) {
         // Field row: label in first column, values in subsequent columns
-        cellData[rowIdx][0] = { v: row.fieldLabel ?? '' };
+        cellData[rowIdx][0] = { v: row.fieldLabel ?? '', s: centeredStyle };
 
         if (isSkuSpanningField(row.fieldId)) {
           let ci = 0;
@@ -221,7 +222,7 @@ function buildWorkbookSnapshot(
 
             const sku = skuData.find((s) => s.id === skuId);
             const value = sku?.supplies[0]?.values[row.fieldId] ?? '';
-            cellData[rowIdx][startColumn] = { v: value };
+            cellData[rowIdx][startColumn] = { v: value, s: centeredStyle };
             if (endColumn > startColumn) {
               mergeData.push({
                 startRow: rowIdx,
@@ -241,7 +242,7 @@ function buildWorkbookSnapshot(
             if (!supply) continue;
 
             const value = supply.values[row.fieldId] ?? '';
-            cellData[rowIdx][ci + 1] = { v: value };
+            cellData[rowIdx][ci + 1] = { v: value, s: centeredStyle };
           }
         }
       }
