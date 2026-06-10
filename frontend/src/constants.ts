@@ -1,94 +1,100 @@
 import { FieldDefinition, SKUData } from './types';
 
 export const FIELD_GROUPS = [
-  '基本信息',
-  '常用项',
-  '存储/PCBA',
-  '核心器件',
-  '常规器件',
-  '工艺辅料',
-  'BOM信息',
-  '内部样机需求',
+  '基础信息',
+  '产品规格',
+  '生产配置',
+  '电子物料',
+  '结构物料',
+  '包装工艺',
+  '辅料清单',
+  '结构层级清单',
+  '核心元器件',
   '客户样机需求',
-  '统计汇总'
+  '内部样机需求',
+  '汇总统计'
 ];
 
 export const FIELD_DEFS: FieldDefinition[] = [
-  // 基本信息
-  { id: 'project', label: '项目名称', group: '基本信息', behavior: 'auto' },
-  { id: 'stage', label: '试产阶段', group: '基本信息', behavior: 'auto' },
-  { id: 'mb_id', label: '主板标识', group: '基本信息', behavior: 'manual' },
-  { id: 'order_no', label: '订单号', group: '基本信息', behavior: 'manual' },
+  // 基础信息
+  { id: 'project', label: '项目名称', group: '基础信息', behavior: 'auto' },
+  { id: 'stage', label: '试产阶段', group: '基础信息', behavior: 'auto' },
+  { id: 'order_no', label: '订单号', group: '基础信息', behavior: 'manual' },
+  { id: 'prod_order', label: '生产顺序', group: '基础信息', behavior: 'manual' },
+  { id: 'software', label: '软件', group: '基础信息', behavior: 'manual' },
+  { id: 'online_time', label: '上线时间', group: '基础信息', behavior: 'manual' },
+  { id: 'assembly_time', label: '组装时间', group: '基础信息', behavior: 'manual' },
+  { id: 'prod_loc', label: '试产地点', group: '基础信息', behavior: 'manual' },
 
-  // 常用项
-  { id: 'prod_order', label: '生产顺序', group: '常用项', behavior: 'manual' },
-  { id: 'software', label: '软件', group: '常用项', behavior: 'manual' },
-  { id: 'online_time', label: '上线时间', group: '常用项', behavior: 'manual' },
-  { id: 'assembly_time', label: '组装时间', group: '常用项', behavior: 'manual' },
-  { id: 'prod_loc', label: '试产地点', group: '常用项', behavior: 'manual' },
-  { id: 'color', label: '颜色', group: '常用项', behavior: 'manual' },
-  { id: 'unit_id', label: '整机标识', group: '常用项', behavior: 'manual' },
-  { id: 'cal_file', label: '校准文件', group: '常用项', behavior: 'manual' },
-  { id: 'band', label: '频段', group: '常用项', behavior: 'auto' },
+  // 产品规格
+  { id: 'color', label: '颜色', group: '产品规格', behavior: 'manual' },
+  { id: 'unit_id', label: '整机标识', group: '产品规格', behavior: 'manual' },
+  { id: 'mb_id', label: '主板标识', group: '产品规格', behavior: 'manual' },
+  { id: 'cal_file', label: '校准文件', group: '产品规格', behavior: 'manual' },
+  { id: 'band', label: '频段', group: '产品规格', behavior: 'auto' },
+  { id: 'storage', label: '存储', group: '产品规格', behavior: 'auto' },
 
-  // 存储/PCBA
-  { id: 'storage', label: '存储', group: '存储/PCBA', behavior: 'auto' },
-  { id: 'pcba', label: 'PCBA', group: '存储/PCBA', behavior: 'calc' },
-  { id: 'sub_board_qty', label: '小板数量', group: '存储/PCBA', behavior: 'calc' },
-  { id: 'board_adj_qty', label: '调板数量', group: '存储/PCBA', behavior: 'manual' },
-  { id: 'assembly_qty', label: '组装数量', group: '存储/PCBA', behavior: 'calc' },
+  // 生产配置
+  { id: 'pcba', label: 'PCBA', group: '生产配置', behavior: 'calc' },
+  { id: 'sub_board_qty', label: '小板数量', group: '生产配置', behavior: 'calc' },
+  { id: 'board_adj_qty', label: '调板数量', group: '生产配置', behavior: 'manual' },
+  { id: 'assembly_qty', label: '组装数量', group: '生产配置', behavior: 'calc' },
 
-  // 核心器件
-  { id: 'cpu', label: 'CPU', group: '核心器件', behavior: 'auto' },
-  { id: 'emmc', label: 'flash EMMC', group: '核心器件', behavior: 'auto' },
-  { id: 'ddr', label: 'flash DDR', group: '核心器件', behavior: 'auto' },
-  { id: 'pmu', label: '电源管理', group: '核心器件', behavior: 'auto' },
-  { id: 'tx', label: '无线发射', group: '核心器件', behavior: 'auto' },
-  { id: 'rf_transceiver', label: '射频收发器', group: '核心器件', behavior: 'auto' },
-  { id: 'nfc', label: 'NFC', group: '核心器件', behavior: 'auto' },
-  { id: 'pcb', label: 'PCB', group: '核心器件', behavior: 'auto' },
-  { id: 'sub_board', label: '小板', group: '核心器件', behavior: 'auto' },
+  // 电子物料
+  { id: 'lcd', label: 'LCD', group: '电子物料', behavior: 'auto' },
+  { id: 'front_cam', label: '前CAM', group: '电子物料', behavior: 'auto' },
+  { id: 'main_cam', label: '主CAM', group: '电子物料', behavior: 'auto' },
+  { id: 'sub_cam', label: '副CAM', group: '电子物料', behavior: 'auto' },
+  { id: 'fingerprint', label: '指纹', group: '电子物料', behavior: 'auto' },
+  { id: 'battery', label: '电池', group: '电子物料', behavior: 'auto' },
+  { id: 'speaker', label: '喇叭', group: '电子物料', behavior: 'auto' },
+  { id: 'receiver', label: '听筒', group: '电子物料', behavior: 'auto' },
+  { id: 'mic', label: 'MIC', group: '电子物料', behavior: 'auto' },
+  { id: 'motor', label: '马达', group: '电子物料', behavior: 'auto' },
+  { id: 'spk_fpc', label: 'spk FPC', group: '电子物料', behavior: 'auto' },
+  { id: 'sidekey_fpc', label: 'Sidekey FPC', group: '电子物料', behavior: 'auto' },
+  { id: 'ir_fpc', label: 'IR FPC', group: '电子物料', behavior: 'auto' },
 
-  // 常规器件
-  { id: 'lcd', label: 'LCD', group: '常规器件', behavior: 'auto' },
-  { id: 'front_cam', label: '前CAM', group: '常规器件', behavior: 'auto' },
-  { id: 'main_cam', label: '主CAM', group: '常规器件', behavior: 'auto' },
-  { id: 'sub_cam', label: '副CAM', group: '常规器件', behavior: 'auto' },
-  { id: 'fingerprint', label: '指纹', group: '常规器件', behavior: 'auto' },
-  { id: 'battery', label: '电池', group: '常规器件', behavior: 'auto' },
-  { id: 'speaker', label: '喇叭', group: '常规器件', behavior: 'auto' },
-  { id: 'receiver', label: '听筒', group: '常规器件', behavior: 'auto' },
-  { id: 'mic', label: 'MIC', group: '常规器件', behavior: 'auto' },
-  { id: 'motor', label: '马达', group: '常规器件', behavior: 'auto' },
-  { id: 'spk_fpc', label: 'spk FPC', group: '常规器件', behavior: 'auto' },
-  { id: 'sidekey_fpc', label: 'Sidekey FPC', group: '常规器件', behavior: 'auto' },
-  { id: 'ir_fpc', label: 'IR FPC', group: '常规器件', behavior: 'auto' },
-  { id: 'lens', label: '镜片', group: '常规器件', behavior: 'auto' },
-  { id: 'housing', label: '壳料', group: '常规器件', behavior: 'auto' },
-  { id: 'battery_cover', label: '电池盖', group: '常规器件', behavior: 'auto' },
-  { id: 'sim_tray', label: '卡托', group: '常规器件', behavior: 'auto' },
-  { id: 'side_key', label: '侧键', group: '常规器件', behavior: 'auto' },
-  { id: 'aux_material', label: '辅料', group: '常规器件', behavior: 'auto' },
-  { id: 'cooling', label: '散热', group: '常规器件', behavior: 'auto' },
-  { id: 'pkg_process', label: '包装流程', group: '常规器件', behavior: 'manual' },
+  // 结构物料
+  { id: 'lens', label: '镜片', group: '结构物料', behavior: 'auto' },
+  { id: 'housing', label: '壳料', group: '结构物料', behavior: 'auto' },
+  { id: 'battery_cover', label: '电池盖', group: '结构物料', behavior: 'auto' },
+  { id: 'sim_tray', label: '卡托', group: '结构物料', behavior: 'auto' },
+  { id: 'side_key', label: '侧键', group: '结构物料', behavior: 'auto' },
+  { id: 'aux_material', label: '辅料', group: '结构物料', behavior: 'auto' },
+  { id: 'cooling', label: '散热', group: '结构物料', behavior: 'auto' },
 
-  // 工艺辅料
-  { id: 'copy_mold', label: '复制模互配', group: '工艺辅料', behavior: 'manual' },
-  { id: 'underfill', label: '底填', group: '工艺辅料', behavior: 'manual' },
-  { id: 'thermal_gel_mb', label: '主板导热凝胶', group: '工艺辅料', behavior: 'manual' },
-  { id: 'usb_glue', label: 'USB点胶状态', group: '工艺辅料', behavior: 'manual' },
-  { id: 'solder_paste', label: '锡膏', group: '工艺辅料', behavior: 'manual' },
-  { id: 'thermal_gel_front', label: '面壳导热凝胶', group: '工艺辅料', behavior: 'manual' },
-  { id: 'tp_hotmelt', label: 'TP热熔胶', group: '工艺辅料', behavior: 'manual' },
+  // 包装工艺
+  { id: 'pkg_process', label: '包装流程', group: '包装工艺', behavior: 'manual' },
+  { id: 'copy_mold', label: '复制模互配', group: '包装工艺', behavior: 'manual' },
 
-  // BOM信息
-  { id: 'ebom', label: 'EBOM（料号）', group: 'BOM信息', behavior: 'manual' },
-  { id: 'ebom_desc', label: 'EBOM（描述）', group: 'BOM信息', behavior: 'manual' },
-  { id: 'sub_bom', label: '小板BOM（料号）', group: 'BOM信息', behavior: 'manual' },
-  { id: 'sub_bom_desc', label: '小板BOM（描述）', group: 'BOM信息', behavior: 'manual' },
-  { id: 'lda', label: 'LDA组件', group: 'BOM信息', behavior: 'manual' },
-  { id: 'mbom', label: 'MBOM', group: 'BOM信息', behavior: 'manual' },
-  { id: 'pbom', label: 'PBOM', group: 'BOM信息', behavior: 'manual' },
+  // 辅料清单
+  { id: 'underfill', label: '底填', group: '辅料清单', behavior: 'manual' },
+  { id: 'thermal_gel_mb', label: '主板导热凝胶', group: '辅料清单', behavior: 'manual' },
+  { id: 'usb_glue', label: 'USB点胶状态', group: '辅料清单', behavior: 'manual' },
+  { id: 'solder_paste', label: '锡膏', group: '辅料清单', behavior: 'manual' },
+  { id: 'thermal_gel_front', label: '面壳导热凝胶', group: '辅料清单', behavior: 'manual' },
+  { id: 'tp_hotmelt', label: 'TP热熔胶', group: '辅料清单', behavior: 'manual' },
+
+  // 结构层级清单
+  { id: 'ebom', label: 'EBOM（料号）', group: '结构层级清单', behavior: 'manual' },
+  { id: 'ebom_desc', label: 'EBOM（描述）', group: '结构层级清单', behavior: 'manual' },
+  { id: 'sub_bom', label: '小板BOM（料号）', group: '结构层级清单', behavior: 'manual' },
+  { id: 'sub_bom_desc', label: '小板BOM（描述）', group: '结构层级清单', behavior: 'manual' },
+  { id: 'lda', label: 'LDA组件', group: '结构层级清单', behavior: 'manual' },
+  { id: 'mbom', label: 'MBOM', group: '结构层级清单', behavior: 'manual' },
+  { id: 'pbom', label: 'PBOM', group: '结构层级清单', behavior: 'manual' },
+
+  // 核心元器件
+  { id: 'cpu', label: 'CPU', group: '核心元器件', behavior: 'auto' },
+  { id: 'emmc', label: 'flash EMMC', group: '核心元器件', behavior: 'auto' },
+  { id: 'ddr', label: 'flash DDR', group: '核心元器件', behavior: 'auto' },
+  { id: 'pmu', label: '电源管理', group: '核心元器件', behavior: 'auto' },
+  { id: 'tx', label: '无线发射', group: '核心元器件', behavior: 'auto' },
+  { id: 'rf_transceiver', label: '射频收发器', group: '核心元器件', behavior: 'auto' },
+  { id: 'nfc', label: 'NFC', group: '核心元器件', behavior: 'auto' },
+  { id: 'pcb', label: 'PCB', group: '核心元器件', behavior: 'auto' },
+  { id: 'sub_board', label: '小板', group: '核心元器件', behavior: 'auto' },
 
   // 客户样机需求
   { id: 'reliability', label: '可靠性（客户）', group: '客户样机需求', behavior: 'auto' },
@@ -110,12 +116,12 @@ export const FIELD_DEFS: FieldDefinition[] = [
   { id: 'ux', label: '体验', group: '内部样机需求', behavior: 'auto' },
   { id: 'parts', label: '器件', group: '内部样机需求', behavior: 'auto' },
   { id: 'pm', label: '产品', group: '内部样机需求', behavior: 'auto' },
-  { id: 'backup_unit', label: '备料样机', group: '内部样机需求', behavior: 'manual' },
-
-  // 统计汇总
   { id: 't_long_rd_total', label: '天珑研发样机总计', group: '内部样机需求', behavior: 'calc' },
-  { id: 'total_qty', label: '总计', group: '统计汇总', behavior: 'calc' },
-  { id: 'prod_yield', label: '生产良率', group: '统计汇总', behavior: 'manual' },
+
+  // 汇总统计
+  { id: 'backup_unit', label: '备料样机', group: '汇总统计', behavior: 'manual' },
+  { id: 'total_qty', label: '总计', group: '汇总统计', behavior: 'calc' },
+  { id: 'prod_yield', label: '生产良率', group: '汇总统计', behavior: 'manual' },
 ];
 
 export const TEMPLATE_STAGES: Record<string, string[]> = {

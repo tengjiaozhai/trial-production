@@ -18,52 +18,36 @@
   - 右上青色光晕: `radial-gradient(circle at 92% 6%, rgba(6, 182, 212, 0.18), transparent 30%)`
   - 主渐变: `linear-gradient(135deg, #eef6ff 0%, #f9fbff 48%, #edf7f4 100%)`
 
-### 表格 AB 配色方案
-表格采用 ABAB 交替配色方案，用于区分不同的字段组：
-
-#### CSS 变量定义（`src/index.css`）
-```css
-:root {
-  --block-a-title: #EAF3FF;
-  --block-a-body: #F7FBFF;
-  --block-a-accent: #2F6BDE;
-  
-  --block-b-title: #EAFBF7;
-  --block-b-body: #F6FFFC;
-  --block-b-accent: #1D8F6A;
-}
-```
+### 表格 ABCDE 配色方案
+表格采用 5 色循环配色方案 `COLOR_SCHEME`，用于区分不同的字段组：
 
 #### Univer 表格样式（`src/components/TrialProductionSheet.tsx`）
 ```typescript
-// ABAB color scheme
-const BLOCK_A = {
-  title: { bg: { rgb: '#EAF3FF' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 },
-  body: { bg: { rgb: '#F7FBFF' }, ht: 2, vt: 2, tb: 2 },
-};
-const BLOCK_B = {
-  title: { bg: { rgb: '#EAFBF7' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 },
-  body: { bg: { rgb: '#F6FFFC' }, ht: 2, vt: 2, tb: 2 },
-};
+const COLOR_SCHEME = [
+  { title: { bg: { rgb: '#EAF3FF' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 }, body: { bg: { rgb: '#F7FBFF' }, ht: 2, vt: 2, tb: 2 } }, // A: 浅蓝
+  { title: { bg: { rgb: '#EAFBF7' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 }, body: { bg: { rgb: '#F6FFFC' }, ht: 2, vt: 2, tb: 2 } }, // B: 浅青绿
+  { title: { bg: { rgb: '#F3EEFF' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 }, body: { bg: { rgb: '#FAF8FF' }, ht: 2, vt: 2, tb: 2 } }, // C: 浅紫
+  { title: { bg: { rgb: '#FFF1E6' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 }, body: { bg: { rgb: '#FFF8F3' }, ht: 2, vt: 2, tb: 2 } }, // D: 浅橙
+  { title: { bg: { rgb: '#EAF8F0' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 }, body: { bg: { rgb: '#F6FCF8' }, ht: 2, vt: 2, tb: 2 } }, // E: 浅薄荷绿
+];
 
 const getStyleForGroup = (groupIndex: number | undefined, isTitle: boolean) => {
-  const block = (groupIndex ?? 0) % 2 === 0 ? BLOCK_A : BLOCK_B;
+  const colorIndex = (groupIndex ?? 0) % COLOR_SCHEME.length;
+  const block = COLOR_SCHEME[colorIndex];
   return isTitle ? block.title : block.body;
 };
 ```
 
 #### 配色说明
-- **BLOCK_A**（偶数组，groupIndex % 2 === 0）:
-  - 标题行: 浅蓝色背景 `#EAF3FF`，加粗，字号 14
-  - 内容行: 极浅蓝色背景 `#F7FBFF`
-  - 强调色: 蓝色 `#2F6BDE`
-
-- **BLOCK_B**（奇数组，groupIndex % 2 === 1）:
-  - 标题行: 浅绿色背景 `#EAFBF7`，加粗，字号 14
-  - 内容行: 极浅绿色背景 `#F6FFFC`
-  - 强调色: 绿色 `#1D8F6A`
+| 色块 | 标题背景 | 内容背景 | 配色名 |
+|------|---------|---------|--------|
+| A | `#EAF3FF` | `#F7FBFF` | 浅蓝 |
+| B | `#EAFBF7` | `#F6FFFC` | 浅青绿 |
+| C | `#F3EEFF` | `#FAF8FF` | 浅紫 |
+| D | `#FFF1E6` | `#FFF8F3` | 浅橙 |
+| E | `#EAF8F0` | `#F6FCF8` | 浅薄荷绿 |
 
 #### 应用方式
-在 `buildWorkbookSnapshot` 函数中，根据 `row.groupIndex` 的奇偶性选择对应的配色方案：
+在 `buildWorkbookSnapshot` 函数中，根据 `row.groupIndex` 从 `COLOR_SCHEME` 数组中循环取色（`groupIndex % 5`）：
 - 组标题行（`kind === 'title'` 或 `kind === 'group'`）使用 `block.title` 样式
 - 字段行（`kind === 'field'`）使用 `block.body` 样式

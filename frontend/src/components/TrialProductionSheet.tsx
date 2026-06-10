@@ -192,6 +192,52 @@ function calculateColumnWidths(
   skuData: SKUData[]
 ): Record<number, { w: number }> {
   const widths: Record<number, { w: number }> = {};
+  const isStep5Preview = model.readOnly && Boolean(model.step5Model);
+
+  const measureWidth = (text: string): number => {
+    let w = 0;
+    for (const ch of text) {
+      w += ch.charCodeAt(0) > 0x7f ? 16 : 8;
+    }
+    return w;
+  };
+
+  if (isStep5Preview) {
+    const step5Model = model.step5Model!;
+    const maxLabelLength = Math.max(
+      ...step5Model.rows
+        .filter((row): row is Extract<(typeof step5Model.rows)[number], { kind: 'field' }> => row.kind === 'field')
+        .map((row) => row.fieldLabel.length),
+      6
+    );
+
+    // Step 5 renders an index column and a field-label column before values.
+    widths[0] = { w: 48 };
+    widths[1] = { w: Math.max(maxLabelLength * 16, 120) };
+
+    const maxTextsPerCol: string[] = new Array(step5Model.columns.length).fill('');
+    for (const row of step5Model.rows) {
+      if (row.kind !== 'field') continue;
+
+      let colCursor = 0;
+      for (const cell of row.cells) {
+        const span = Math.max(1, cell.colSpan);
+        for (let offset = 0; offset < span && colCursor + offset < maxTextsPerCol.length; offset++) {
+          if (cell.value.length > maxTextsPerCol[colCursor + offset].length) {
+            maxTextsPerCol[colCursor + offset] = cell.value;
+          }
+        }
+        colCursor += span;
+      }
+    }
+
+    for (let i = 0; i < step5Model.columns.length; i++) {
+      const width = Math.max(measureWidth(maxTextsPerCol[i]) + 16, 80); // +16 padding, min 80px
+      widths[i + 2] = { w: width };
+    }
+
+    return widths;
+  }
 
   // Column 0: label column — width based on longest field label
   const maxLabelLength = Math.max(
@@ -234,15 +280,6 @@ function calculateColumnWidths(
     }
   }
 
-  // Convert max character count to pixel width (CJK chars ~16px, ASCII ~8px)
-  const measureWidth = (text: string): number => {
-    let w = 0;
-    for (const ch of text) {
-      w += ch.charCodeAt(0) > 0x7f ? 16 : 8;
-    }
-    return w;
-  };
-
   for (let i = 0; i < model.columns.length; i++) {
     const maxText = maxTextsPerCol[i];
     const width = Math.max(measureWidth(maxText) + 16, 80); // +16 padding, min 80px
@@ -273,12 +310,60 @@ export function buildWorkbookSnapshot(
     return isTitle ? block.title : block.body;
   };
 
-  const centeredStyle = { ht: 2, vt: 2, tb: 2 };
   const cellData: Record<number, Record<number, { v?: string; s?: any }>> = {};
   const mergeData: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }> = [];
+  const isStep5Preview = model.readOnly && Boolean(model.step5Model);
+  const totalValueCols = isStep5Preview ? model.step5Model!.columns.length : model.columns.length;
+  const totalCols = isStep5Preview ? 2 + totalValueCols : 1 + totalValueCols;
 
   // For non-Step5, build from model rows and columns
-  if (!model.readOnly) {
+  if (isStep5Preview) {
+    let rowIdx = 0;
+    let groupIndex = -1;
+
+    for (const row of model.step5Model!.rows) {
+      cellData[rowIdx] = {};
+
+      if (row.kind === 'title' || row.kind === 'group') {
+        if (row.kind === 'title') {
+          groupIndex = 0;
+        } else {
+          groupIndex++;
+        }
+
+        const groupStyle = getStyleForGroup(groupIndex, true);
+        cellData[rowIdx][0] = { v: row.title, s: groupStyle };
+        if (totalCols > 1) {
+          mergeData.push({
+            startRow: rowIdx,
+            endRow: rowIdx,
+            startColumn: 0,
+            endColumn: totalCols - 1,
+          });
+        }
+      } else {
+        const groupStyle = getStyleForGroup(groupIndex, false);
+        cellData[rowIdx][0] = { v: row.indexLabel, s: groupStyle };
+        cellData[rowIdx][1] = { v: row.fieldLabel, s: groupStyle };
+
+        let colCursor = 2;
+        for (const cell of row.cells) {
+          cellData[rowIdx][colCursor] = { v: cell.value, s: groupStyle };
+          if (cell.colSpan > 1) {
+            mergeData.push({
+              startRow: rowIdx,
+              endRow: rowIdx,
+              startColumn: colCursor,
+              endColumn: colCursor + cell.colSpan - 1,
+            });
+          }
+          colCursor += cell.colSpan;
+        }
+      }
+
+      rowIdx++;
+    }
+  } else {
     let rowIdx = 0;
     for (const row of model.rows) {
       cellData[rowIdx] = {};
@@ -355,7 +440,7 @@ export function buildWorkbookSnapshot(
         mergeData,
         columnData: calculateColumnWidths(model, activeFields, skuData),
         rowCount: Math.max(Object.keys(cellData).length + 10, 50),
-        columnCount: Math.max(model.columns.length + 5, 20),
+        columnCount: Math.max(totalCols + 5, 20),
       },
     },
   };

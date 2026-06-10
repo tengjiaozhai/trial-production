@@ -33,7 +33,7 @@ export function createInsertedField(
   return {
     id: buildNewFieldId(),
     label,
-    group: anchor?.group ?? '基本信息',
+    group: anchor?.group ?? '基础信息',
     behavior: 'manual',
   };
 }

@@ -83,10 +83,10 @@ describe('createInsertedField', () => {
     expect(result.label).toBe('自定义标题');
   });
 
-  it('uses the fallback group "基本信息" when afterFieldId is missing', () => {
+  it('uses the fallback group "基础信息" when afterFieldId is missing', () => {
     const fields = [makeField({ id: 'a', group: '物料' })];
     const result = createInsertedField('not-exists', fields, '新标题');
-    expect(result.group).toBe('基本信息');
+    expect(result.group).toBe('基础信息');
   });
 
   it('uses manual behavior, not calc', () => {

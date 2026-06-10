@@ -5,11 +5,11 @@ import type { SKUData, FieldDefinition, StepId } from '../types';
 import type { Step2CellConflict } from './step2CellConflicts';
 
 const basicFields: FieldDefinition[] = [
-  { id: 'project', label: '项目名称', group: '基本信息', behavior: 'auto' },
-  { id: 'stage', label: '试产阶段', group: '基本信息', behavior: 'auto' },
-  { id: 'band', label: '频段', group: '常用项', behavior: 'auto' },
-  { id: 'storage', label: '存储', group: '存储/PCBA', behavior: 'auto' },
-  { id: 'lcd', label: 'LCD', group: '常规器件', behavior: 'auto' },
+  { id: 'project', label: '项目名称', group: '基础信息', behavior: 'auto' },
+  { id: 'stage', label: '试产阶段', group: '基础信息', behavior: 'auto' },
+  { id: 'band', label: '频段', group: '产品规格', behavior: 'auto' },
+  { id: 'storage', label: '存储', group: '产品规格', behavior: 'auto' },
+  { id: 'lcd', label: 'LCD', group: '电子物料', behavior: 'auto' },
 ];
 
 const singleSku: SKUData[] = [
@@ -226,8 +226,8 @@ describe('buildTrialProductionSheetModel', () => {
 
 describe('group rows merge across all columns', () => {
   const fields: FieldDefinition[] = [
-    { id: 'project', label: '项目名称', group: '基本信息', behavior: 'auto' },
-    { id: 'stage', label: '试产阶段', group: '常用项', behavior: 'auto' },
+    { id: 'project', label: '项目名称', group: '基础信息', behavior: 'auto' },
+    { id: 'stage', label: '试产阶段', group: '产品规格', behavior: 'auto' },
   ];
 
   const skuData: SKUData[] = [
@@ -255,7 +255,7 @@ describe('group rows merge across all columns', () => {
 
     // Verify group rows exist with correct titles
     const titleRow = model.rows.find(r => r.kind === 'title');
-    const groupRow = model.rows.find(r => r.kind === 'group' && r.groupTitle === '常用项');
+    const groupRow = model.rows.find(r => r.kind === 'group' && r.groupTitle === '产品规格');
     expect(titleRow).toBeDefined();
     expect(groupRow).toBeDefined();
   });
@@ -274,11 +274,11 @@ describe('group rows merge across all columns', () => {
 
 describe('buildWorkbookSnapshot - group rows merge', () => {
   const fields: FieldDefinition[] = [
-    { id: 'project', label: '项目名称', group: '基本信息', behavior: 'auto' },
-    { id: 'stage', label: '试产阶段', group: '常用项', behavior: 'auto' },
-    { id: 'band', label: '频段', group: '存储/PCBA', behavior: 'auto' },
-    { id: 'lcd', label: 'LCD', group: '核心器件', behavior: 'auto' },
-    { id: 'color', label: '颜色', group: '常规器件', behavior: 'auto' },
+    { id: 'project', label: '项目名称', group: '基础信息', behavior: 'auto' },
+    { id: 'stage', label: '试产阶段', group: '产品规格', behavior: 'auto' },
+    { id: 'band', label: '频段', group: '生产配置', behavior: 'auto' },
+    { id: 'lcd', label: 'LCD', group: '电子物料', behavior: 'auto' },
+    { id: 'color', label: '颜色', group: '产品规格', behavior: 'auto' },
   ];
 
   const skuData: SKUData[] = [
@@ -303,7 +303,6 @@ describe('buildWorkbookSnapshot - group rows merge', () => {
 
     const snapshot = buildWorkbookSnapshot(model, skuData, fields, 3);
 
-    // Title row (row 0) should be merged from column 0 to last column (2)
     const mergeData = snapshot.sheets.sheet1.mergeData;
     const titleMerge = mergeData.find(m =>
       m.startRow === 0 && m.startColumn === 0 && m.endColumn === 2
@@ -320,7 +319,6 @@ describe('buildWorkbookSnapshot - group rows merge', () => {
 
     const snapshot = buildWorkbookSnapshot(model, skuData, fields, 3);
 
-    // Title row (row 0) should have bold 14px font
     const titleCell = snapshot.sheets.sheet1.cellData[0]?.[0];
     expect(titleCell).toBeDefined();
     expect(titleCell?.s).toBeDefined();
@@ -337,38 +335,22 @@ describe('buildWorkbookSnapshot - group rows merge', () => {
 
     const snapshot = buildWorkbookSnapshot(model, skuData, fields, 3);
 
-    // ABCDE colors
-    const colors = {
-      A: { title: '#EAF3FF', body: '#F7FBFF' },
-      B: { title: '#EAFBF7', body: '#F6FFFC' },
-      C: { title: '#F3EEFF', body: '#FAF8FF' },
-      D: { title: '#FFF1E6', body: '#FFF8F3' },
-      E: { title: '#EAF8F0', body: '#F6FCF8' },
-    };
+    // ABCDE color scheme (5 colors, cycled)
+    const colors = [
+      { title: '#EAF3FF', body: '#F7FBFF' },  // A: 浅蓝
+      { title: '#EAFBF7', body: '#F6FFFC' },  // B: 浅青绿
+      { title: '#F3EEFF', body: '#FAF8FF' },  // C: 浅紫
+      { title: '#FFF1E6', body: '#FFF8F3' },  // D: 浅橙
+      { title: '#EAF8F0', body: '#F6FCF8' },  // E: 浅薄荷绿
+    ];
 
-    // Group 0 (基本信息) - Block A
-    const group0TitleCell = snapshot.sheets.sheet1.cellData[0]?.[0];
-    expect(group0TitleCell?.s?.bg?.rgb).toBe(colors.A.title);
-
-    // Group 1 (常用项) - Block B
-    const group1TitleRow = model.rows.find(r => r.kind === 'group' && r.groupTitle === '常用项');
-    const group1TitleCell = snapshot.sheets.sheet1.cellData[group1TitleRow!.rowIndex]?.[0];
-    expect(group1TitleCell?.s?.bg?.rgb).toBe(colors.B.title);
-
-    // Group 2 (存储/PCBA) - Block C
-    const group2TitleRow = model.rows.find(r => r.kind === 'group' && r.groupTitle === '存储/PCBA');
-    const group2TitleCell = snapshot.sheets.sheet1.cellData[group2TitleRow!.rowIndex]?.[0];
-    expect(group2TitleCell?.s?.bg?.rgb).toBe(colors.C.title);
-
-    // Group 3 (核心器件) - Block D
-    const group3TitleRow = model.rows.find(r => r.kind === 'group' && r.groupTitle === '核心器件');
-    const group3TitleCell = snapshot.sheets.sheet1.cellData[group3TitleRow!.rowIndex]?.[0];
-    expect(group3TitleCell?.s?.bg?.rgb).toBe(colors.D.title);
-
-    // Group 4 (常规器件) - Block E
-    const group4TitleRow = model.rows.find(r => r.kind === 'group' && r.groupTitle === '常规器件');
-    const group4TitleCell = snapshot.sheets.sheet1.cellData[group4TitleRow!.rowIndex]?.[0];
-    expect(group4TitleCell?.s?.bg?.rgb).toBe(colors.E.title);
+    // Groups are: 基础信息(0), 产品规格(1), 生产配置(2), 电子物料(3)
+    const groupTitles = ['基础信息', '产品规格', '生产配置', '电子物料'];
+    for (let i = 0; i < groupTitles.length; i++) {
+      const groupRow = model.rows.find(r => (r.kind === 'title' || r.kind === 'group') && r.groupTitle === groupTitles[i]);
+      const cell = snapshot.sheets.sheet1.cellData[groupRow!.rowIndex]?.[0];
+      expect(cell?.s?.bg?.rgb).toBe(colors[i % colors.length].title);
+    }
   });
 
   it('should apply ABCDE color scheme to field rows', () => {
@@ -380,27 +362,39 @@ describe('buildWorkbookSnapshot - group rows merge', () => {
 
     const snapshot = buildWorkbookSnapshot(model, skuData, fields, 3);
 
-    const colors = {
-      A: { body: '#F7FBFF' },
-      B: { body: '#F6FFFC' },
-      C: { body: '#FAF8FF' },
-      D: { body: '#FFF8F3' },
-      E: { body: '#F6FCF8' },
-    };
+    const colors = [
+      { title: '#EAF3FF', body: '#F7FBFF' },
+      { title: '#EAFBF7', body: '#F6FFFC' },
+      { title: '#F3EEFF', body: '#FAF8FF' },
+      { title: '#FFF1E6', body: '#FFF8F3' },
+      { title: '#EAF8F0', body: '#F6FCF8' },
+    ];
 
-    // Field in group 0 (基本信息) - Block A
+    // Field in group 0 (基础信息) - Color A body
     const projectRow = model.rows.find(r => r.kind === 'field' && r.fieldId === 'project');
     const projectCell = snapshot.sheets.sheet1.cellData[projectRow!.rowIndex]?.[0];
-    expect(projectCell?.s?.bg?.rgb).toBe(colors.A.body);
+    expect(projectCell?.s?.bg?.rgb).toBe(colors[0].body);
 
-    // Field in group 1 (常用项) - Block B
+    // Field in group 1 (产品规格) - Color B body
     const stageRow = model.rows.find(r => r.kind === 'field' && r.fieldId === 'stage');
     const stageCell = snapshot.sheets.sheet1.cellData[stageRow!.rowIndex]?.[0];
-    expect(stageCell?.s?.bg?.rgb).toBe(colors.B.body);
+    expect(stageCell?.s?.bg?.rgb).toBe(colors[1].body);
+  });
 
-    // Field in group 2 (存储/PCBA) - Block C
-    const bandRow = model.rows.find(r => r.kind === 'field' && r.fieldId === 'band');
-    const bandCell = snapshot.sheets.sheet1.cellData[bandRow!.rowIndex]?.[0];
-    expect(bandCell?.s?.bg?.rgb).toBe(colors.C.body);
+  it('should render step 5 preview cells instead of an empty sheet', () => {
+    const model = buildTrialProductionSheetModel({
+      activeFields: fields,
+      skuData,
+      currentStep: 5,
+    });
+
+    const snapshot = buildWorkbookSnapshot(model, skuData, fields, 5);
+
+    expect(model.readOnly).toBe(true);
+    expect(model.step5Model).toBeDefined();
+    expect(snapshot.sheets.sheet1.cellData[0]?.[0]?.v).toBe('基础信息');
+    expect(snapshot.sheets.sheet1.cellData[1]?.[1]?.v).toBe('项目名称');
+    expect(snapshot.sheets.sheet1.cellData[1]?.[2]?.v).toBe('X6728');
+    expect(snapshot.sheets.sheet1.mergeData.length).toBeGreaterThan(0);
   });
 });
