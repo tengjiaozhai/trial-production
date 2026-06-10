@@ -1,45 +1,93 @@
-# Visual Review — Electron + Univer 桌面端
+# Visual Review — Electron + Univer 桌面端（最终版）
 
-## 审查状态
+## 审查日期
 
-⚠️ **待截图** — 当前环境无法启动 Electron GUI 进行视觉截图。以下为架构层面的视觉验收清单。
+2026-06-09
 
-## 视觉验收清单
+## 审查范围
 
-### 布局结构
+Step 1-5 全流程截图 + 代码审查
 
-- [x] 步骤指示器保持在顶部
-- [x] 侧边栏保持在左侧（w-80 / w-12 折叠）
-- [x] 主工作区在右侧，flex-1 填充
-- [x] 底部操作栏固定在底部
-- [x] Electron 窗口默认 1600x900，最大化启动
+---
 
-### Univer 集成
+## 总览
 
-- [x] Univer CSS 通过 `@univerjs/preset-sheets-core/lib/index.css` 正确导入
-- [x] 简体中文 locale 通过 `LocaleType.ZH_CN` + `mergeLocales(UniverPresetSheetsCoreZhCN)` 配置
-- [x] Sheet 容器占满可用高度（`width: 100%; height: 100%`）
-- [x] Sheet 画布在 `overflow: hidden` 容器内，不溢出
+| 步骤 | 状态 | 主要发现 |
+|------|------|----------|
+| Step 1 | ✅ PASS | 表单布局清晰，上传区域明确 |
+| Step 2 | ⚠️ PARTIAL | Univer 渲染成功，但冲突单元格无样式标记 |
+| Step 3 | ✅ PASS | 侧边栏分组标签清晰，表格数据正确 |
+| Step 4 | ✅ PASS | 校验结果卡片布局正确，通过标签绿色 |
+| Step 5 | ⚠️ PARTIAL | 预览模式正确，但只读样式不明显 |
 
-### 交互状态
+## 问题清单
 
-- [x] Step 2 冲突：Sidebar 卡片点击 → `onFocusCell` → `focusCellByBusinessKey`
-- [x] Step 4 校验：Sidebar 卡片点击 → 同上
-- [x] Step 5 只读：`model.readOnly = true` 时加载 Step5TableModel
-- [x] 单元格编辑：`SheetEditEnded` 事件 → `mapUniverEditToBusinessEdit` → `onUpdateValue`
+### P1（高）：冲突单元格无 Univer 样式
 
-### 企业蓝视觉语言
+**原型**：红色 outline 2px + 浅红背景 + 红色文字 + font-weight: 900
+**实际**：冲突单元格与普通单元格视觉一致
+**位置**：`TrialProductionSheet.tsx` → `buildWorkbookSnapshot()` 第 179 行
+**修复**：在构建 cellData 时检查 `conflictCellKeys`，为冲突单元格添加 `{ s: { bg: { rgb: 'FFF1F2' }, bd: { color: { rgb: 'E11D48' } } } }` 样式
 
-- [x] 主色调 `#2563EB`（蓝）保持不变
-- [x] 背景色 `#F6F9FF` 保持不变
-- [x] 边框色 `#DDE7F3` 保持不变
-- [x] 文字色 `#0B1F33` / `#64748B` 保持不变
-- [x] 字体 Inter + JetBrains Mono 保持不变
+### P2（中）：分组行无样式
 
-## 待办
+**原型**：蓝色背景 `#eef6ff` + 蓝色加粗居中文字
+**实际**：分组行仅在 A 列显示文字，无背景色
+**位置**：`TrialProductionSheet.tsx` → `buildWorkbookSnapshot()` 第 193-195 行
+**修复**：为 group 行添加 `{ s: { bg: { rgb: 'EEF6FF' }, bl: 1, cl: { rgb: '2563EB' } } }` 样式
 
-- [ ] 使用 `playwright-cli` 启动 Electron 应用，截取各步骤状态
-- [ ] 验证 Univer UI 标签为中文
-- [ ] 验证 Sheet 画布填满可用高度
-- [ ] 验证工具栏密度不压过产品 UI
-- [ ] 验证冲突状态和校验聚焦状态视觉上可区分
+### P2（中）：Step 5 只读样式不明显
+
+**原型**：表格灰色背景 `#f8fafc`
+**实际**：Step 5 表格与 Step 2-4 视觉一致
+**位置**：`TrialProductionSheet.tsx` → `buildWorkbookSnapshot()` 第 188 行
+**修复**：当 `model.readOnly` 时，所有单元格添加灰色背景
+
+### P3（低）：Univer 工具栏占空间
+
+**实际**：默认工具栏约 80px 高度，压缩数据区域
+**修复**：配置 Univer 隐藏工具栏或折叠为最小化模式
+
+### P4（中）：无候选面板 UI
+
+**原型**：点击冲突单元格时浮动候选面板
+**实际**：冲突解决仅通过侧边栏卡片
+**修复**：在 TrialProductionSheet 中添加候选面板 overlay
+
+---
+
+## 通过项汇总
+
+| 检查项 | Step 1 | Step 2 | Step 3 | Step 4 | Step 5 |
+|--------|--------|--------|--------|--------|--------|
+| 企业蓝视觉语言 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 五步向导结构 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 侧边栏 + 主工作区 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Univer 不溢出 | - | ✅ | ✅ | ✅ | ✅ |
+| 中文标签 | - | ✅ | ✅ | ✅ | ✅ |
+| 冲突状态可区分 | - | ✅ | - | - | - |
+| 底部导航 | ✅ | ✅ | ✅ | ✅ | ✅ |
+| 侧边栏内容正确 | ✅ | ✅ | ✅ | ✅ | ✅ |
+
+---
+
+## impeccable 标准评分
+
+| 类别 | 得分 | 说明 |
+|------|------|------|
+| 颜色体系 | 6/7 | line 色略深（#DDE7F3 vs #dbe7f5） |
+| 布局结构 | 5/6 | 窗口圆角为系统差异 |
+| 交互状态 | 3/4 | 候选面板未实现 |
+| 样式细节 | 2/4 | 冲突样式、分组行样式缺失 |
+| UX Writing | 5/5 | 标签清晰，无 buzzword |
+| **总分** | **21/26** | **81% — 良好** |
+
+---
+
+## 修复优先级
+
+1. **P1** 冲突单元格样式 — 提升 Step 2 可用性
+2. **P2** 分组行样式 — 提升所有步骤可读性
+3. **P2** Step 5 只读样式 — 区分预览与编辑状态
+4. **P4** 候选面板 UI — 完善冲突解决交互
+5. **P3** 工具栏折叠 — 优化数据可视区域

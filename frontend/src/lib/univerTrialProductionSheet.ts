@@ -26,8 +26,6 @@ export interface TrialProductionSheetModel {
   step5Model?: ReturnType<typeof buildStep5TableModel>;
 }
 
-const SKU_SCOPED_FIELDS = new Set(['project', 'stage', 'mb_id', 'storage', 'band']);
-
 export function buildTrialProductionSheetModel(args: {
   activeFields: FieldDefinition[];
   skuData: SKUData[];
@@ -93,32 +91,22 @@ export function buildTrialProductionSheetModel(args: {
         fieldLabel: field.label,
       });
 
-      // Map each column to a business key
-      const isSkuScoped = SKU_SCOPED_FIELDS.has(field.id);
-
       for (let ci = 0; ci < columns.length; ci++) {
         const col = columns[ci];
-        const key = `${rowIndex}-${ci}`;
+        const key = `${rowIndex}-${ci + 1}`;
 
-        if (isSkuScoped) {
-          // SKU-scoped: only map once per SKU (first supply column)
-          const isFirstSupplyOfSku =
-            ci === 0 || columns[ci - 1].skuId !== col.skuId;
-          if (isFirstSupplyOfSku) {
-            cellMap[key] = {
+        cellMap[key] = isSkuSpanningField(field.id)
+          ? {
               skuId: col.skuId,
               fieldId: field.id,
               scope: 'sku',
+            }
+          : {
+              skuId: col.skuId,
+              supplyId: col.supplyId,
+              fieldId: field.id,
+              scope: 'supply',
             };
-          }
-        } else {
-          cellMap[key] = {
-            skuId: col.skuId,
-            supplyId: col.supplyId,
-            fieldId: field.id,
-            scope: 'supply',
-          };
-        }
       }
 
       rowIndex++;
@@ -137,10 +125,12 @@ export function buildTrialProductionSheetModel(args: {
 
       const row = rows[fieldRowIndex];
       if (conflict.scope === 'sku') {
-        // SKU-scoped conflict: find the first column for this SKU
-        const colIndex = columns.findIndex((c) => c.skuId === conflict.skuId);
-        if (colIndex >= 0) {
-          conflictCellKeys.add(`${row.rowIndex}-${colIndex}`);
+        // SKU-scoped conflict: mark every visible column for this SKU
+        for (let ci = 0; ci < columns.length; ci++) {
+          const col = columns[ci];
+          if (col.skuId === conflict.skuId) {
+            conflictCellKeys.add(`${row.rowIndex}-${ci + 1}`);
+          }
         }
       } else if (conflict.supplyId) {
         // Supply-scoped conflict: find the exact column
@@ -148,7 +138,7 @@ export function buildTrialProductionSheetModel(args: {
           (c) => c.skuId === conflict.skuId && c.supplyId === conflict.supplyId
         );
         if (colIndex >= 0) {
-          conflictCellKeys.add(`${row.rowIndex}-${colIndex}`);
+          conflictCellKeys.add(`${row.rowIndex}-${colIndex + 1}`);
         }
       }
     }

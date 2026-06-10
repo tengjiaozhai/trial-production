@@ -47,9 +47,52 @@ describe('Sidebar step 2 duplicate PCBA conflicts', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('点击定位'));
+    fireEvent.click(screen.getByRole('button', { name: '点击定位' }));
 
     expect(onFocusCell).toHaveBeenCalledWith('sku-1', 'sup-1', 'mb_id');
+  });
+
+  it('calls onResolveStep2Conflict when a candidate value is clicked', () => {
+    const onResolveStep2Conflict = vi.fn();
+
+    render(
+      <Sidebar
+        currentStep={2}
+        projectInfo={baseProjectInfo}
+        skuData={[]}
+        validationResults={[]}
+        onGoBack={() => {}}
+        isFlowComplete={false}
+        setIsFlowComplete={() => {}}
+        onRunValidation={() => {}}
+        onResolveStep2Conflict={onResolveStep2Conflict}
+        step2Conflicts={[
+          {
+            kind: 'cell_conflict',
+            scope: 'supply',
+            cellId: 'step2-cell-sku-1-sup-1-mb_id',
+            skuId: 'sku-1',
+            supplyId: 'sup-1',
+            fieldId: 'mb_id',
+            fieldLabel: '主板标识',
+            pcba: 'MB-001',
+            supplyLabel: '一供',
+            candidates: ['MB-001', 'MB-002'],
+          } as Step2CellConflict,
+        ]}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'MB-001' }));
+
+    expect(onResolveStep2Conflict).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skuId: 'sku-1',
+        supplyId: 'sup-1',
+        fieldId: 'mb_id',
+      }),
+      'MB-001'
+    );
   });
 
   it('calls onFocusCell for LCD conflict card', () => {
@@ -83,7 +126,7 @@ describe('Sidebar step 2 duplicate PCBA conflicts', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('点击定位'));
+    fireEvent.click(screen.getByRole('button', { name: '点击定位' }));
 
     expect(onFocusCell).toHaveBeenCalledWith('sku-1', 'sup-1', 'lcd');
   });

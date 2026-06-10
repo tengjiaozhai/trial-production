@@ -83,8 +83,8 @@ describe('buildTrialProductionSheetModel', () => {
     const projectRow = model.rows.find((r) => r.kind === 'field' && r.fieldId === 'project');
     expect(projectRow).toBeDefined();
 
-    // project 是 SKU-scoped，第一列映射到 sku1，scope 为 'sku'，无 supplyId
-    const cellKey = model.cellMap[`${(projectRow as any).rowIndex}-0`];
+    // project 是 SKU-scoped，sheet 的业务值从第 1 列开始，A 列是字段标题
+    const cellKey = model.cellMap[`${(projectRow as any).rowIndex}-1`];
     expect(cellKey).toBeDefined();
     expect(cellKey!.skuId).toBe('sku1');
     expect(cellKey!.fieldId).toBe('project');
@@ -102,10 +102,37 @@ describe('buildTrialProductionSheetModel', () => {
     const bandRow = model.rows.find((r) => r.kind === 'field' && r.fieldId === 'band');
     expect(bandRow).toBeDefined();
 
-    const cellKey = model.cellMap[`${(bandRow as any).rowIndex}-0`];
+    const cellKey = model.cellMap[`${(bandRow as any).rowIndex}-1`];
     expect(cellKey).toBeDefined();
     expect(cellKey!.scope).toBe('sku');
     expect(cellKey!.fieldId).toBe('band');
+  });
+
+  it('maps every visible value cell with the sheet column offset applied', () => {
+    const model = buildTrialProductionSheetModel({
+      activeFields: basicFields,
+      skuData: singleSku,
+      currentStep: 3,
+    });
+
+    const lcdRow = model.rows.find((r) => r.kind === 'field' && r.fieldId === 'lcd');
+    expect(lcdRow).toBeDefined();
+
+    const firstSupplyCell = model.cellMap[`${(lcdRow as any).rowIndex}-1`];
+    const secondSupplyCell = model.cellMap[`${(lcdRow as any).rowIndex}-2`];
+
+    expect(firstSupplyCell).toMatchObject({
+      skuId: 'sku1',
+      supplyId: 's1',
+      fieldId: 'lcd',
+      scope: 'supply',
+    });
+    expect(secondSupplyCell).toMatchObject({
+      skuId: 'sku1',
+      supplyId: 's2',
+      fieldId: 'lcd',
+      scope: 'supply',
+    });
   });
 
   it('Step 5 uses buildStep5TableModel and marks cells read-only', () => {
@@ -146,6 +173,34 @@ describe('buildTrialProductionSheetModel', () => {
     expect(model.conflictCellKeys.size).toBeGreaterThan(0);
   });
 
+  it('marks every visible column for sku-scoped conflicts', () => {
+    const conflicts: Step2CellConflict[] = [
+      {
+        kind: 'cell_conflict',
+        scope: 'sku',
+        cellId: 'step2-cell-sku1-band',
+        skuId: 'sku1',
+        fieldId: 'band',
+        fieldLabel: '频段',
+        pcba: 'A1',
+        supplyLabel: '整列',
+        candidates: ['拉美', '沙特（艾为PD IC）'],
+      },
+    ];
+
+    const model = buildTrialProductionSheetModel({
+      activeFields: basicFields,
+      skuData: singleSku,
+      currentStep: 2,
+      step2Conflicts: conflicts,
+    });
+
+    const bandRow = model.rows.find((r) => r.kind === 'field' && r.fieldId === 'band');
+    expect(bandRow).toBeDefined();
+    expect(model.conflictCellKeys.has(`${(bandRow as any).rowIndex}-1`)).toBe(true);
+    expect(model.conflictCellKeys.has(`${(bandRow as any).rowIndex}-2`)).toBe(true);
+  });
+
   it('generates correct columns for multiple SKUs', () => {
     const model = buildTrialProductionSheetModel({
       activeFields: basicFields,
@@ -166,13 +221,7 @@ describe('buildTrialProductionSheetModel', () => {
     });
 
     const fieldRows = model.rows.filter((r) => r.kind === 'field');
-    // SKU-scoped 字段 (project, stage, storage, band) 每个 SKU 只映射一次
-    // Supply-scoped 字段 (lcd) 每个 supply 都映射
-    const skuScopedCount = fieldRows.filter((r) =>
-      ['project', 'stage', 'band', 'storage'].includes(r.fieldId!)
-    ).length;
-    const supplyScopedCount = fieldRows.length - skuScopedCount;
-    const expectedEntries = skuScopedCount * 1 + supplyScopedCount * singleSku[0].supplies.length;
+    const expectedEntries = fieldRows.length * singleSku[0].supplies.length;
     expect(Object.keys(model.cellMap).length).toBe(expectedEntries);
   });
 });
