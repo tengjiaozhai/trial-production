@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as XLSX from 'xlsx';
-import { extractPcbaOptions, normalizeStorage, extractManagedMaterialWorkbook, resolveLcdOptionsForProject, serializeLcdOptions, extractPcbaWorkbookData } from './utils';
+import { extractPcbaOptions, normalizeStorage, extractManagedMaterialWorkbook, resolveLcdOptionsForProject, serializeLcdOptions, extractPcbaWorkbookData, stripVendorSuffix } from './utils';
 
 function makeXlsxFile(aoa: (string | null)[][]): File {
   const wb = XLSX.utils.book_new();
@@ -457,5 +457,25 @@ describe('extractPcbaWorkbookData', () => {
         },
       },
     ]);
+  });
+});
+
+describe('stripVendorSuffix', () => {
+  it('should remove company suffixes', () => {
+    expect(stripVendorSuffix('天马微电子公司')).toBe('天马微电子');
+  });
+
+  it('should remove province/city names with their geographic suffix', () => {
+    expect(stripVendorSuffix('深圳市XX科技有限公司')).toBe('XX');
+    expect(stripVendorSuffix('广东省XX有限公司')).toBe('XX');
+    expect(stripVendorSuffix('广州市XX有限公司')).toBe('XX');
+    expect(stripVendorSuffix('上海市天马微电子公司')).toBe('天马微电子');
+  });
+
+  it('should preserve text without vendor info', () => {
+    expect(stripVendorSuffix('LCM001 一供')).toBe('LCM001 一供');
+    expect(stripVendorSuffix('型号ABC 二供')).toBe('型号ABC 二供');
+    expect(stripVendorSuffix('一供XX科技有限公司XX规格')).toBe('一供XXXX规格');
+    expect(stripVendorSuffix('型号一供深圳XX科技有限公司8G')).toBe('型号一供深圳XX8G');
   });
 });

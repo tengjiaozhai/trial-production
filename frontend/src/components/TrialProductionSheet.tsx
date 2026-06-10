@@ -187,30 +187,78 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
 
 function calculateColumnWidths(
   model: ReturnType<typeof buildTrialProductionSheetModel>,
-  activeFields: FieldDefinition[]
-): Record<number, number> {
-  const widths: Record<number, number> = {};
+  activeFields: FieldDefinition[],
+  skuData: SKUData[]
+): Record<number, { w: number }> {
+  const widths: Record<number, { w: number }> = {};
 
+  // Column 0: label column — width based on longest field label
   const maxLabelLength = Math.max(
     ...activeFields.map(f => f.label.length),
     6
   );
-  widths[0] = Math.max(maxLabelLength * 16, 120);
+  widths[0] = { w: Math.max(maxLabelLength * 16, 120) };
+
+  // Data columns: scan actual cell values to find max text width per column
+  const maxTextsPerCol: string[] = new Array(model.columns.length).fill('');
+
+  for (const row of model.rows) {
+    if (row.kind !== 'field' || !row.fieldId) continue;
+    const fieldId = row.fieldId;
+
+    if (isSkuSpanningField(fieldId)) {
+      // Spanning field: value spans all supplies of the same SKU
+      let ci = 0;
+      while (ci < model.columns.length) {
+        const skuId = model.columns[ci].skuId;
+        const sku = skuData.find(s => s.id === skuId);
+        const value = String(sku?.supplies[0]?.values[fieldId] ?? '');
+        // Apply to all columns spanned by this SKU
+        let end = ci;
+        while (end + 1 < model.columns.length && model.columns[end + 1].skuId === skuId) end++;
+        for (let k = ci; k <= end; k++) {
+          if (value.length > maxTextsPerCol[k].length) maxTextsPerCol[k] = value;
+        }
+        ci = end + 1;
+      }
+    } else {
+      // Normal field: each column has its own value
+      for (let ci = 0; ci < model.columns.length; ci++) {
+        const col = model.columns[ci];
+        const sku = skuData.find(s => s.id === col.skuId);
+        const supply = sku?.supplies.find(s => s.id === col.supplyId);
+        const value = String(supply?.values[fieldId] ?? '');
+        if (value.length > maxTextsPerCol[ci].length) maxTextsPerCol[ci] = value;
+      }
+    }
+  }
+
+  // Convert max character count to pixel width (CJK chars ~16px, ASCII ~8px)
+  const measureWidth = (text: string): number => {
+    let w = 0;
+    for (const ch of text) {
+      w += ch.charCodeAt(0) > 0x7f ? 16 : 8;
+    }
+    return w;
+  };
 
   for (let i = 0; i < model.columns.length; i++) {
-    widths[i + 1] = 120;
+    const maxText = maxTextsPerCol[i];
+    const width = Math.max(measureWidth(maxText) + 16, 80); // +16 padding, min 80px
+    widths[i + 1] = { w: width };
   }
 
   return widths;
 }
 
-function buildWorkbookSnapshot(
+export function buildWorkbookSnapshot(
   model: ReturnType<typeof buildTrialProductionSheetModel>,
   skuData: SKUData[],
   activeFields: FieldDefinition[],
   currentStep: StepId
 ) {
   const centeredStyle = { ht: 2, vt: 2, tb: 2 }; // tb: 2 = 截断溢出
+  const groupTitleStyle = { ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 }; // bold 14px
   const cellData: Record<number, Record<number, { v?: string; s?: any }>> = {};
   const mergeData: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }> = [];
 
@@ -221,8 +269,18 @@ function buildWorkbookSnapshot(
       cellData[rowIdx] = {};
 
       if (row.kind === 'title' || row.kind === 'group') {
-        // Group header: put group title in first column
-        cellData[rowIdx][0] = { v: row.groupTitle ?? '', s: centeredStyle };
+        // Group header: put group title in first column with merge across all columns
+        const lastColumn = model.columns.length;
+        cellData[rowIdx][0] = { v: row.groupTitle ?? '', s: groupTitleStyle };
+        // Merge from column 0 to last column
+        if (lastColumn > 0) {
+          mergeData.push({
+            startRow: rowIdx,
+            endRow: rowIdx,
+            startColumn: 0,
+            endColumn: lastColumn,
+          });
+        }
       } else if (row.kind === 'field' && row.fieldId) {
         // Field row: label in first column, values in subsequent columns
         cellData[rowIdx][0] = { v: row.fieldLabel ?? '', s: centeredStyle };
@@ -279,7 +337,7 @@ function buildWorkbookSnapshot(
         name: '搭配表',
         cellData,
         mergeData,
-        columnData: calculateColumnWidths(model, activeFields),
+        columnData: calculateColumnWidths(model, activeFields, skuData),
         rowCount: Math.max(Object.keys(cellData).length + 10, 50),
         columnCount: Math.max(model.columns.length + 5, 20),
       },

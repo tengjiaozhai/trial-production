@@ -7,6 +7,21 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function stripVendorSuffix(text: string): string {
+  let result = text;
+
+  result = result.replace(/科技有限公司/g, '');
+  result = result.replace(/有限公司/g, '');
+  result = result.replace(/公司/g, '');
+
+  result = result.replace(/[\u4e00-\u9fa5]{1,4}省/g, '');
+  result = result.replace(/[\u4e00-\u9fa5]{1,4}市/g, '');
+  result = result.replace(/[\u4e00-\u9fa5]{1,4}县/g, '');
+  result = result.replace(/[\u4e00-\u9fa5]{1,4}区/g, '');
+
+  return result.trim();
+}
+
 /**
  * Normalize a storage string like "4+128", "128+4", "128G+4G" into
  * a canonical "smaller+larger" form without G suffix.

@@ -1283,7 +1283,7 @@ export default function App() {
         )}
 
         {/* Fixed Footer Actions */}
-        <div className="fixed bottom-0 left-0 right-0 h-16 bg-[linear-gradient(180deg,rgba(255,255,255,0.86)_0%,rgba(246,249,255,0.78)_100%)] backdrop-blur-xl border-t border-[#DDE7F3]/80 flex items-center justify-end px-8 z-[105] shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <div className="fixed bottom-0 left-0 right-0 h-16 bg-[linear-gradient(180deg,rgba(237,246,255,0.96)_0%,rgba(248,251,255,0.9)_44%,rgba(242,250,248,0.94)_100%)] backdrop-blur-xl border-t border-[#DDE7F3]/80 flex items-center justify-end px-8 z-[105] shadow-[0_-4px_10px_-2px_rgba(15,23,42,0.07)]">
           <div className="flex items-center gap-4">
             {currentStep > 1 && (
               <>

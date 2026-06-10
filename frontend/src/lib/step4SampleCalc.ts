@@ -1,4 +1,5 @@
 import type { SplitFieldOption, SupplyTag } from '../types';
+import { stripVendorSuffix } from './utils';
 
 export const INTERNAL_IDS = [
   'hw_eng',
@@ -135,7 +136,7 @@ export function buildSupplyValuesForSupplyKey(
   const values: Record<string, string> = {};
   for (const [fieldId, options] of Object.entries(fieldOptions)) {
     const hit = (options ?? []).find((o) => o.supply === supplyKey);
-    if (hit?.text) values[fieldId] = hit.text;
+    if (hit?.text) values[fieldId] = stripVendorSuffix(hit.text);
   }
   return values;
 }

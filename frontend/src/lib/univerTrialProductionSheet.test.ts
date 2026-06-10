@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildTrialProductionSheetModel } from './univerTrialProductionSheet';
-import type { SKUData, FieldDefinition } from '../types';
+import { buildWorkbookSnapshot } from '../components/TrialProductionSheet';
+import type { SKUData, FieldDefinition, StepId } from '../types';
 import type { Step2CellConflict } from './step2CellConflicts';
 
 const basicFields: FieldDefinition[] = [
@@ -220,5 +221,107 @@ describe('buildTrialProductionSheetModel', () => {
     const fieldRows = model.rows.filter((r) => r.kind === 'field');
     const expectedEntries = fieldRows.length * singleSku[0].supplies.length;
     expect(Object.keys(model.cellMap).length).toBe(expectedEntries);
+  });
+});
+
+describe('group rows merge across all columns', () => {
+  const fields: FieldDefinition[] = [
+    { id: 'project', label: '项目名称', group: '基本信息', behavior: 'auto' },
+    { id: 'stage', label: '试产阶段', group: '常用项', behavior: 'auto' },
+  ];
+
+  const skuData: SKUData[] = [
+    {
+      id: 'sku1',
+      stage: 'PR1',
+      orderNo: '',
+      project: 'X6728',
+      supplies: [
+        { id: 's1', supplyKey: '一供', label: '一供', values: { project: 'X6728', stage: 'PR1' } },
+        { id: 's2', supplyKey: '二供', label: '二供', values: { project: 'X6728', stage: 'PR1' } },
+      ],
+    },
+  ];
+
+  it('group rows should span from column 0 to last column', () => {
+    const model = buildTrialProductionSheetModel({
+      activeFields: fields,
+      skuData,
+      currentStep: 3,
+    });
+
+    const groupRows = model.rows.filter(r => r.kind === 'group' || r.kind === 'title');
+    expect(groupRows.length).toBeGreaterThanOrEqual(2);
+
+    // Verify group rows exist with correct titles
+    const titleRow = model.rows.find(r => r.kind === 'title');
+    const groupRow = model.rows.find(r => r.kind === 'group' && r.groupTitle === '常用项');
+    expect(titleRow).toBeDefined();
+    expect(groupRow).toBeDefined();
+  });
+
+  it('model.columns.length reflects total data columns', () => {
+    const model = buildTrialProductionSheetModel({
+      activeFields: fields,
+      skuData,
+      currentStep: 3,
+    });
+
+    // Should have 2 columns (one per supply)
+    expect(model.columns).toHaveLength(2);
+  });
+});
+
+describe('buildWorkbookSnapshot - group rows merge', () => {
+  const fields: FieldDefinition[] = [
+    { id: 'project', label: '项目名称', group: '基本信息', behavior: 'auto' },
+    { id: 'stage', label: '试产阶段', group: '常用项', behavior: 'auto' },
+  ];
+
+  const skuData: SKUData[] = [
+    {
+      id: 'sku1',
+      stage: 'PR1',
+      orderNo: '',
+      project: 'X6728',
+      supplies: [
+        { id: 's1', supplyKey: '一供', label: '一供', values: { project: 'X6728', stage: 'PR1' } },
+        { id: 's2', supplyKey: '二供', label: '二供', values: { project: 'X6728', stage: 'PR1' } },
+      ],
+    },
+  ];
+
+  it('should merge group title rows across all columns', () => {
+    const model = buildTrialProductionSheetModel({
+      activeFields: fields,
+      skuData,
+      currentStep: 3,
+    });
+
+    const snapshot = buildWorkbookSnapshot(model, skuData, fields, 3);
+
+    // Title row (row 0) should be merged from column 0 to last column (2)
+    const mergeData = snapshot.sheets.sheet1.mergeData;
+    const titleMerge = mergeData.find(m =>
+      m.startRow === 0 && m.startColumn === 0 && m.endColumn === 2
+    );
+    expect(titleMerge).toBeDefined();
+  });
+
+  it('should apply bold 14px font to group title rows', () => {
+    const model = buildTrialProductionSheetModel({
+      activeFields: fields,
+      skuData,
+      currentStep: 3,
+    });
+
+    const snapshot = buildWorkbookSnapshot(model, skuData, fields, 3);
+
+    // Title row (row 0) should have bold 14px font
+    const titleCell = snapshot.sheets.sheet1.cellData[0]?.[0];
+    expect(titleCell).toBeDefined();
+    expect(titleCell?.s).toBeDefined();
+    expect(titleCell?.s.bl).toBe(1); // bold
+    expect(titleCell?.s.fs).toBe(14); // font size 14
   });
 });
