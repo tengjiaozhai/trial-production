@@ -82,4 +82,24 @@ describe('buildTrialProductionWorkbook', () => {
     const ws = wb.Sheets['搭配表'];
     expect(ws['B2']?.v).toBe('硬件(efuse)');
   });
+
+  it('applies ABAB color scheme to title rows', () => {
+    const wb = buildTrialProductionWorkbook({ projectName: 'X6728', activeFields, skuData });
+    const ws = wb.Sheets['搭配表'];
+    
+    // First group title should have BLOCK_A color (EAF3FF)
+    const a1 = ws['A1'];
+    expect(a1?.s?.fill?.fgColor?.rgb).toBe('EAF3FF');
+    expect(a1?.s?.font?.bold).toBe(true);
+    expect(a1?.s?.font?.sz).toBe(14);
+  });
+
+  it('applies alternating body row colors', () => {
+    const wb = buildTrialProductionWorkbook({ projectName: 'X6728', activeFields, skuData });
+    const ws = wb.Sheets['搭配表'];
+    
+    // Field rows should have body styles
+    const b2 = ws['B2']; // First field row
+    expect(b2?.s?.fill?.fgColor?.rgb).toBe('F7FBFF'); // BLOCK_A body
+  });
 });

@@ -472,6 +472,13 @@ describe('stripVendorSuffix', () => {
     expect(stripVendorSuffix('上海市天马微电子公司')).toBe('天马微电子');
   });
 
+  it('should remove standalone province/city names', () => {
+    expect(stripVendorSuffix('浙江豪声电子科技股份FPC大磁听筒喇叭二合一')).toBe('豪声电子科技股份FPC大磁听筒喇叭二合一');
+    expect(stripVendorSuffix('常州丽声FPC大磁听筒喇叭二合一')).toBe('丽声FPC大磁听筒喇叭二合一');
+    expect(stripVendorSuffix('深圳XX科技')).toBe('XX科技');
+    expect(stripVendorSuffix('北京YY科技')).toBe('YY科技');
+  });
+
   it('should preserve text without vendor info', () => {
     expect(stripVendorSuffix('LCM001 一供')).toBe('LCM001 一供');
     expect(stripVendorSuffix('型号ABC 二供')).toBe('型号ABC 二供');
