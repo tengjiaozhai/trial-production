@@ -153,9 +153,10 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       const api = univerAPIRef.current;
       if (!api) return;
 
-      const disposable = api.addEvent(api.Event.SheetEditEnded, (params: any) => {
-        const { row, column, value } = params;
+      const disposable = api.addEvent(api.Event.BeforeSheetEditEnd, (params: any) => {
+        const { row, column, value, isConfirm } = params;
         if (row === undefined || column === undefined) return;
+        if (!isConfirm) return;
 
         const edit = mapUniverEditToBusinessEdit({
           row,

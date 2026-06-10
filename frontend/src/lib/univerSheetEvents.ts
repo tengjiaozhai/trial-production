@@ -5,6 +5,21 @@ export interface TrialProductionSheetEdit {
   value: string;
 }
 
+function normalizeUniverEditValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  if (typeof value === 'object' && value !== null && 'toPlainText' in value) {
+    const toPlainText = (value as { toPlainText?: () => string }).toPlainText;
+    if (typeof toPlainText === 'function') {
+      return toPlainText.call(value).replace(/\r?\n$/, '');
+    }
+  }
+
+  return String(value);
+}
+
 export function mapUniverEditToBusinessEdit(input: {
   row: number;
   column: number;
@@ -17,11 +32,8 @@ export function mapUniverEditToBusinessEdit(input: {
 
   if (!cellKey) return null;
 
-  const normalizedValue =
-    value === null || value === undefined ? '' : String(value);
-
   return {
     key: cellKey,
-    value: normalizedValue,
+    value: normalizeUniverEditValue(value),
   };
 }

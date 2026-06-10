@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { RichTextValue } from '@univerjs/core';
 import { mapUniverEditToBusinessEdit } from './univerSheetEvents';
 import type { TrialProductionCellKey } from './univerTrialProductionSheet';
 
@@ -48,6 +49,18 @@ describe('mapUniverEditToBusinessEdit', () => {
 
     expect(result).not.toBeNull();
     expect(result!.value).toBe('');
+  });
+
+  it('extracts plain text from Univer RichTextValue', () => {
+    const result = mapUniverEditToBusinessEdit({
+      row: 0,
+      column: 1,
+      value: RichTextValue.createByBody({ dataStream: '沙特（艾为PD IC）\r\n' }),
+      cellMap: sampleCellMap,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.value).toBe('沙特（艾为PD IC）');
   });
 
   it('returns null for unmapped cells', () => {
