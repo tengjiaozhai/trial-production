@@ -5,6 +5,8 @@ coverage/
 .DS_Store
 *.log
 .vscode/
+.idea/
 .playwright-cli/
 frontend/node_modules/
 frontend/dist/
+tmp/
