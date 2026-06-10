@@ -258,18 +258,18 @@ export function buildWorkbookSnapshot(
   activeFields: FieldDefinition[],
   currentStep: StepId
 ) {
-  // ABAB color scheme
-  const BLOCK_A = {
-    title: { bg: { rgb: '#EAF3FF' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 },
-    body: { bg: { rgb: '#F7FBFF' }, ht: 2, vt: 2, tb: 2 },
-  };
-  const BLOCK_B = {
-    title: { bg: { rgb: '#EAFBF7' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 },
-    body: { bg: { rgb: '#F6FFFC' }, ht: 2, vt: 2, tb: 2 },
-  };
+  // ABCDE color scheme
+  const COLOR_SCHEME = [
+    { title: { bg: { rgb: '#EAF3FF' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 }, body: { bg: { rgb: '#F7FBFF' }, ht: 2, vt: 2, tb: 2 } }, // A: 浅蓝
+    { title: { bg: { rgb: '#EAFBF7' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 }, body: { bg: { rgb: '#F6FFFC' }, ht: 2, vt: 2, tb: 2 } }, // B: 浅青绿
+    { title: { bg: { rgb: '#F3EEFF' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 }, body: { bg: { rgb: '#FAF8FF' }, ht: 2, vt: 2, tb: 2 } }, // C: 浅紫
+    { title: { bg: { rgb: '#FFF1E6' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 }, body: { bg: { rgb: '#FFF8F3' }, ht: 2, vt: 2, tb: 2 } }, // D: 浅橙
+    { title: { bg: { rgb: '#EAF8F0' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 }, body: { bg: { rgb: '#F6FCF8' }, ht: 2, vt: 2, tb: 2 } }, // E: 浅薄荷绿
+  ];
 
   const getStyleForGroup = (groupIndex: number | undefined, isTitle: boolean) => {
-    const block = (groupIndex ?? 0) % 2 === 0 ? BLOCK_A : BLOCK_B;
+    const colorIndex = (groupIndex ?? 0) % COLOR_SCHEME.length;
+    const block = COLOR_SCHEME[colorIndex];
     return isTitle ? block.title : block.body;
   };
 

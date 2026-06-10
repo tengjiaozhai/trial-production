@@ -12,13 +12,25 @@
   --table-subtext: #5B6B84;
   --field-col-bg: #F5F7FA;
 
+  /* A: 浅蓝 */
   --block-a-title: #EAF3FF;
   --block-a-body: #F7FBFF;
-  --block-a-accent: #2F6BDE;
 
+  /* B: 浅青绿 */
   --block-b-title: #EAFBF7;
   --block-b-body: #F6FFFC;
-  --block-b-accent: #1D8F6A;
+
+  /* C: 浅紫 */
+  --block-c-title: #F3EEFF;
+  --block-c-body: #FAF8FF;
+
+  /* D: 浅橙 */
+  --block-d-title: #FFF1E6;
+  --block-d-body: #FFF8F3;
+
+  /* E: 浅薄荷绿 */
+  --block-e-title: #EAF8F0;
+  --block-e-body: #F6FCF8;
 }
 
 html,
