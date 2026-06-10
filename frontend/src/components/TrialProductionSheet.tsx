@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { createUniver, LocaleType, mergeLocales } from '@univerjs/presets';
 import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core';
 import UniverPresetSheetsCoreZhCN from '@univerjs/preset-sheets-core/locales/zh-CN';
@@ -7,6 +7,7 @@ import type { SKUData, FieldDefinition, StepId } from '../types';
 import type { Step2CellConflict } from '../lib/step2CellConflicts';
 import { buildTrialProductionSheetModel } from '../lib/univerTrialProductionSheet';
 import { mapUniverEditToBusinessEdit } from '../lib/univerSheetEvents';
+import { isSkuSpanningField } from '../lib/step5TableModel';
 
 export interface TrialProductionSheetHandle {
   focusCellByBusinessKey: (skuId: string, supplyId: string | undefined, fieldId: string) => void;
@@ -73,11 +74,19 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
               const workbook = api.getActiveWorkbook();
               if (!workbook) return;
               const worksheet = workbook.getActiveSheet();
-              const range = worksheet.getRange(row, col);
-              range.activate();
-              range.scrollTo();
+              const targetRange = worksheet.getCellMergeData(row, col) ?? worksheet.getRange(row, col);
+              targetRange.activate();
+              worksheet.scrollToCell(row, col);
             } catch {
-              // ignore focus errors
+              try {
+                const workbook = api.getActiveWorkbook();
+                const worksheet = workbook?.getActiveSheet();
+                const targetRange = worksheet?.getCellMergeData(row, col) ?? worksheet?.getRange(row, col);
+                targetRange?.activate();
+                worksheet?.scrollToCell(row, col);
+              } catch {
+                // ignore focus errors
+              }
             }
             return;
           }
@@ -183,6 +192,7 @@ function buildWorkbookSnapshot(
   currentStep: StepId
 ) {
   const cellData: Record<number, Record<number, { v?: string; s?: any }>> = {};
+  const mergeData: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }> = [];
 
   // For non-Step5, build from model rows and columns
   if (!model.readOnly) {
@@ -197,15 +207,42 @@ function buildWorkbookSnapshot(
         // Field row: label in first column, values in subsequent columns
         cellData[rowIdx][0] = { v: row.fieldLabel ?? '' };
 
-        for (let ci = 0; ci < model.columns.length; ci++) {
-          const col = model.columns[ci];
-          const sku = skuData.find((s) => s.id === col.skuId);
-          if (!sku) continue;
-          const supply = sku.supplies.find((s) => s.id === col.supplyId);
-          if (!supply) continue;
+        if (isSkuSpanningField(row.fieldId)) {
+          let ci = 0;
+          while (ci < model.columns.length) {
+            const startColumn = ci + 1;
+            const skuId = model.columns[ci].skuId;
+            let endColumn = startColumn;
 
-          const value = supply.values[row.fieldId] ?? '';
-          cellData[rowIdx][ci + 1] = { v: value };
+            while (ci + 1 < model.columns.length && model.columns[ci + 1].skuId === skuId) {
+              ci += 1;
+              endColumn = ci + 1;
+            }
+
+            const sku = skuData.find((s) => s.id === skuId);
+            const value = sku?.supplies[0]?.values[row.fieldId] ?? '';
+            cellData[rowIdx][startColumn] = { v: value };
+            if (endColumn > startColumn) {
+              mergeData.push({
+                startRow: rowIdx,
+                endRow: rowIdx,
+                startColumn,
+                endColumn,
+              });
+            }
+            ci += 1;
+          }
+        } else {
+          for (let ci = 0; ci < model.columns.length; ci++) {
+            const col = model.columns[ci];
+            const sku = skuData.find((s) => s.id === col.skuId);
+            if (!sku) continue;
+            const supply = sku.supplies.find((s) => s.id === col.supplyId);
+            if (!supply) continue;
+
+            const value = supply.values[row.fieldId] ?? '';
+            cellData[rowIdx][ci + 1] = { v: value };
+          }
         }
       }
 
@@ -221,6 +258,7 @@ function buildWorkbookSnapshot(
         id: 'sheet1',
         name: '搭配表',
         cellData,
+        mergeData,
         rowCount: Math.max(Object.keys(cellData).length + 10, 50),
         columnCount: Math.max(model.columns.length + 5, 20),
       },
