@@ -59,7 +59,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   return (
     <div className="min-h-screen flex items-center justify-center"
          style={{
-           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+           backgroundColor: '#f6f9ff',
+           backgroundImage: `
+             radial-gradient(circle at 8% 10%, rgba(37, 99, 235, 0.16), transparent 28%),
+             radial-gradient(circle at 92% 6%, rgba(6, 182, 212, 0.18), transparent 30%),
+             linear-gradient(135deg, #eef6ff 0%, #f9fbff 48%, #edf7f4 100%)
+           `
          }}>
       <div className="bg-white/90 backdrop-blur-xl rounded-2xl shadow-2xl p-8 max-w-md w-full">
         <div className="text-center mb-8">
