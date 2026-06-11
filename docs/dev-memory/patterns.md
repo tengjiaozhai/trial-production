@@ -51,3 +51,8 @@ const getStyleForGroup = (groupIndex: number | undefined, isTitle: boolean) => {
 在 `buildWorkbookSnapshot` 函数中，根据 `row.groupIndex` 从 `COLOR_SCHEME` 数组中循环取色（`groupIndex % 5`）：
 - 组标题行（`kind === 'title'` 或 `kind === 'group'`）使用 `block.title` 样式
 - 字段行（`kind === 'field'`）使用 `block.body` 样式
+
+## Univer 单元格值规范化模式
+- 任何进入 `Univer` 的单元格值都先做纯文本化，再做字段级约束。
+- 历史加载、复制粘贴、编辑回写、snapshot 输出都走同一条规范化函数，避免对象值、`[object Object]` 和非法枚举值互相污染。
+- 对枚举字段（如 `prod_loc`）优先采用“非法即清空”的策略，保留下拉和人工选择的单一权威路径。
