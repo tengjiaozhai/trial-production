@@ -139,82 +139,73 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       // Build Univer workbook snapshot from model
       const snapshot = buildWorkbookSnapshot(model, skuData, activeFields, currentStep);
 
-      // Defer workbook creation to avoid React unmount race condition
-      const timer = setTimeout(() => {
-        try {
-          const currentWorkbook = api.getActiveWorkbook();
-          if (currentWorkbook) {
-            api.disposeUnit(currentWorkbook.getId());
-          }
-          api.createWorkbook(snapshot);
-        } catch {
-          // ignore workbook recreation errors
-        }
+      try {
+        api.createWorkbook(snapshot);
+      } catch {
+        // ignore workbook recreation errors
+      }
 
-        // Apply Data Validation immediately after workbook creation
-        if (!model.readOnly) {
-          const workbook = api.getActiveWorkbook();
-          if (workbook) {
-            const worksheet = workbook.getActiveSheet();
-            if (worksheet) {
-              // supply_select dropdown
-              const supplySelectRow = model.rows.find(
-                (r) => r.kind === 'field' && r.fieldId === 'supply_select'
-              );
+      // Apply Data Validation immediately after workbook creation
+      if (!model.readOnly) {
+        const workbook = api.getActiveWorkbook();
+        if (workbook) {
+          const worksheet = workbook.getActiveSheet();
+          if (worksheet) {
+            // supply_select dropdown
+            const supplySelectRow = model.rows.find(
+              (r) => r.kind === 'field' && r.fieldId === 'supply_select'
+            );
 
-              if (supplySelectRow && skuSupplyKeys) {
-                for (let ci = 0; ci < model.columns.length; ci++) {
-                  const col = model.columns[ci];
-                  const keys = skuSupplyKeys[col.skuId];
-                  if (!keys || keys.length < 2) continue;
+            if (supplySelectRow && skuSupplyKeys) {
+              for (let ci = 0; ci < model.columns.length; ci++) {
+                const col = model.columns[ci];
+                const keys = skuSupplyKeys[col.skuId];
+                if (!keys || keys.length < 2) continue;
 
-                  const rule = api.newDataValidation()
-                    .requireValueInList(keys.filter(k => k !== ''), false, true)
-                    .setOptions({
-                      allowBlank: false,
-                      showErrorMessage: true,
-                      error: '请选择供应标签',
-                    })
-                    .build();
-
-                  try {
-                    worksheet.getRange(supplySelectRow.rowIndex, ci + 1).setDataValidation(rule);
-                  } catch {
-                    // ignore
-                  }
-                }
-              }
-
-              // prod_loc dropdown
-              const prodLocRow = model.rows.find(
-                (r) => r.kind === 'field' && r.fieldId === 'prod_loc'
-              );
-
-              if (prodLocRow) {
-                const prodLocOptions = ['宜宾', '南昌', '河源', '越南', '自定义'];
                 const rule = api.newDataValidation()
-                  .requireValueInList(prodLocOptions, false, true)
+                  .requireValueInList(keys.filter(k => k !== ''), false, true)
                   .setOptions({
-                    allowBlank: true,
+                    allowBlank: false,
                     showErrorMessage: true,
-                    error: '请选择试产地点',
+                    error: '请选择供应标签',
                   })
                   .build();
 
-                for (let ci = 0; ci < model.columns.length; ci++) {
-                  try {
-                    worksheet.getRange(prodLocRow.rowIndex, ci + 1).setDataValidation(rule);
-                  } catch {
-                    // ignore
-                  }
+                try {
+                  worksheet.getRange(supplySelectRow.rowIndex, ci + 1).setDataValidation(rule);
+                } catch {
+                  // ignore
+                }
+              }
+            }
+
+            // prod_loc dropdown
+            const prodLocRow = model.rows.find(
+              (r) => r.kind === 'field' && r.fieldId === 'prod_loc'
+            );
+
+            if (prodLocRow) {
+              const prodLocOptions = ['宜宾', '南昌', '河源', '越南', '自定义'];
+              const rule = api.newDataValidation()
+                .requireValueInList(prodLocOptions, false, true)
+                .setOptions({
+                  allowBlank: true,
+                  showErrorMessage: true,
+                  error: '请选择试产地点',
+                })
+                .build();
+
+              for (let ci = 0; ci < model.columns.length; ci++) {
+                try {
+                  worksheet.getRange(prodLocRow.rowIndex, ci + 1).setDataValidation(rule);
+                } catch {
+                  // ignore
                 }
               }
             }
           }
         }
-      }, 0);
-
-      return () => clearTimeout(timer);
+      }
     }, [model, skuData, activeFields, currentStep, skuSupplyKeys]);
 
     // Listen for cell edit events
