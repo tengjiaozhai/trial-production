@@ -151,6 +151,43 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
           // ignore workbook recreation errors
         }
 
+        // Freeze first 4 rows in Step 2, cancel for other steps
+        try {
+          const freezeWb = api.getActiveWorkbook();
+          if (freezeWb) {
+            const freezeWs = freezeWb.getActiveSheet();
+            if (freezeWs) {
+              if (currentStep === 2) {
+                freezeWs.setFrozenRows(4);
+              } else {
+                freezeWs.cancelFreeze();
+              }
+            }
+          }
+        } catch {
+          // ignore freeze errors
+        }
+
+        // Apply borders to all data cells
+        try {
+          const borderWb = api.getActiveWorkbook();
+          const borderWs = borderWb?.getActiveSheet();
+          if (borderWs) {
+            const bounds = getSheetDataBounds(model);
+            if (bounds.lastRow >= 0 && bounds.lastCol >= 0) {
+              borderWs
+                .getRange(0, 0, bounds.lastRow + 1, bounds.lastCol + 1)
+                .setBorder(
+                  api.Enum.BorderType.ALL,
+                  api.Enum.BorderStyleTypes.THIN,
+                  SHEET_BORDER_COLOR,
+                );
+            }
+          }
+        } catch {
+          // ignore border errors
+        }
+
         // Apply Data Validation immediately after workbook creation
         if (!model.readOnly) {
           const workbook = api.getActiveWorkbook();
@@ -396,6 +433,28 @@ function calculateColumnWidths(
   }
 
   return widths;
+}
+
+export const SHEET_BORDER_COLOR = '#DDE7F3';
+
+export function getSheetDataBounds(
+  model: ReturnType<typeof buildTrialProductionSheetModel>,
+): { lastRow: number; lastCol: number } {
+  const isStep5Preview = model.readOnly && Boolean(model.step5Model);
+
+  if (isStep5Preview) {
+    const step5Model = model.step5Model!;
+    return {
+      lastRow: Math.max(step5Model.rows.length - 1, 0),
+      // Step5 layout: col 0 = index, col 1 = label, cols 2..N+1 = value columns
+      lastCol: Math.max(1 + step5Model.columns.length, 0),
+    };
+  }
+
+  return {
+    lastRow: Math.max(model.rows.length - 1, 0),
+    lastCol: Math.max(model.columns.length, 0),
+  };
 }
 
 export function buildWorkbookSnapshot(
