@@ -52,6 +52,7 @@ import type { CopiedSku } from './lib/tableOperations';
 import { LoginPage } from './components/LoginPage';
 import { checkLoginStatus } from './lib/auth';
 import type { UserInfo } from './lib/auth';
+import { getLocalBypassUser, shouldBypassLocalLogin } from './config/localAuth';
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState<StepId>(1);
@@ -89,6 +90,13 @@ export default function App() {
   // Check login status on mount
   useEffect(() => {
     const checkAuth = async () => {
+      if (shouldBypassLocalLogin()) {
+        setIsLoggedIn(true);
+        setCurrentUser(getLocalBypassUser());
+        setIsChecking(false);
+        return;
+      }
+
       const status = await checkLoginStatus();
       setIsLoggedIn(status.isLoggedIn);
       setCurrentUser(status.user || null);

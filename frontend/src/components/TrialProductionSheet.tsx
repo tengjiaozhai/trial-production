@@ -8,7 +8,7 @@ import '@univerjs/preset-sheets-data-validation/lib/index.css';
 import { FUniver } from '@univerjs/core/facade';
 import type { SKUData, FieldDefinition, StepId, SupplyTag } from '../types';
 import type { Step2CellConflict } from '../lib/step2CellConflicts';
-import { buildTrialProductionSheetModel } from '../lib/univerTrialProductionSheet';
+import { buildTrialProductionSheetModel, type TrialProductionSheetModel } from '../lib/univerTrialProductionSheet';
 import { mapUniverEditToBusinessEdit, normalizeUniverCellDataValue, normalizeUniverEditValue } from '../lib/univerSheetEvents';
 import { isSkuSpanningField } from '../lib/step5TableModel';
 
@@ -131,7 +131,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       };
     }, []);
 
-    // Load workbook snapshot when model changes
+    // Load workbook snapshot when model changes, then apply Data Validation dropdowns
     useEffect(() => {
       const api = univerAPIRef.current;
       if (!api) return;
@@ -139,28 +139,24 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       // Build Univer workbook snapshot from model
       const snapshot = buildWorkbookSnapshot(model, skuData, activeFields, currentStep);
 
+      type ApiType = ReturnType<typeof FUniver.newAPI>;
+      type WorksheetType = NonNullable<ReturnType<NonNullable<ReturnType<ApiType['getActiveWorkbook']>['getActiveSheet']>>>;
+      let worksheet: WorksheetType | null = null;
+
       try {
         const currentWorkbook = api.getActiveWorkbook();
         if (currentWorkbook) {
           api.disposeUnit(currentWorkbook.getId());
         }
-        api.createWorkbook(snapshot);
+        const newWorkbook = api.createWorkbook(snapshot);
+        worksheet = newWorkbook?.getActiveSheet?.() ?? api.getActiveWorkbook()?.getActiveSheet?.() ?? null;
       } catch {
         // ignore workbook recreation errors
       }
-    }, [model, skuData, activeFields, currentStep]);
 
-    // Apply Data Validation dropdowns for supply_select and prod_loc
-    useEffect(() => {
-      const api = univerAPIRef.current;
-      if (!api || model.readOnly) return;
+      if (!worksheet || model.readOnly) return;
 
-      const workbook = api.getActiveWorkbook();
-      if (!workbook) return;
-      const worksheet = workbook.getActiveSheet();
-      if (!worksheet) return;
-
-      // supply_select dropdown: one per SKU column
+      // Apply Data Validation dropdowns for supply_select and prod_loc
       const supplySelectRow = model.rows.find(
         (r) => r.kind === 'field' && r.fieldId === 'supply_select'
       );
@@ -182,6 +178,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
 
           try {
             worksheet.getRange(supplySelectRow.rowIndex, ci + 1).setDataValidation(rule);
+            worksheet.getRange(supplySelectRow.rowIndex, ci + 1).setHorizontalAlignment('center');
           } catch {
             // ignore
           }
@@ -196,7 +193,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       if (prodLocRow) {
         const prodLocOptions = ['宜宾', '南昌', '河源', '越南', '自定义'];
         const rule = api.newDataValidation()
-          .requireValueInList(prodLocOptions, false, true)
+          .requireValueInList(prodLocOptions, true)
           .setOptions({
             allowBlank: true,
             showErrorMessage: true,
@@ -212,7 +209,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
           }
         }
       }
-    }, [model, skuSupplyKeys, currentStep]);
+    }, [model, skuData, activeFields, currentStep, skuSupplyKeys]);
 
     // Listen for cell edit events
     useEffect(() => {
@@ -395,6 +392,20 @@ function calculateColumnWidths(
   return widths;
 }
 
+export function getSheetDataBounds(model: TrialProductionSheetModel): { lastRow: number; lastCol: number } {
+  if (model.step5Model) {
+    return {
+      lastRow: model.step5Model.rows.length - 1,
+      lastCol: 1 + model.step5Model.columns.length,
+    };
+  }
+
+  return {
+    lastRow: model.rows.length - 1,
+    lastCol: model.columns.length,
+  };
+}
+
 export function buildWorkbookSnapshot(
   model: ReturnType<typeof buildTrialProductionSheetModel>,
   skuData: SKUData[],
@@ -454,9 +465,17 @@ export function buildWorkbookSnapshot(
         cellData[rowIdx][0] = { v: row.indexLabel, s: groupStyle };
         cellData[rowIdx][1] = { v: row.fieldLabel, s: groupStyle };
 
+        const step5Cols = model.step5Model!.columns;
         let colCursor = 2;
+        let colIdx = 0;
         for (const cell of row.cells) {
-          cellData[rowIdx][colCursor] = { v: cell.value, s: groupStyle };
+          let value = cell.value;
+          if (row.fieldId === 'supply_select' && !value) {
+            const skuId = step5Cols[colIdx]?.skuId;
+            const sku = skuId ? skuData.find((s) => s.id === skuId) : undefined;
+            value = sku?.selectedSupplyKey ?? '';
+          }
+          cellData[rowIdx][colCursor] = { v: value, s: groupStyle };
           if (cell.colSpan > 1) {
             mergeData.push({
               startRow: rowIdx,
@@ -466,6 +485,7 @@ export function buildWorkbookSnapshot(
             });
           }
           colCursor += cell.colSpan;
+          colIdx += cell.colSpan;
         }
       }
 
