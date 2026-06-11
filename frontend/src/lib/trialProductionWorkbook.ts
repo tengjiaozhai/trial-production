@@ -43,6 +43,13 @@ function createCellStyle(style: { bg?: string; ht?: number; vt?: number; tb?: nu
   if (style.vt !== undefined) cellStyle.alignment.vertical = style.vt === 0 ? 'top' : style.vt === 1 ? 'center' : 'bottom';
   if (style.tb !== undefined) cellStyle.alignment.wrapText = style.tb === 2;
 
+  cellStyle.border = {
+    top: { style: 'thin', color: { rgb: '000000' } },
+    bottom: { style: 'thin', color: { rgb: '000000' } },
+    left: { style: 'thin', color: { rgb: '000000' } },
+    right: { style: 'thin', color: { rgb: '000000' } },
+  };
+
   return cellStyle;
 }
 
