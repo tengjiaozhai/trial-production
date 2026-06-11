@@ -148,77 +148,69 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       } catch {
         // ignore workbook recreation errors
       }
-    }, [model, skuData, activeFields, currentStep]);
 
-    // Apply Data Validation dropdowns for supply_select and prod_loc
-    useEffect(() => {
-      const api = univerAPIRef.current;
-      if (!api || model.readOnly) return;
+      // Apply Data Validation immediately after workbook creation
+      if (!model.readOnly) {
+        const workbook = api.getActiveWorkbook();
+        if (workbook) {
+          const worksheet = workbook.getActiveSheet();
+          if (worksheet) {
+            // supply_select dropdown
+            const supplySelectRow = model.rows.find(
+              (r) => r.kind === 'field' && r.fieldId === 'supply_select'
+            );
 
-      const workbook = api.getActiveWorkbook();
-      if (!workbook) return;
-      const worksheet = workbook.getActiveSheet();
-      if (!worksheet) return;
+            if (supplySelectRow && skuSupplyKeys) {
+              for (let ci = 0; ci < model.columns.length; ci++) {
+                const col = model.columns[ci];
+                const keys = skuSupplyKeys[col.skuId];
+                if (!keys || keys.length < 2) continue;
 
-      // supply_select dropdown: one per SKU column
-      const supplySelectRow = model.rows.find(
-        (r) => r.kind === 'field' && r.fieldId === 'supply_select'
-      );
+                const rule = api.newDataValidation()
+                  .requireValueInList(keys.filter(k => k !== ''), false, true)
+                  .setOptions({
+                    allowBlank: false,
+                    showErrorMessage: true,
+                    error: '请选择供应标签',
+                  })
+                  .build();
 
-      if (supplySelectRow && skuSupplyKeys) {
-        for (let ci = 0; ci < model.columns.length; ci++) {
-          const col = model.columns[ci];
-          const keys = skuSupplyKeys[col.skuId];
-          if (!keys || keys.length < 2) continue;
+                try {
+                  worksheet.getRange(supplySelectRow.rowIndex, ci + 1).setDataValidation(rule);
+                } catch {
+                  // ignore
+                }
+              }
+            }
 
-          const rule = api.newDataValidation()
-            .requireValueInList(keys.filter(k => k !== ''), false, true)
-            .setOptions({
-              allowBlank: false,
-              showErrorMessage: true,
-              error: '请选择供应标签',
-            })
-            .build();
+            // prod_loc dropdown
+            const prodLocRow = model.rows.find(
+              (r) => r.kind === 'field' && r.fieldId === 'prod_loc'
+            );
 
-          try {
-            worksheet.getRange(supplySelectRow.rowIndex, ci + 1).setDataValidation(rule);
-          } catch {
-            // ignore
+            if (prodLocRow) {
+              const prodLocOptions = ['宜宾', '南昌', '河源', '越南', '自定义'];
+              const rule = api.newDataValidation()
+                .requireValueInList(prodLocOptions, false, true)
+                .setOptions({
+                  allowBlank: true,
+                  showErrorMessage: true,
+                  error: '请选择试产地点',
+                })
+                .build();
+
+              for (let ci = 0; ci < model.columns.length; ci++) {
+                try {
+                  worksheet.getRange(prodLocRow.rowIndex, ci + 1).setDataValidation(rule);
+                } catch {
+                  // ignore
+                }
+              }
+            }
           }
         }
       }
-
-      // prod_loc dropdown: all data cells
-      const prodLocRow = model.rows.find(
-        (r) => r.kind === 'field' && r.fieldId === 'prod_loc'
-      );
-
-      if (prodLocRow) {
-        const prodLocOptions = ['宜宾', '南昌', '河源', '越南', '自定义'];
-        const rule = api.newDataValidation()
-          .requireValueInList(prodLocOptions, false, true)
-          .setOptions({
-            allowBlank: true,
-            showErrorMessage: true,
-            error: '请选择试产地点',
-          })
-          .build();
-
-        console.log('prod_loc row found:', prodLocRow.rowIndex, 'columns:', model.columns.length);
-
-        for (let ci = 0; ci < model.columns.length; ci++) {
-          try {
-            const range = worksheet.getRange(prodLocRow.rowIndex, ci + 1);
-            range.setDataValidation(rule);
-            console.log(`prod_loc DataValidation applied to (${prodLocRow.rowIndex}, ${ci + 1})`);
-          } catch (e) {
-            console.error(`prod_loc DataValidation failed at (${prodLocRow.rowIndex}, ${ci + 1}):`, e);
-          }
-        }
-      } else {
-        console.log('prod_loc row NOT found in model.rows');
-      }
-    }, [model, skuSupplyKeys, currentStep]);
+    }, [model, skuData, activeFields, currentStep, skuSupplyKeys]);
 
     // Listen for cell edit events
     useEffect(() => {
