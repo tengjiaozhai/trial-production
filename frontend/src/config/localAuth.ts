@@ -13,7 +13,7 @@ export type LocalAuthMode = 'sso' | 'bypass';
 export const LOCAL_AUTH_CONFIG = {
   /** 是否启用本地登录覆盖；关闭后与生产环境行为一致 */
   enabled: true,
-  mode: 'bypass' satisfies LocalAuthMode as LocalAuthMode,
+  mode: 'sso' satisfies LocalAuthMode as LocalAuthMode,
   bypassUser: {
     username: '本地开发',
     staffNo: 'DEV000',
