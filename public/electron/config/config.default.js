@@ -22,7 +22,12 @@ module.exports = () => {
       frame: true,
       show: true,
       autoHideMenuBar: true,
-      icon: path.join(getBaseDir(), 'build', 'icons', 'icon.ico'),
+      icon: path.join(
+        getBaseDir(),
+        'build',
+        'icons',
+        process.platform === 'darwin' ? 'icon.icns' : 'icon.ico',
+      ),
       maximized: true,
     },
     logger: {
