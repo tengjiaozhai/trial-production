@@ -1,4 +1,4 @@
-import { SSO_BASE, USAGE_URL, APP_CODE, EXT_COLUMN, APP_VERSION } from '../config/ssoConfig';
+import { SSO_BASE, USAGE_URL, USAGE_AUTH_CODE, APP_CODE, EXT_COLUMN, APP_VERSION } from '../config/ssoConfig';
 
 export interface UserInfo {
   username: string;
@@ -101,13 +101,14 @@ export function recordUsage(username: string, staffNo: string): void {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'Auth-Code': USAGE_AUTH_CODE,
     },
     body: JSON.stringify({
       appCode: APP_CODE,
       extColumn: EXT_COLUMN,
       type: '1',
-      userName: username,
-      staffNo: staffNo,
+      userName: username || 'unknow',
+      staffNo: staffNo || '',
       versionCode: `V${APP_VERSION}`,
     }),
   }).catch(() => {

@@ -139,80 +139,120 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       // Build Univer workbook snapshot from model
       const snapshot = buildWorkbookSnapshot(model, skuData, activeFields, currentStep);
 
-      try {
-        const currentWorkbook = api.getActiveWorkbook();
-        if (currentWorkbook) {
-          api.disposeUnit(currentWorkbook.getId());
+      // Defer workbook creation to avoid React unmount race condition
+      const timer = setTimeout(() => {
+        try {
+          const currentWorkbook = api.getActiveWorkbook();
+          if (currentWorkbook) {
+            api.disposeUnit(currentWorkbook.getId());
+          }
+          api.createWorkbook(snapshot);
+        } catch {
+          // ignore workbook recreation errors
         }
-        api.createWorkbook(snapshot);
-      } catch {
-        // ignore workbook recreation errors
-      }
-    }, [model, skuData, activeFields, currentStep]);
 
-    // Apply Data Validation dropdowns for supply_select and prod_loc
-    useEffect(() => {
-      const api = univerAPIRef.current;
-      if (!api || model.readOnly) return;
+        // Freeze first 4 rows in Step 2, cancel for other steps
+        try {
+          const freezeWb = api.getActiveWorkbook();
+          if (freezeWb) {
+            const freezeWs = freezeWb.getActiveSheet();
+            if (freezeWs) {
+              if (currentStep === 2) {
+                freezeWs.setFrozenRows(4);
+              } else {
+                freezeWs.cancelFreeze();
+              }
+            }
+          }
+        } catch {
+          // ignore freeze errors
+        }
 
-      const workbook = api.getActiveWorkbook();
-      if (!workbook) return;
-      const worksheet = workbook.getActiveSheet();
-      if (!worksheet) return;
+        // Apply borders to all data cells
+        try {
+          const borderWb = api.getActiveWorkbook();
+          const borderWs = borderWb?.getActiveSheet();
+          if (borderWs) {
+            const bounds = getSheetDataBounds(model);
+            if (bounds.lastRow >= 0 && bounds.lastCol >= 0) {
+              borderWs
+                .getRange(0, 0, bounds.lastRow + 1, bounds.lastCol + 1)
+                .setBorder(
+                  api.Enum.BorderType.ALL,
+                  api.Enum.BorderStyleTypes.THIN,
+                  SHEET_BORDER_COLOR,
+                );
+            }
+          }
+        } catch {
+          // ignore border errors
+        }
 
-      // supply_select dropdown: one per SKU column
-      const supplySelectRow = model.rows.find(
-        (r) => r.kind === 'field' && r.fieldId === 'supply_select'
-      );
+        // Apply Data Validation immediately after workbook creation
+        if (!model.readOnly) {
+          const workbook = api.getActiveWorkbook();
+          if (workbook) {
+            const worksheet = workbook.getActiveSheet();
+            if (worksheet) {
+              // supply_select dropdown
+              const supplySelectRow = model.rows.find(
+                (r) => r.kind === 'field' && r.fieldId === 'supply_select'
+              );
 
-      if (supplySelectRow && skuSupplyKeys) {
-        for (let ci = 0; ci < model.columns.length; ci++) {
-          const col = model.columns[ci];
-          const keys = skuSupplyKeys[col.skuId];
-          if (!keys || keys.length < 2) continue;
+              if (supplySelectRow && skuSupplyKeys) {
+                for (let ci = 0; ci < model.columns.length; ci++) {
+                  const col = model.columns[ci];
+                  const keys = skuSupplyKeys[col.skuId];
+                  if (!keys || keys.length < 2) continue;
 
-          const rule = api.newDataValidation()
-            .requireValueInList(keys.filter(k => k !== ''), false, true)
-            .setOptions({
-              allowBlank: false,
-              showErrorMessage: true,
-              error: '请选择供应标签',
-            })
-            .build();
+                  const rule = api.newDataValidation()
+                    .requireValueInList(keys.filter(k => k !== ''), false, true)
+                    .setOptions({
+                      allowBlank: false,
+                      showErrorMessage: true,
+                      error: '请选择供应标签',
+                    })
+                    .build();
 
-          try {
-            worksheet.getRange(supplySelectRow.rowIndex, ci + 1).setDataValidation(rule);
-          } catch {
-            // ignore
+                  try {
+                    worksheet.getRange(supplySelectRow.rowIndex, ci + 1).setDataValidation(rule);
+                  } catch {
+                    // ignore
+                  }
+                }
+              }
+
+              // prod_loc dropdown
+              const prodLocRow = model.rows.find(
+                (r) => r.kind === 'field' && r.fieldId === 'prod_loc'
+              );
+
+              if (prodLocRow) {
+                const prodLocOptions = ['宜宾', '南昌', '河源', '越南', '自定义'];
+                const rule = api.newDataValidation()
+                  .requireValueInList(prodLocOptions, false, true)
+                  .setOptions({
+                    allowBlank: true,
+                    showErrorMessage: true,
+                    error: '请选择试产地点',
+                  })
+                  .build();
+
+                for (let ci = 0; ci < model.columns.length; ci++) {
+                  try {
+                    worksheet.getRange(prodLocRow.rowIndex, ci + 1).setDataValidation(rule);
+                  } catch {
+                    // ignore
+                  }
+                }
+              }
+            }
           }
         }
-      }
+      }, 0);
 
-      // prod_loc dropdown: all data cells
-      const prodLocRow = model.rows.find(
-        (r) => r.kind === 'field' && r.fieldId === 'prod_loc'
-      );
-
-      if (prodLocRow) {
-        const prodLocOptions = ['宜宾', '南昌', '河源', '越南', '自定义'];
-        const rule = api.newDataValidation()
-          .requireValueInList(prodLocOptions, false, true)
-          .setOptions({
-            allowBlank: true,
-            showErrorMessage: true,
-            error: '请选择试产地点',
-          })
-          .build();
-
-        for (let ci = 0; ci < model.columns.length; ci++) {
-          try {
-            worksheet.getRange(prodLocRow.rowIndex, ci + 1).setDataValidation(rule);
-          } catch {
-            // ignore
-          }
-        }
-      }
-    }, [model, skuSupplyKeys, currentStep]);
+      return () => clearTimeout(timer);
+    }, [model, skuData, activeFields, currentStep, skuSupplyKeys]);
 
     // Listen for cell edit events
     useEffect(() => {
@@ -393,6 +433,28 @@ function calculateColumnWidths(
   }
 
   return widths;
+}
+
+export const SHEET_BORDER_COLOR = '#DDE7F3';
+
+export function getSheetDataBounds(
+  model: ReturnType<typeof buildTrialProductionSheetModel>,
+): { lastRow: number; lastCol: number } {
+  const isStep5Preview = model.readOnly && Boolean(model.step5Model);
+
+  if (isStep5Preview) {
+    const step5Model = model.step5Model!;
+    return {
+      lastRow: Math.max(step5Model.rows.length - 1, 0),
+      // Step5 layout: col 0 = index, col 1 = label, cols 2..N+1 = value columns
+      lastCol: Math.max(1 + step5Model.columns.length, 0),
+    };
+  }
+
+  return {
+    lastRow: Math.max(model.rows.length - 1, 0),
+    lastCol: Math.max(model.columns.length, 0),
+  };
 }
 
 export function buildWorkbookSnapshot(
