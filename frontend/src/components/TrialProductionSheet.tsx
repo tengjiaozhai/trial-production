@@ -204,13 +204,19 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
           })
           .build();
 
+        console.log('prod_loc row found:', prodLocRow.rowIndex, 'columns:', model.columns.length);
+
         for (let ci = 0; ci < model.columns.length; ci++) {
           try {
-            worksheet.getRange(prodLocRow.rowIndex, ci + 1).setDataValidation(rule);
-          } catch {
-            // ignore
+            const range = worksheet.getRange(prodLocRow.rowIndex, ci + 1);
+            range.setDataValidation(rule);
+            console.log(`prod_loc DataValidation applied to (${prodLocRow.rowIndex}, ${ci + 1})`);
+          } catch (e) {
+            console.error(`prod_loc DataValidation failed at (${prodLocRow.rowIndex}, ${ci + 1}):`, e);
           }
         }
+      } else {
+        console.log('prod_loc row NOT found in model.rows');
       }
     }, [model, skuSupplyKeys, currentStep]);
 
