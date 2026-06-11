@@ -9,7 +9,7 @@ import { FUniver } from '@univerjs/core/facade';
 import type { SKUData, FieldDefinition, StepId, SupplyTag } from '../types';
 import type { Step2CellConflict } from '../lib/step2CellConflicts';
 import { buildTrialProductionSheetModel } from '../lib/univerTrialProductionSheet';
-import { mapUniverEditToBusinessEdit } from '../lib/univerSheetEvents';
+import { mapUniverEditToBusinessEdit, normalizeUniverCellDataValue, normalizeUniverEditValue } from '../lib/univerSheetEvents';
 import { isSkuSpanningField } from '../lib/step5TableModel';
 
 export interface TrialProductionSheetHandle {
@@ -140,22 +140,13 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       const snapshot = buildWorkbookSnapshot(model, skuData, activeFields, currentStep);
 
       try {
-        // Create or update the workbook
+        const currentWorkbook = api.getActiveWorkbook();
+        if (currentWorkbook) {
+          api.disposeUnit(currentWorkbook.getId());
+        }
         api.createWorkbook(snapshot);
       } catch {
-        // If createWorkbook fails, try disposing and recreating
-        try {
-          const workbook = api.getActiveWorkbook();
-          if (workbook) {
-            // Update via command
-            api.executeCommand('sheet.command.set-range-values', {
-              value: snapshot.sheets?.['sheet1']?.cellData ?? {},
-              range: { startRow: 0, startColumn: 0, endRow: 999, endColumn: 999 },
-            });
-          }
-        } catch {
-          // ignore
-        }
+        // ignore workbook recreation errors
       }
     }, [model, skuData, activeFields, currentStep]);
 
@@ -170,11 +161,11 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       if (!worksheet) return;
 
       // supply_select dropdown: one per SKU column
-      const supplySelectRowIndex = model.rows.findIndex(
-        r => r.kind === 'field' && r.fieldId === 'supply_select'
+      const supplySelectRow = model.rows.find(
+        (r) => r.kind === 'field' && r.fieldId === 'supply_select'
       );
 
-      if (supplySelectRowIndex >= 0 && skuSupplyKeys) {
+      if (supplySelectRow && skuSupplyKeys) {
         for (let ci = 0; ci < model.columns.length; ci++) {
           const col = model.columns[ci];
           const keys = skuSupplyKeys[col.skuId];
@@ -190,7 +181,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
             .build();
 
           try {
-            worksheet.getRange(supplySelectRowIndex, ci + 1).setDataValidation(rule);
+            worksheet.getRange(supplySelectRow.rowIndex, ci + 1).setDataValidation(rule);
           } catch {
             // ignore
           }
@@ -198,50 +189,37 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       }
 
       // prod_loc dropdown: all data cells
-      const prodLocRowIndex = model.rows.findIndex(
-        r => r.kind === 'field' && r.fieldId === 'prod_loc'
+      const prodLocRow = model.rows.find(
+        (r) => r.kind === 'field' && r.fieldId === 'prod_loc'
       );
 
-      if (prodLocRowIndex >= 0) {
+      if (prodLocRow) {
         const prodLocOptions = ['宜宾', '南昌', '河源', '越南', '自定义'];
         const rule = api.newDataValidation()
           .requireValueInList(prodLocOptions, false, true)
-          .setOptions({ allowBlank: true })
+          .setOptions({
+            allowBlank: true,
+            showErrorMessage: true,
+            error: '请选择试产地点',
+          })
           .build();
 
         for (let ci = 0; ci < model.columns.length; ci++) {
           try {
-            worksheet.getRange(prodLocRowIndex, ci + 1).setDataValidation(rule);
+            worksheet.getRange(prodLocRow.rowIndex, ci + 1).setDataValidation(rule);
           } catch {
             // ignore
           }
         }
       }
-    }, [model, skuSupplyKeys]);
+    }, [model, skuSupplyKeys, currentStep]);
 
     // Listen for cell edit events
     useEffect(() => {
       const api = univerAPIRef.current;
       if (!api) return;
 
-      const disposable = api.addEvent(api.Event.BeforeSheetEditEnd, (params: any) => {
-        const { row, column, value, isConfirm } = params;
-        if (row === undefined || column === undefined) return;
-        if (!isConfirm) return;
-
-        // Handle supply_select: look up which SKU this column belongs to
-        if (column > 0) {
-          const colIdx = column - 1;
-          const col = modelRef.current?.columns[colIdx];
-          if (col) {
-            const rowObj = modelRef.current?.rows[row];
-            if (rowObj?.fieldId === 'supply_select' && onSelectedSupplyChange) {
-              onSelectedSupplyChange(col.skuId, value);
-              return;
-            }
-          }
-        }
-
+      const handleBusinessCellUpdate = (row: number, column: number, value: unknown) => {
         const edit = mapUniverEditToBusinessEdit({
           row,
           column,
@@ -252,10 +230,54 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
         if (edit) {
           onUpdateValue(edit.key.skuId, edit.key.supplyId ?? '', edit.key.fieldId, edit.value);
         }
+      };
+
+      const disposable = api.addEvent(api.Event.BeforeSheetEditEnd, (params: any) => {
+        const { row, column, value, isConfirm } = params;
+        if (row === undefined || column === undefined) return;
+        if (!isConfirm) return;
+
+        const rowObj = modelRef.current?.rows[row];
+        if (rowObj?.fieldId === 'supply_select' || rowObj?.fieldId === 'prod_loc') {
+          return;
+        }
+
+        handleBusinessCellUpdate(row, column, value);
+      });
+
+      const valueChangedDisposable = api.addEvent(api.Event.SheetValueChanged, (params: any) => {
+        const cellValue = params?.payload?.params?.cellValue;
+        if (!cellValue) return;
+
+        for (const [rowKey, rowValues] of Object.entries(cellValue)) {
+          const row = Number(rowKey);
+          if (!Number.isFinite(row)) continue;
+
+          const rowObj = modelRef.current?.rows[row];
+          if (rowObj?.fieldId !== 'supply_select' && rowObj?.fieldId !== 'prod_loc') {
+            continue;
+          }
+
+          for (const [columnKey, cellData] of Object.entries(rowValues as Record<string, unknown>)) {
+            const column = Number(columnKey);
+            if (!Number.isFinite(column) || column <= 0) continue;
+
+            if (rowObj.fieldId === 'supply_select') {
+              const col = modelRef.current?.columns[column - 1];
+              if (col && onSelectedSupplyChange) {
+                onSelectedSupplyChange(col.skuId, normalizeUniverCellDataValue(cellData));
+              }
+              continue;
+            }
+
+            handleBusinessCellUpdate(row, column, normalizeUniverCellDataValue(cellData));
+          }
+        }
       });
 
       return () => {
         disposable?.dispose?.();
+        valueChangedDisposable?.dispose?.();
       };
     }, [onUpdateValue, onSelectedSupplyChange]);
 

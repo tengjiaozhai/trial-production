@@ -5,7 +5,7 @@ export interface TrialProductionSheetEdit {
   value: string;
 }
 
-function normalizeUniverEditValue(value: unknown): string {
+export function normalizeUniverEditValue(value: unknown): string {
   if (value === null || value === undefined) {
     return '';
   }
@@ -18,6 +18,21 @@ function normalizeUniverEditValue(value: unknown): string {
   }
 
   return String(value);
+}
+
+export function normalizeUniverCellDataValue(value: unknown): string {
+  if (typeof value === 'object' && value !== null) {
+    if ('v' in value) {
+      return normalizeUniverEditValue((value as { v?: unknown }).v);
+    }
+
+    const dataStream = (value as { p?: { body?: { dataStream?: unknown } } }).p?.body?.dataStream;
+    if (typeof dataStream === 'string') {
+      return dataStream.replace(/\r?\n$/, '');
+    }
+  }
+
+  return normalizeUniverEditValue(value);
 }
 
 export function mapUniverEditToBusinessEdit(input: {
