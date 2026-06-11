@@ -1347,7 +1347,9 @@ export default function App() {
                     activeFields={activeFields}
                     efuseConfigs={projectInfo.efuseConfigs}
                     step2Conflicts={step2Conflicts}
+                    skuSupplyKeys={currentStep === 3 ? skuSupplyKeys : undefined}
                     onUpdateValue={handleUpdateValue}
+                    onSelectedSupplyChange={currentStep === 3 ? handleUpdateSelectedSupply : undefined}
                     onStep5LayoutChange={setStep5Layout}
                   />
                 </div>

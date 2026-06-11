@@ -19,12 +19,13 @@ export const FIELD_DEFS: FieldDefinition[] = [
   // 基础信息
   { id: 'project', label: '项目名称', group: '基础信息', behavior: 'auto' },
   { id: 'stage', label: '试产阶段', group: '基础信息', behavior: 'auto' },
+  { id: 'supply_select', label: '一供/二供', group: '基础信息', behavior: 'manual' },
+  { id: 'prod_loc', label: '试产地点', group: '基础信息', behavior: 'manual' },
   { id: 'order_no', label: '订单号', group: '基础信息', behavior: 'manual' },
   { id: 'prod_order', label: '生产顺序', group: '基础信息', behavior: 'manual' },
   { id: 'software', label: '软件', group: '基础信息', behavior: 'manual' },
   { id: 'online_time', label: '上线时间', group: '基础信息', behavior: 'manual' },
   { id: 'assembly_time', label: '组装时间', group: '基础信息', behavior: 'manual' },
-  { id: 'prod_loc', label: '试产地点', group: '基础信息', behavior: 'manual' },
 
   // 产品规格
   { id: 'color', label: '颜色', group: '产品规格', behavior: 'manual' },

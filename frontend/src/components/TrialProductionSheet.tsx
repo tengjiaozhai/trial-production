@@ -2,8 +2,11 @@ import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { createUniver, LocaleType, mergeLocales } from '@univerjs/presets';
 import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core';
 import UniverPresetSheetsCoreZhCN from '@univerjs/preset-sheets-core/locales/zh-CN';
+import { UniverSheetsDataValidationPreset } from '@univerjs/preset-sheets-data-validation';
+import UniverPresetSheetsDataValidationZhCN from '@univerjs/preset-sheets-data-validation/locales/zh-CN';
+import '@univerjs/preset-sheets-data-validation/lib/index.css';
 import { FUniver } from '@univerjs/core/facade';
-import type { SKUData, FieldDefinition, StepId } from '../types';
+import type { SKUData, FieldDefinition, StepId, SupplyTag } from '../types';
 import type { Step2CellConflict } from '../lib/step2CellConflicts';
 import { buildTrialProductionSheetModel } from '../lib/univerTrialProductionSheet';
 import { mapUniverEditToBusinessEdit } from '../lib/univerSheetEvents';
@@ -19,7 +22,9 @@ interface TrialProductionSheetProps {
   activeFields: FieldDefinition[];
   efuseConfigs?: Record<string, string>;
   step2Conflicts?: Step2CellConflict[];
+  skuSupplyKeys?: Record<string, SupplyTag[]>;
   onUpdateValue: (skuId: string, supplyId: string, fieldId: string, value: string) => void;
+  onSelectedSupplyChange?: (skuId: string, supplyKey: string) => void;
   onStep5LayoutChange?: (layout: { supplyWidths: Record<string, number>; rowHeights: Record<string, number> }) => void;
   className?: string;
 }
@@ -32,7 +37,9 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       activeFields,
       efuseConfigs,
       step2Conflicts,
+      skuSupplyKeys,
       onUpdateValue,
+      onSelectedSupplyChange,
       onStep5LayoutChange,
       className,
     } = props;
@@ -101,12 +108,16 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       const univerInstance = createUniver({
         locale: LocaleType.ZH_CN,
         locales: {
-          [LocaleType.ZH_CN]: mergeLocales(UniverPresetSheetsCoreZhCN),
+          [LocaleType.ZH_CN]: mergeLocales(
+            UniverPresetSheetsCoreZhCN,
+            UniverPresetSheetsDataValidationZhCN,
+          ),
         },
         presets: [
           UniverSheetsCorePreset({
             container: containerRef.current,
           }),
+          UniverSheetsDataValidationPreset(),
         ],
       });
 
@@ -148,6 +159,66 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       }
     }, [model, skuData, activeFields, currentStep]);
 
+    // Apply Data Validation dropdowns for supply_select and prod_loc
+    useEffect(() => {
+      const api = univerAPIRef.current;
+      if (!api || model.readOnly) return;
+
+      const workbook = api.getActiveWorkbook();
+      if (!workbook) return;
+      const worksheet = workbook.getActiveSheet();
+      if (!worksheet) return;
+
+      // supply_select dropdown: one per SKU column
+      const supplySelectRowIndex = model.rows.findIndex(
+        r => r.kind === 'field' && r.fieldId === 'supply_select'
+      );
+
+      if (supplySelectRowIndex >= 0 && skuSupplyKeys) {
+        for (let ci = 0; ci < model.columns.length; ci++) {
+          const col = model.columns[ci];
+          const keys = skuSupplyKeys[col.skuId];
+          if (!keys || keys.length < 2) continue;
+
+          const rule = api.newDataValidation()
+            .requireValueInList(keys.filter(k => k !== ''), false, true)
+            .setOptions({
+              allowBlank: false,
+              showErrorMessage: true,
+              error: '请选择供应标签',
+            })
+            .build();
+
+          try {
+            worksheet.getRange(supplySelectRowIndex, ci + 1).setDataValidation(rule);
+          } catch {
+            // ignore
+          }
+        }
+      }
+
+      // prod_loc dropdown: all data cells
+      const prodLocRowIndex = model.rows.findIndex(
+        r => r.kind === 'field' && r.fieldId === 'prod_loc'
+      );
+
+      if (prodLocRowIndex >= 0) {
+        const prodLocOptions = ['宜宾', '南昌', '河源', '越南', '自定义'];
+        const rule = api.newDataValidation()
+          .requireValueInList(prodLocOptions, false, true)
+          .setOptions({ allowBlank: true })
+          .build();
+
+        for (let ci = 0; ci < model.columns.length; ci++) {
+          try {
+            worksheet.getRange(prodLocRowIndex, ci + 1).setDataValidation(rule);
+          } catch {
+            // ignore
+          }
+        }
+      }
+    }, [model, skuSupplyKeys]);
+
     // Listen for cell edit events
     useEffect(() => {
       const api = univerAPIRef.current;
@@ -157,6 +228,19 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
         const { row, column, value, isConfirm } = params;
         if (row === undefined || column === undefined) return;
         if (!isConfirm) return;
+
+        // Handle supply_select: look up which SKU this column belongs to
+        if (column > 0) {
+          const colIdx = column - 1;
+          const col = modelRef.current?.columns[colIdx];
+          if (col) {
+            const rowObj = modelRef.current?.rows[row];
+            if (rowObj?.fieldId === 'supply_select' && onSelectedSupplyChange) {
+              onSelectedSupplyChange(col.skuId, value);
+              return;
+            }
+          }
+        }
 
         const edit = mapUniverEditToBusinessEdit({
           row,
@@ -173,7 +257,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       return () => {
         disposable?.dispose?.();
       };
-    }, [onUpdateValue]);
+    }, [onUpdateValue, onSelectedSupplyChange]);
 
     return (
       <div
@@ -400,6 +484,32 @@ export function buildWorkbookSnapshot(
 
             const sku = skuData.find((s) => s.id === skuId);
             const value = sku?.supplies[0]?.values[row.fieldId] ?? '';
+            cellData[rowIdx][startColumn] = { v: value, s: groupStyle };
+            if (endColumn > startColumn) {
+              mergeData.push({
+                startRow: rowIdx,
+                endRow: rowIdx,
+                startColumn,
+                endColumn,
+              });
+            }
+            ci += 1;
+          }
+        } else if (row.fieldId === 'supply_select') {
+          // Render selectedSupplyKey with merge across SKU columns
+          let ci = 0;
+          while (ci < model.columns.length) {
+            const startColumn = ci + 1;
+            const skuId = model.columns[ci].skuId;
+            let endColumn = startColumn;
+
+            while (ci + 1 < model.columns.length && model.columns[ci + 1].skuId === skuId) {
+              ci += 1;
+              endColumn = ci + 1;
+            }
+
+            const sku = skuData.find((s) => s.id === skuId);
+            const value = sku?.selectedSupplyKey ?? sku?.supplies[0]?.supplyKey ?? '';
             cellData[rowIdx][startColumn] = { v: value, s: groupStyle };
             if (endColumn > startColumn) {
               mergeData.push({
