@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, waitFor } from '@testing-library/react';
+import { render } from '@testing-library/react';
 import { TrialProductionSheet } from './TrialProductionSheet';
 import type { FieldDefinition, SKUData } from '../types';
 import { RichTextValue } from '@univerjs/core';
@@ -132,6 +132,8 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     });
     newAPIMock.mockReturnValue(apiMock);
 
+    vi.useFakeTimers();
+
     const { rerender } = render(
       <TrialProductionSheet
         currentStep={2}
@@ -141,6 +143,9 @@ describe('TrialProductionSheet workbook lifecycle', () => {
         onUpdateValue={vi.fn()}
       />
     );
+
+    // Flush setTimeout in useEffect
+    await vi.advanceTimersByTimeAsync(0);
 
     rerender(
       <TrialProductionSheet
@@ -153,10 +158,13 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       />
     );
 
-    await waitFor(() => {
-      expect(apiMock.disposeUnit).toHaveBeenCalledWith('trial-production-sheet');
-    });
+    // Flush setTimeout in useEffect
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(apiMock.disposeUnit).toHaveBeenCalledWith('trial-production-sheet');
     expect(apiMock.createWorkbook).toHaveBeenCalledTimes(2);
+
+    vi.useRealTimers();
   });
 
   it('applies data validation to the prod_loc row in step 3', async () => {
@@ -189,6 +197,8 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     });
     newAPIMock.mockReturnValue(apiMock);
 
+    vi.useFakeTimers();
+
     render(
       <TrialProductionSheet
         currentStep={3}
@@ -200,11 +210,13 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       />
     );
 
-    await waitFor(() => {
-      expect(worksheetMock.getRange).toHaveBeenCalledWith(4, 1);
-      expect(worksheetMock.getRange).toHaveBeenCalledWith(4, 2);
-    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(worksheetMock.getRange).toHaveBeenCalledWith(4, 1);
+    expect(worksheetMock.getRange).toHaveBeenCalledWith(4, 2);
     expect(setDataValidation).toHaveBeenCalled();
+
+    vi.useRealTimers();
   });
 
   it('normalizes standard cell edits before notifying the parent', async () => {
@@ -244,6 +256,8 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     });
     newAPIMock.mockReturnValue(apiMock);
 
+    vi.useFakeTimers();
+
     render(
       <TrialProductionSheet
         currentStep={3}
@@ -255,9 +269,9 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       />
     );
 
-    await waitFor(() => {
-      expect(beforeEditEndHandler).toBeDefined();
-    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(beforeEditEndHandler).toBeDefined();
 
     beforeEditEndHandler?.({
       row: 6,
@@ -267,6 +281,8 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     });
 
     expect(onUpdateValue).toHaveBeenCalledWith('sku-a1', '', 'mb_id', 'B99');
+
+    vi.useRealTimers();
   });
 
   it('reacts to supply_select dropdown changes from SheetValueChanged', async () => {
@@ -306,6 +322,8 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     });
     newAPIMock.mockReturnValue(apiMock);
 
+    vi.useFakeTimers();
+
     render(
       <TrialProductionSheet
         currentStep={3}
@@ -317,9 +335,9 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       />
     );
 
-    await waitFor(() => {
-      expect(sheetValueChangedHandler).toBeDefined();
-    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(sheetValueChangedHandler).toBeDefined();
 
     sheetValueChangedHandler?.({
       payload: {
@@ -335,6 +353,8 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     });
 
     expect(onSelectedSupplyChange).toHaveBeenCalledWith('sku-a1', '二供');
+
+    vi.useRealTimers();
   });
 
   it('reacts to prod_loc dropdown changes from SheetValueChanged', async () => {
@@ -374,6 +394,8 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     });
     newAPIMock.mockReturnValue(apiMock);
 
+    vi.useFakeTimers();
+
     render(
       <TrialProductionSheet
         currentStep={3}
@@ -385,9 +407,9 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       />
     );
 
-    await waitFor(() => {
-      expect(sheetValueChangedHandler).toBeDefined();
-    });
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(sheetValueChangedHandler).toBeDefined();
 
     sheetValueChangedHandler?.({
       payload: {
@@ -403,5 +425,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     });
 
     expect(onUpdateValue).toHaveBeenCalledWith('sku-a1', 'a1-s2', 'prod_loc', '宜宾');
+
+    vi.useRealTimers();
   });
 });
