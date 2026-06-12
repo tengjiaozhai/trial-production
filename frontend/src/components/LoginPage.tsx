@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { login, recordUsage, getUserInfo } from '../lib/auth';
+import { login, getUserInfo } from '../lib/auth';
 import type { UserInfo } from '../lib/auth';
 
 interface LoginPageProps {
@@ -31,9 +31,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
     try {
       const token = await login(username, password);
       const user = await getUserInfo(token);
-      
-      // Record usage
-      recordUsage(user.username || username, user.staffNo || '');
 
       // Save token
       localStorage.setItem('sso_token', token);

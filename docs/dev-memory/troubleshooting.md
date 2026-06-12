@@ -46,3 +46,26 @@
 - 从历史记录加载到第 3 步后，`prod_loc` 不再显示 `[object Object]`。
 - 点击 `试产地点` 单元格可见 `宜宾 / 南昌 / 河源 / 越南 / 自定义` 下拉项。
 - 选择后保存、切换步骤、重开历史记录，值仍保持为纯字符串。
+
+## 2026-06-12 - Univer 首次挂载空壳（canvas=0）
+
+### 症状
+- 从 Step1 进入 Step2，或从历史记录直达 Step2-5，Univer 只渲染外壳（workbench-layout / headerbar / ribbon），不渲染 cell data（canvas=0，无 workbench-container）。
+- 切到下一步再切回来就正常（currentStep 变化触发 Effect 2 重跑）。
+
+### 根因
+- `TrialProductionSheet` 的 Effect 2（createWorkbook）依赖 `[model, skuData, activeFields, currentStep, skuSupplyKeys]`，**不含 `univerReady`**。
+- Effect 1 同步 createUniver + `setTimeout(0) setUniverReady(true)`。
+- React 19.2.7 + StrictMode 下，`setUniverReady(true)` 翻转不会让 Effect 2 重跑（deps 未变），`createWorkbook()` 在首次挂载时永远不执行。
+- 子智能体用隔离复现（`univerReady-strictmode-repro.test.tsx`）实证：`B.createWorkbook=0, B.earlyReturn=2`。
+- Playwright 实测：修复前 canvas=0，修复后 canvas=3。
+
+### 修复
+- `src/components/TrialProductionSheet.tsx:459`：Effect 2 deps 加 `univerReady`。
+- `src/App.tsx:276`：`loadHistoryItem` 删掉双 rAF / 800ms warm-up / Step4 跳转 hack，改为 `setCurrentStep(normalized.entry.currentStep)`。
+
+### 验证
+- `npm run lint` 通过。
+- `npm run build` 通过。
+- Playwright E2E Step1→2：canvas=3 ✅。
+- Playwright E2E 历史直达 Step5：canvas=3 ✅。

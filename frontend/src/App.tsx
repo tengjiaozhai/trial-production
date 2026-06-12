@@ -50,7 +50,7 @@ import { normalizeSelectedSupplyKey, projectSkuForStep, projectSkusForStep, list
 import { insertFieldAfter, createInsertedField, createBlankSkuFromTemplate, buildNewSkuId, captureCopyFromSku, pasteCopiedIntoTarget, buildNewSupplyId } from './lib/tableOperations';
 import type { CopiedSku } from './lib/tableOperations';
 import { LoginPage } from './components/LoginPage';
-import { checkLoginStatus } from './lib/auth';
+import { checkLoginStatus, recordUsage } from './lib/auth';
 import type { UserInfo } from './lib/auth';
 import { normalizeFieldValue, normalizeHistoryEntries, normalizeHistoryEntry, normalizeSkuDataValues } from './lib/skuValueNormalization';
 import { getLocalBypassUser, shouldBypassLocalLogin } from './config/localAuth';
@@ -266,6 +266,7 @@ export default function App() {
         : 1;
 
     XLSX.writeFile(wb, `搭配表_${projectInfo.name ?? 'trial'}_V${maxVersion}.xlsx`, { cellStyles: true });
+    recordUsage(currentUser?.username || '', currentUser?.staffNo || '');
     setIsFlowComplete(true);
   };
 

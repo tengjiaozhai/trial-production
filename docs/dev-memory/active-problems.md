@@ -10,3 +10,9 @@
 - 现状：`src/lib/keyMaterialTemplate.ts` 仍然是“文件名命中 + 首 sheet + 表头行 + 单次 LLM 完全命中”链路，`电池、喇叭、听筒、MIC、马达、spk FPC、Sidekey FPC、IR FPC、镜片、壳料、电池盖、卡托、侧键、辅料、散热、PCB、小板` 在 LLM 超时、返回值带修饰词或只命中部分字段时会整批留空。
 - 影响：Step2 里关键物料字段无法自动带出，只能手工补，和核心器件之前的空值问题是同一类脆弱点。
 - 后续方向：按核心器件的修复思路做两层兜底，先做表头容错，再做 LLM 缺失字段重试和本地关键词 fallback；`PCB/小板` 仍然只取 `品牌`，其余字段保持 `主二供 + 供应商 + 物料描述` 的拼接规则。
+
+## 2026-06-12 - TrialProductionSheet.behavior.test.tsx 11 个桩不匹配
+- 现状：`TrialProductionSheet.behavior.test.tsx` 有 11 个测试失败，桩与当前 `createUniver().univerAPI` 生命周期不匹配。
+- 代码位置：`src/components/TrialProductionSheet.behavior.test.tsx`。
+- 影响：不影响生产，但 CI 会报红。
+- 后续方向：重写测试桩适配 `createUniver().univerAPI` 新 API，或改用 Playwright E2E 脚本替代（`frontend/scripts/e2e-*.cjs`）。
