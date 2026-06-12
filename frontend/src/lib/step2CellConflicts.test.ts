@@ -375,6 +375,68 @@ it('still emits swapped battery conflicts when managed material state is missing
   expect(result.filter((item) => item.fieldId === 'battery')).toHaveLength(2);
 });
 
+it('should not detect conflict for 三供/四供 when 一供 or 二供 resolved', () => {
+  const skuData = [
+    {
+      id: 'sku-1',
+      stage: 'PR1',
+      orderNo: '',
+      project: 'A1',
+      supplies: [
+        { id: 'sup-1', supplyKey: '一供' as const, label: '一供', values: { battery: '思立微' } },
+        { id: 'sup-2', supplyKey: '二供' as const, label: '二供', values: { battery: '汇顶' } },
+        { id: 'sup-3', supplyKey: '三供' as const, label: '三供', values: { battery: '' } },
+        { id: 'sup-4', supplyKey: '四供' as const, label: '四供', values: { battery: '' } },
+      ],
+    },
+  ];
+
+  const conflicts = buildStep2CellConflicts({
+    checkedPcbaOptions: ['A1'],
+    pcbaRows: [
+      { pcba: 'A1', sourceIndex: 0, values: { battery: '思立微' } },
+      { pcba: 'A1', sourceIndex: 1, values: { battery: '汇顶' } },
+    ],
+    skuData,
+    respectCurrentValues: true,
+  });
+
+  // 一供和二供已经解决冲突，三供四供不应该有冲突
+  const supplyConflicts = conflicts.filter(c => c.scope === 'supply');
+  expect(supplyConflicts).toHaveLength(0);
+});
+
+it('should detect conflict for 三供/四供 when 一供 and 二供 not resolved', () => {
+  const skuData = [
+    {
+      id: 'sku-1',
+      stage: 'PR1',
+      orderNo: '',
+      project: 'A1',
+      supplies: [
+        { id: 'sup-1', supplyKey: '一供' as const, label: '一供', values: { battery: '' } },
+        { id: 'sup-2', supplyKey: '二供' as const, label: '二供', values: { battery: '' } },
+        { id: 'sup-3', supplyKey: '三供' as const, label: '三供', values: { battery: '' } },
+        { id: 'sup-4', supplyKey: '四供' as const, label: '四供', values: { battery: '' } },
+      ],
+    },
+  ];
+
+  const conflicts = buildStep2CellConflicts({
+    checkedPcbaOptions: ['A1'],
+    pcbaRows: [
+      { pcba: 'A1', sourceIndex: 0, values: { battery: '思立微' } },
+      { pcba: 'A1', sourceIndex: 1, values: { battery: '汇顶' } },
+    ],
+    skuData,
+    respectCurrentValues: true,
+  });
+
+  // 一供和二供都未解决，所有供应都应该有冲突
+  const supplyConflicts = conflicts.filter(c => c.scope === 'supply');
+  expect(supplyConflicts).toHaveLength(4);
+});
+
 it('keeps swapped battery conflicts when current values are non-empty but do not match either candidate', () => {
   const result = buildStep2CellConflicts({
     checkedPcbaOptions: ['A1'],

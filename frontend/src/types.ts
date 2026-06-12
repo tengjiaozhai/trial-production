@@ -20,7 +20,7 @@ export type SampleCollectionFieldId =
   | 'reliability_eng' | 'pressure_test' | 'image_eng'
   | 'npm' | 'ux' | 'parts' | 'pm';
 
-export type SupplyTag = '一供' | '二供' | '三供' | '四供' | '';
+export type SupplyTag = '' | `${string}供`;
 
 export interface SplitFieldOption {
   supply: SupplyTag;
@@ -76,7 +76,7 @@ export interface SKUData {
 
 export interface SkuSupply {
   id: string;
-  supplyKey: SupplyTag | '';
+  supplyKey: SupplyTag;
   label: string;
   values: Record<string, string>;
 }

@@ -46,7 +46,7 @@ import type { SplitOptionFieldId } from './types';
 import { buildTrialProductionWorkbook } from './lib/trialProductionWorkbook';
 import type { Step5LayoutSnapshot } from './lib/trialProductionWorkbook';
 import { isSkuSpanningField } from './lib/step5TableModel';
-import { normalizeSelectedSupplyKey, projectSkuForStep, projectSkusForStep, listSupplyKeys } from './lib/supplyProjection';
+import { normalizeSelectedSupplyKey, projectSkuForStep, projectSkusForStep, listSupplyKeys, getNextUnusedSupplyKey } from './lib/supplyProjection';
 import { insertFieldAfter, createInsertedField, createBlankSkuFromTemplate, buildNewSkuId, captureCopyFromSku, pasteCopiedIntoTarget, buildNewSupplyId } from './lib/tableOperations';
 import type { CopiedSku } from './lib/tableOperations';
 import { LoginPage } from './components/LoginPage';
@@ -54,6 +54,7 @@ import { checkLoginStatus, recordUsage } from './lib/auth';
 import type { UserInfo } from './lib/auth';
 import { normalizeFieldValue, normalizeHistoryEntries, normalizeHistoryEntry, normalizeSkuDataValues } from './lib/skuValueNormalization';
 import { getLocalBypassUser, shouldBypassLocalLogin } from './config/localAuth';
+import { buildNextCustomFieldLabel, insertDynamicSupply, updateCustomFieldLabel } from './lib/dynamicStructure';
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState<StepId>(1);
@@ -905,7 +906,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (currentStep === 4) {
+    if (currentStep >= 4) {
       runValidation();
     }
   }, [currentStep, isFlowComplete, skuData]);
@@ -955,6 +956,93 @@ export default function App() {
     );
   };
 
+  const handleStructureRowInsert = (payload: {
+    position: 'before' | 'after';
+    anchorRowKind: 'title' | 'group' | 'field';
+    anchorFieldId?: string;
+    anchorGroup?: string;
+  }) => {
+    setActiveFields((prev) => {
+      const title = buildNextCustomFieldLabel(prev);
+
+      if (payload.anchorFieldId) {
+        const anchorIndex = prev.findIndex((field) => field.id === payload.anchorFieldId);
+        const newField = createInsertedField(payload.anchorFieldId, prev, title);
+        if (anchorIndex === -1 || payload.position === 'after') {
+          return insertFieldAfter(prev, payload.anchorFieldId, newField);
+        }
+
+        return [
+          ...prev.slice(0, anchorIndex),
+          newField,
+          ...prev.slice(anchorIndex),
+        ];
+      }
+
+      if (payload.anchorGroup) {
+        const indexes = prev
+          .map((field, index) => (field.group === payload.anchorGroup ? index : -1))
+          .filter((index) => index >= 0);
+        const insertIndex =
+          indexes.length === 0
+            ? prev.length
+            : payload.position === 'before'
+              ? indexes[0]
+              : indexes[indexes.length - 1] + 1;
+        const newField: FieldDefinition = {
+          id: `f_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          label: title,
+          group: payload.anchorGroup,
+          behavior: 'manual',
+        };
+
+        return [
+          ...prev.slice(0, insertIndex),
+          newField,
+          ...prev.slice(insertIndex),
+        ];
+      }
+
+      return prev;
+    });
+    setIsExportDisabled(true);
+  };
+
+  const handleStructureColumnInsert = (payload: {
+    position: 'before' | 'after';
+    anchorSkuId: string;
+    anchorSupplyId: string;
+  }) => {
+    setSkuData((prev) =>
+      prev.map((sku) => {
+        if (sku.id !== payload.anchorSkuId) return sku;
+
+        const anchorIndex = sku.supplies.findIndex((supply) => supply.id === payload.anchorSupplyId);
+        const afterSupplyId =
+          payload.position === 'before'
+            ? (anchorIndex > 0 ? sku.supplies[anchorIndex - 1]?.id : undefined)
+            : payload.anchorSupplyId;
+
+        return insertDynamicSupply({
+          sku,
+          afterSupplyId,
+          currentStep,
+          newSupplyId: buildNewSupplyId(),
+          newSupplyKey: getNextUnusedSupplyKey(sku),
+        });
+      })
+    );
+    setIsExportDisabled(true);
+  };
+
+  const handleFieldLabelChange = (fieldId: string, label: string) => {
+    const nextLabel = label.trim();
+    if (!nextLabel) return;
+
+    setActiveFields((prev) => updateCustomFieldLabel(prev, fieldId, nextLabel));
+    setIsExportDisabled(true);
+  };
+
   const handleAddSku = () => {
     const newSku: SKUData = {
       id: `sku_${Date.now()}`,
@@ -968,12 +1056,16 @@ export default function App() {
 
   const handleAddSupply = (skuId: string) => {
     setSkuData(prev => prev.map(sku => {
-      if (sku.id === skuId) {
-        const newSup = { id: `s_${Date.now()}`, supplyKey: '', label: '新供应', values: {} };
-        return { ...sku, supplies: [...sku.supplies, newSup] };
-      }
-      return sku;
+      if (sku.id !== skuId) return sku;
+
+      return insertDynamicSupply({
+        sku,
+        currentStep,
+        newSupplyId: buildNewSupplyId(),
+        newSupplyKey: getNextUnusedSupplyKey(sku),
+      });
     }));
+    setIsExportDisabled(true);
   };
 
   const handleUpdateSupplyLabel = (skuId: string, supplyId: string, val: string) => {
@@ -1015,22 +1107,34 @@ export default function App() {
 
     setSkuData(prev => {
       return prev.map(sku => {
-        if (sku.id !== conflict.skuId) return sku;
+        const isCurrentSku = sku.id === conflict.skuId;
 
-        // 判断是否是一供的冲突
+        // 检查当前 SKU 是否有该字段的供应范围冲突（用于跨 PCBA 同步）
+        const hasFieldConflict = step2Conflicts.some(c =>
+          c.skuId === sku.id &&
+          c.fieldId === conflict.fieldId &&
+          c.scope === 'supply'
+        );
+
+        // 获取当前点击的供应类型（一供或二供）
         const targetSupply = sku.supplies.find(s => s.id === conflict.supplyId);
-        const isFirstSupply = targetSupply?.supplyKey === '一供';
+        const targetSupplyKey = targetSupply?.supplyKey;
+
+        // 只有一供冲突解决时才自动填充三供四供
+        const isFirstSupply = targetSupplyKey === '一供';
 
         return {
           ...sku,
           supplies: sku.supplies.map(sup => {
-            const isTarget = sup.id === conflict.supplyId;
-            // 一供冲突解决时，自动填充三供四供（仅当值为空）
-            const isFallback = isFirstSupply &&
-              (sup.supplyKey === '三供' || sup.supplyKey === '四供') &&
-              !sup.values[conflict.fieldId];
+            // 更新条件：
+            // 1. 当前 SKU 的目标供应（用户点击的单元格）
+            // 2. 其他有冲突的 SKU 的相同供应（一供或二供）
+            // 3. 只有一供冲突解决时，三供四供自动填充（如果值为空）
+            const isTarget = isCurrentSku && sup.id === conflict.supplyId;
+            const shouldSyncSupply = !isCurrentSku && hasFieldConflict && sup.supplyKey === targetSupplyKey;
+            const isFallback = isFirstSupply && (sup.supplyKey === '三供' || sup.supplyKey === '四供') && !sup.values[conflict.fieldId];
 
-            if (!isTarget && !isFallback) return sup;
+            if (!isTarget && !shouldSyncSupply && !isFallback) return sup;
 
             const withInput = { ...sup.values, [conflict.fieldId]: normalizedValue };
             return { ...sup, values: recomputeStep4Values(withInput) };
@@ -1426,6 +1530,9 @@ export default function App() {
                     skuSupplyKeys={currentStep === 3 ? skuSupplyKeys : undefined}
                     onUpdateValue={handleUpdateValue}
                     onSelectedSupplyChange={currentStep === 3 ? handleUpdateSelectedSupply : undefined}
+                    onStructureRowInsert={handleStructureRowInsert}
+                    onStructureColumnInsert={handleStructureColumnInsert}
+                    onFieldLabelChange={handleFieldLabelChange}
                     onStep5LayoutChange={setStep5Layout}
                   />
                 </div>

@@ -5,6 +5,7 @@ import UniverPresetSheetsCoreZhCN from '@univerjs/preset-sheets-core/locales/zh-
 import { UniverSheetsDataValidationPreset } from '@univerjs/preset-sheets-data-validation';
 import UniverPresetSheetsDataValidationZhCN from '@univerjs/preset-sheets-data-validation/locales/zh-CN';
 import '@univerjs/preset-sheets-data-validation/lib/index.css';
+import { Direction } from '@univerjs/core';
 import { FUniver } from '@univerjs/core/facade';
 import type { SKUData, FieldDefinition, StepId, SupplyTag } from '../types';
 import type { Step2CellConflict } from '../lib/step2CellConflicts';
@@ -22,6 +23,19 @@ interface SheetViewportState {
   activeColumn: number;
   viewStartRow: number;
   viewStartColumn: number;
+}
+
+export interface StructureRowInsertPayload {
+  position: 'before' | 'after';
+  anchorRowKind: 'title' | 'group' | 'field';
+  anchorFieldId?: string;
+  anchorGroup?: string;
+}
+
+export interface StructureColumnInsertPayload {
+  position: 'before' | 'after';
+  anchorSkuId: string;
+  anchorSupplyId: string;
 }
 
 function captureSheetViewportState(worksheet: {
@@ -65,6 +79,9 @@ interface TrialProductionSheetProps {
   skuSupplyKeys?: Record<string, SupplyTag[]>;
   onUpdateValue: (skuId: string, supplyId: string, fieldId: string, value: string) => void;
   onSelectedSupplyChange?: (skuId: string, supplyKey: string) => void;
+  onStructureRowInsert?: (payload: StructureRowInsertPayload) => void;
+  onStructureColumnInsert?: (payload: StructureColumnInsertPayload) => void;
+  onFieldLabelChange?: (fieldId: string, label: string) => void;
   onStep5LayoutChange?: (layout: { supplyWidths: Record<string, number>; rowHeights: Record<string, number> }) => void;
   className?: string;
 }
@@ -80,6 +97,9 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       skuSupplyKeys,
       onUpdateValue,
       onSelectedSupplyChange,
+      onStructureRowInsert,
+      onStructureColumnInsert,
+      onFieldLabelChange,
       onStep5LayoutChange,
       className,
     } = props;
@@ -144,6 +164,93 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
     const getCurrentSelectedSupplyKey = (skuId: string): string => {
       const sku = skuData.find((item) => item.id === skuId);
       return sku?.selectedSupplyKey ?? sku?.supplies[0]?.supplyKey ?? '';
+    };
+
+    const getRowFieldDefinition = (fieldId: string | undefined) =>
+      fieldId ? activeFields.find((field) => field.id === fieldId) : undefined;
+
+    const getGroupTitleForStep5Row = (rowIndex: number): string | undefined => {
+      const rows = modelRef.current?.step5Model?.rows;
+      if (!rows) return undefined;
+
+      for (let index = rowIndex; index >= 0; index -= 1) {
+        const row = rows[index];
+        if (!row) continue;
+        if (row.kind === 'group' || row.kind === 'title') {
+          return row.title;
+        }
+      }
+
+      return undefined;
+    };
+
+    const resolveStructureRowInsertPayload = (
+      row: number,
+      position: 'before' | 'after'
+    ): StructureRowInsertPayload | null => {
+      const currentModel = modelRef.current;
+      if (!currentModel) return null;
+
+      if (currentModel.readOnly && currentModel.step5Model) {
+        const rows = currentModel.step5Model.rows;
+        const anchorRow = rows[row];
+        if (!anchorRow) return null;
+
+        if (anchorRow.kind === 'field') {
+          return {
+            position,
+            anchorRowKind: 'field',
+            anchorFieldId: anchorRow.fieldId,
+            anchorGroup: getGroupTitleForStep5Row(row),
+          };
+        }
+
+        return {
+          position,
+          anchorRowKind: anchorRow.kind,
+          anchorGroup: anchorRow.title,
+        };
+      }
+
+      const anchorRow = currentModel.rows[row];
+      if (!anchorRow) return null;
+
+      if (anchorRow.kind === 'field') {
+        return {
+          position,
+          anchorRowKind: 'field',
+          anchorFieldId: anchorRow.fieldId,
+          anchorGroup: getRowFieldDefinition(anchorRow.fieldId)?.group,
+        };
+      }
+
+      return {
+        position,
+        anchorRowKind: anchorRow.kind,
+        anchorGroup: anchorRow.groupTitle,
+      };
+    };
+
+    const resolveStructureColumnInsertPayload = (
+      column: number,
+      position: 'before' | 'after'
+    ): StructureColumnInsertPayload | null => {
+      const currentModel = modelRef.current;
+      if (!currentModel) return null;
+
+      const columns = currentModel.readOnly && currentModel.step5Model
+        ? currentModel.step5Model.columns
+        : currentModel.columns;
+      const leadingColumns = currentModel.readOnly && currentModel.step5Model ? 2 : 1;
+      const dataColumnIndex = column - leadingColumns;
+      const anchorColumn = columns[dataColumnIndex];
+      if (!anchorColumn) return null;
+
+      return {
+        position,
+        anchorSkuId: anchorColumn.skuId,
+        anchorSupplyId: anchorColumn.supplyId,
+      };
     };
 
     const focusCellByBusinessKey = (skuId: string, supplyId: string | undefined, fieldId: string) => {
@@ -458,6 +565,50 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       };
     }, [model, skuData, activeFields, currentStep, skuSupplyKeys, univerReady]);
 
+    useEffect(() => {
+      if (!univerReady) return;
+      const api = univerAPIRef.current as (typeof univerAPIRef.current & {
+        onCommandExecuted?: (handler: (command: any) => void) => { dispose?: () => void } | undefined;
+      }) | null;
+      if (!api) return;
+
+      const subscribe = typeof api.onCommandExecuted === 'function'
+        ? api.onCommandExecuted.bind(api)
+        : undefined;
+      if (!subscribe) return;
+
+      const disposable = subscribe((command: any) => {
+        if (!command?.params?.range) return;
+
+        if (command.id === 'sheet.command.insert-row' && onStructureRowInsert) {
+          const position = command.params.direction === Direction.UP ? 'before' : 'after';
+          const anchorRowIndex = command.params.direction === Direction.UP
+            ? command.params.range.startRow
+            : command.params.range.startRow - 1;
+          const payload = resolveStructureRowInsertPayload(anchorRowIndex, position);
+          if (payload) {
+            onStructureRowInsert(payload);
+          }
+          return;
+        }
+
+        if (command.id === 'sheet.command.insert-col' && onStructureColumnInsert) {
+          const position = command.params.direction === Direction.LEFT ? 'before' : 'after';
+          const anchorColumnIndex = command.params.direction === Direction.LEFT
+            ? command.params.range.startColumn
+            : command.params.range.startColumn - 1;
+          const payload = resolveStructureColumnInsertPayload(anchorColumnIndex, position);
+          if (payload) {
+            onStructureColumnInsert(payload);
+          }
+        }
+      });
+
+      return () => {
+        disposable?.dispose?.();
+      };
+    }, [univerReady, onStructureRowInsert, onStructureColumnInsert, activeFields]);
+
     // Listen for cell edit events
     useEffect(() => {
       if (!univerReady) return;
@@ -494,6 +645,15 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
         if (!isConfirm) return;
 
         const rowObj = modelRef.current?.rows[row];
+        if (column === 0 && rowObj?.kind === 'field' && rowObj.fieldId && onFieldLabelChange) {
+          const fieldDefinition = getRowFieldDefinition(rowObj.fieldId);
+          if (fieldDefinition?.behavior === 'manual') {
+            const nextLabel = normalizeUniverEditValue(value);
+            onFieldLabelChange(rowObj.fieldId, nextLabel);
+          }
+          return;
+        }
+
         if (rowObj?.fieldId === 'supply_select' || rowObj?.fieldId === 'prod_loc') {
           return;
         }
@@ -541,7 +701,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
         disposable?.dispose?.();
         valueChangedDisposable?.dispose?.();
       };
-    }, [univerReady, onUpdateValue, onSelectedSupplyChange]);
+    }, [univerReady, onUpdateValue, onSelectedSupplyChange, onFieldLabelChange, activeFields]);
 
     return (
       <div

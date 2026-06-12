@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import { createRef } from 'react';
 import { TrialProductionSheet } from './TrialProductionSheet';
 import type { TrialProductionSheetHandle } from './TrialProductionSheet';
 import type { FieldDefinition, SKUData } from '../types';
-import { RichTextValue } from '@univerjs/core';
+import { Direction, RichTextValue } from '@univerjs/core';
 
 const { createUniverMock, newAPIMock } = vi.hoisted(() => ({
   createUniverMock: vi.fn(),
@@ -46,6 +46,24 @@ function createValidationBuilder() {
     setOptions: vi.fn().mockReturnThis(),
     build: vi.fn(() => ({ rule: 'validation-rule' })),
   };
+}
+
+function mockCreateUniverWithAPI(apiMock: unknown) {
+  createUniverMock.mockReturnValue({
+    univer: {
+      dispose: vi.fn(),
+    },
+    univerAPI: apiMock,
+  });
+  newAPIMock.mockReturnValue(apiMock);
+}
+
+async function flushSheetEffects() {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(0);
+    await Promise.resolve();
+    await vi.advanceTimersByTimeAsync(0);
+  });
 }
 
 const activeFields: FieldDefinition[] = [
@@ -127,12 +145,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       },
     };
 
-    createUniverMock.mockReturnValue({
-      univer: {
-        dispose: vi.fn(),
-      },
-    });
-    newAPIMock.mockReturnValue(apiMock);
+    mockCreateUniverWithAPI(apiMock);
 
     vi.useFakeTimers();
 
@@ -147,7 +160,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     );
 
     // Flush setTimeout in useEffect
-    await vi.advanceTimersByTimeAsync(0);
+    await flushSheetEffects();
 
     rerender(
       <TrialProductionSheet
@@ -161,7 +174,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     );
 
     // Flush setTimeout in useEffect
-    await vi.advanceTimersByTimeAsync(0);
+    await flushSheetEffects();
 
     expect(apiMock.disposeUnit).toHaveBeenCalledWith('trial-production-sheet');
     expect(apiMock.createWorkbook).toHaveBeenCalledTimes(2);
@@ -197,12 +210,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       },
     };
 
-    createUniverMock.mockReturnValue({
-      univer: {
-        dispose: vi.fn(),
-      },
-    });
-    newAPIMock.mockReturnValue(apiMock);
+    mockCreateUniverWithAPI(apiMock);
 
     vi.useFakeTimers();
 
@@ -217,7 +225,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       />
     );
 
-    await vi.advanceTimersByTimeAsync(0);
+    await flushSheetEffects();
 
     expect(worksheetMock.getRange).toHaveBeenCalledWith(4, 1);
     expect(worksheetMock.getRange).toHaveBeenCalledWith(4, 2);
@@ -266,12 +274,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     const onSelectedSupplyChange = vi.fn();
     const skuSupplyKeys = { 'sku-a1': ['一供', '二供', '三供', '四供'], 'sku-b1': ['一供'] } as const;
 
-    createUniverMock.mockReturnValue({
-      univer: {
-        dispose: vi.fn(),
-      },
-    });
-    newAPIMock.mockReturnValue(apiMock);
+    mockCreateUniverWithAPI(apiMock);
 
     vi.useFakeTimers();
 
@@ -286,7 +289,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       />
     );
 
-    await vi.advanceTimersByTimeAsync(0);
+    await flushSheetEffects();
 
     rerender(
       <TrialProductionSheet
@@ -299,7 +302,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       />
     );
 
-    await vi.advanceTimersByTimeAsync(0);
+    await flushSheetEffects();
 
     expect(apiMock.createWorkbook).toHaveBeenCalledTimes(1);
     expect(apiMock.disposeUnit).not.toHaveBeenCalled();
@@ -337,12 +340,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       },
     };
 
-    createUniverMock.mockReturnValue({
-      univer: {
-        dispose: vi.fn(),
-      },
-    });
-    newAPIMock.mockReturnValue(apiMock);
+    mockCreateUniverWithAPI(apiMock);
 
     vi.useFakeTimers();
 
@@ -357,7 +355,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       />
     );
 
-    await vi.advanceTimersByTimeAsync(0);
+    await flushSheetEffects();
 
     expect(beforeEditEndHandler).toBeDefined();
 
@@ -403,12 +401,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       },
     };
 
-    createUniverMock.mockReturnValue({
-      univer: {
-        dispose: vi.fn(),
-      },
-    });
-    newAPIMock.mockReturnValue(apiMock);
+    mockCreateUniverWithAPI(apiMock);
 
     vi.useFakeTimers();
 
@@ -423,7 +416,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       />
     );
 
-    await vi.advanceTimersByTimeAsync(0);
+    await flushSheetEffects();
 
     expect(sheetValueChangedHandler).toBeDefined();
 
@@ -475,12 +468,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       },
     };
 
-    createUniverMock.mockReturnValue({
-      univer: {
-        dispose: vi.fn(),
-      },
-    });
-    newAPIMock.mockReturnValue(apiMock);
+    mockCreateUniverWithAPI(apiMock);
 
     vi.useFakeTimers();
 
@@ -495,7 +483,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       />
     );
 
-    await vi.advanceTimersByTimeAsync(0);
+    await flushSheetEffects();
 
     expect(sheetValueChangedHandler).toBeDefined();
 
@@ -547,12 +535,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       },
     };
 
-    createUniverMock.mockReturnValue({
-      univer: {
-        dispose: vi.fn(),
-      },
-    });
-    newAPIMock.mockReturnValue(apiMock);
+    mockCreateUniverWithAPI(apiMock);
 
     vi.useFakeTimers();
 
@@ -567,7 +550,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       />
     );
 
-    await vi.advanceTimersByTimeAsync(0);
+    await flushSheetEffects();
 
     sheetValueChangedHandler?.({
       payload: {
@@ -625,12 +608,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       },
     };
 
-    createUniverMock.mockReturnValue({
-      univer: {
-        dispose: vi.fn(),
-      },
-    });
-    newAPIMock.mockReturnValue(apiMock);
+    mockCreateUniverWithAPI(apiMock);
 
     vi.useFakeTimers();
 
@@ -645,7 +623,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       />
     );
 
-    await vi.advanceTimersByTimeAsync(0);
+    await flushSheetEffects();
 
     expect(sheetValueChangedHandler).toBeDefined();
 
@@ -697,12 +675,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       },
     };
 
-    createUniverMock.mockReturnValue({
-      univer: {
-        dispose: vi.fn(),
-      },
-    });
-    newAPIMock.mockReturnValue(apiMock);
+    mockCreateUniverWithAPI(apiMock);
 
     vi.useFakeTimers();
 
@@ -733,7 +706,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       />
     );
 
-    await vi.advanceTimersByTimeAsync(0);
+    await flushSheetEffects();
 
     expect(sheetValueChangedHandler).toBeDefined();
 
@@ -785,12 +758,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       },
     };
 
-    createUniverMock.mockReturnValue({
-      univer: {
-        dispose: vi.fn(),
-      },
-    });
-    newAPIMock.mockReturnValue(apiMock);
+    mockCreateUniverWithAPI(apiMock);
 
     vi.useFakeTimers();
 
@@ -821,7 +789,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       />
     );
 
-    await vi.advanceTimersByTimeAsync(0);
+    await flushSheetEffects();
 
     sheetValueChangedHandler?.({
       payload: {
@@ -845,6 +813,281 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     });
 
     expect(onUpdateValue).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
+  it('bridges sheet.command.insert-row into a parent row-insert callback', async () => {
+    let commandExecutedHandler: ((command: any) => void) | undefined;
+    const worksheetMock = {
+      getRange: vi.fn(() => ({ setDataValidation: vi.fn() })),
+      getCellMergeData: vi.fn(),
+      scrollToCell: vi.fn(),
+    };
+    const workbookMock = {
+      getId: vi.fn(() => 'trial-production-sheet'),
+      getActiveSheet: vi.fn(() => worksheetMock),
+    };
+    const onStructureRowInsert = vi.fn();
+    const apiMock = {
+      createWorkbook: vi.fn(),
+      getActiveWorkbook: vi.fn().mockReturnValue(workbookMock),
+      disposeUnit: vi.fn(),
+      addEvent: vi.fn(() => ({ dispose: vi.fn() })),
+      onCommandExecuted: vi.fn((handler: (command: any) => void) => {
+        commandExecutedHandler = handler;
+        return { dispose: vi.fn() };
+      }),
+      executeCommand: vi.fn(),
+      newDataValidation: vi.fn(() => createValidationBuilder()),
+      Event: {
+        BeforeSheetEditEnd: 'BeforeSheetEditEnd',
+        SheetValueChanged: 'SheetValueChanged',
+      },
+    };
+
+    mockCreateUniverWithAPI(apiMock);
+
+    vi.useFakeTimers();
+
+    render(
+      <TrialProductionSheet
+        {...({
+          currentStep: 3,
+          skuData: step3VisibleSkuData,
+          activeFields,
+          skuSupplyKeys: { 'sku-a1': ['一供', '二供', '三供', '四供'], 'sku-b1': ['一供'] },
+          onUpdateValue: vi.fn(),
+          onSelectedSupplyChange: vi.fn(),
+          onStructureRowInsert,
+        } as any)}
+      />
+    );
+
+    await flushSheetEffects();
+
+    expect(commandExecutedHandler).toBeDefined();
+
+    commandExecutedHandler?.({
+      id: 'sheet.command.insert-row',
+      params: {
+        unitId: 'trial-production-sheet',
+        subUnitId: 'sheet1',
+        direction: Direction.UP,
+        range: {
+          startRow: 6,
+          endRow: 6,
+          startColumn: 0,
+          endColumn: 2,
+        },
+      },
+    });
+
+    expect(onStructureRowInsert).toHaveBeenCalledWith({
+      position: 'before',
+      anchorRowKind: 'field',
+      anchorFieldId: 'mb_id',
+      anchorGroup: '产品规格',
+    });
+
+    vi.useRealTimers();
+  });
+
+  it('bridges sheet.command.insert-col into a parent column-insert callback', async () => {
+    let commandExecutedHandler: ((command: any) => void) | undefined;
+    const worksheetMock = {
+      getRange: vi.fn(() => ({ setDataValidation: vi.fn() })),
+      getCellMergeData: vi.fn(),
+      scrollToCell: vi.fn(),
+    };
+    const workbookMock = {
+      getId: vi.fn(() => 'trial-production-sheet'),
+      getActiveSheet: vi.fn(() => worksheetMock),
+    };
+    const onStructureColumnInsert = vi.fn();
+    const apiMock = {
+      createWorkbook: vi.fn(),
+      getActiveWorkbook: vi.fn().mockReturnValue(workbookMock),
+      disposeUnit: vi.fn(),
+      addEvent: vi.fn(() => ({ dispose: vi.fn() })),
+      onCommandExecuted: vi.fn((handler: (command: any) => void) => {
+        commandExecutedHandler = handler;
+        return { dispose: vi.fn() };
+      }),
+      executeCommand: vi.fn(),
+      newDataValidation: vi.fn(() => createValidationBuilder()),
+      Event: {
+        BeforeSheetEditEnd: 'BeforeSheetEditEnd',
+        SheetValueChanged: 'SheetValueChanged',
+      },
+    };
+
+    mockCreateUniverWithAPI(apiMock);
+
+    vi.useFakeTimers();
+
+    render(
+      <TrialProductionSheet
+        {...({
+          currentStep: 3,
+          skuData: step3VisibleSkuData,
+          activeFields,
+          skuSupplyKeys: { 'sku-a1': ['一供', '二供', '三供', '四供'], 'sku-b1': ['一供'] },
+          onUpdateValue: vi.fn(),
+          onSelectedSupplyChange: vi.fn(),
+          onStructureColumnInsert,
+        } as any)}
+      />
+    );
+
+    await flushSheetEffects();
+
+    expect(commandExecutedHandler).toBeDefined();
+
+    commandExecutedHandler?.({
+      id: 'sheet.command.insert-col',
+      params: {
+        unitId: 'trial-production-sheet',
+        subUnitId: 'sheet1',
+        direction: Direction.RIGHT,
+        range: {
+          startRow: 0,
+          endRow: 8,
+          startColumn: 2,
+          endColumn: 2,
+        },
+      },
+    });
+
+    expect(onStructureColumnInsert).toHaveBeenCalledWith({
+      position: 'after',
+      anchorSkuId: 'sku-a1',
+      anchorSupplyId: 'a1-s2',
+    });
+
+    vi.useRealTimers();
+  });
+
+  it('emits manual field-label edits to the parent callback', async () => {
+    let beforeEditEndHandler: ((params: any) => void) | undefined;
+    const worksheetMock = {
+      getRange: vi.fn(() => ({ setDataValidation: vi.fn() })),
+      getCellMergeData: vi.fn(),
+      scrollToCell: vi.fn(),
+    };
+    const workbookMock = {
+      getId: vi.fn(() => 'trial-production-sheet'),
+      getActiveSheet: vi.fn(() => worksheetMock),
+    };
+    const onFieldLabelChange = vi.fn();
+    const apiMock = {
+      createWorkbook: vi.fn(),
+      getActiveWorkbook: vi.fn().mockReturnValue(workbookMock),
+      disposeUnit: vi.fn(),
+      addEvent: vi.fn((eventName: string, handler: (params: any) => void) => {
+        if (eventName === 'BeforeSheetEditEnd') {
+          beforeEditEndHandler = handler;
+        }
+        return { dispose: vi.fn() };
+      }),
+      executeCommand: vi.fn(),
+      newDataValidation: vi.fn(() => createValidationBuilder()),
+      Event: {
+        BeforeSheetEditEnd: 'BeforeSheetEditEnd',
+        SheetValueChanged: 'SheetValueChanged',
+      },
+    };
+
+    mockCreateUniverWithAPI(apiMock);
+
+    vi.useFakeTimers();
+
+    render(
+      <TrialProductionSheet
+        {...({
+          currentStep: 3,
+          skuData: step3VisibleSkuData,
+          activeFields,
+          skuSupplyKeys: { 'sku-a1': ['一供', '二供', '三供', '四供'], 'sku-b1': ['一供'] },
+          onUpdateValue: vi.fn(),
+          onSelectedSupplyChange: vi.fn(),
+          onFieldLabelChange,
+        } as any)}
+      />
+    );
+
+    await flushSheetEffects();
+
+    beforeEditEndHandler?.({
+      row: 6,
+      column: 0,
+      value: RichTextValue.createByBody({ dataStream: '主板标识-自定义\r\n' }),
+      isConfirm: true,
+    });
+
+    expect(onFieldLabelChange).toHaveBeenCalledWith('mb_id', '主板标识-自定义');
+
+    vi.useRealTimers();
+  });
+
+  it('ignores field-label edits for non-manual rows', async () => {
+    let beforeEditEndHandler: ((params: any) => void) | undefined;
+    const worksheetMock = {
+      getRange: vi.fn(() => ({ setDataValidation: vi.fn() })),
+      getCellMergeData: vi.fn(),
+      scrollToCell: vi.fn(),
+    };
+    const workbookMock = {
+      getId: vi.fn(() => 'trial-production-sheet'),
+      getActiveSheet: vi.fn(() => worksheetMock),
+    };
+    const onFieldLabelChange = vi.fn();
+    const apiMock = {
+      createWorkbook: vi.fn(),
+      getActiveWorkbook: vi.fn().mockReturnValue(workbookMock),
+      disposeUnit: vi.fn(),
+      addEvent: vi.fn((eventName: string, handler: (params: any) => void) => {
+        if (eventName === 'BeforeSheetEditEnd') {
+          beforeEditEndHandler = handler;
+        }
+        return { dispose: vi.fn() };
+      }),
+      executeCommand: vi.fn(),
+      newDataValidation: vi.fn(() => createValidationBuilder()),
+      Event: {
+        BeforeSheetEditEnd: 'BeforeSheetEditEnd',
+        SheetValueChanged: 'SheetValueChanged',
+      },
+    };
+
+    mockCreateUniverWithAPI(apiMock);
+
+    vi.useFakeTimers();
+
+    render(
+      <TrialProductionSheet
+        {...({
+          currentStep: 3,
+          skuData: step3VisibleSkuData,
+          activeFields,
+          skuSupplyKeys: { 'sku-a1': ['一供', '二供', '三供', '四供'], 'sku-b1': ['一供'] },
+          onUpdateValue: vi.fn(),
+          onSelectedSupplyChange: vi.fn(),
+          onFieldLabelChange,
+        } as any)}
+      />
+    );
+
+    await flushSheetEffects();
+
+    beforeEditEndHandler?.({
+      row: 1,
+      column: 0,
+      value: RichTextValue.createByBody({ dataStream: '项目名称-改名\r\n' }),
+      isConfirm: true,
+    });
+
+    expect(onFieldLabelChange).not.toHaveBeenCalled();
 
     vi.useRealTimers();
   });
@@ -883,12 +1126,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     };
     const sheetRef = createRef<TrialProductionSheetHandle>();
 
-    createUniverMock.mockReturnValue({
-      univer: {
-        dispose: vi.fn(),
-      },
-    });
-    newAPIMock.mockReturnValue(apiMock);
+    mockCreateUniverWithAPI(apiMock);
 
     vi.useFakeTimers();
 
@@ -904,7 +1142,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       />
     );
 
-    await vi.advanceTimersByTimeAsync(0);
+    await flushSheetEffects();
 
     sheetRef.current?.focusCellByBusinessKey('sku-a1', 'a1-s2', 'prod_loc');
 
@@ -948,12 +1186,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     };
     const sheetRef = createRef<TrialProductionSheetHandle>();
 
-    createUniverMock.mockReturnValue({
-      univer: {
-        dispose: vi.fn(),
-      },
-    });
-    newAPIMock.mockReturnValue(apiMock);
+    mockCreateUniverWithAPI(apiMock);
 
     vi.useFakeTimers();
 
@@ -967,7 +1200,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       />
     );
 
-    await vi.advanceTimersByTimeAsync(0);
+    await flushSheetEffects();
 
     sheetRef.current?.focusCellByBusinessKey('sku-a1', 'a1-s1', 'prod_loc');
 
@@ -1053,12 +1286,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       },
     };
 
-    createUniverMock.mockReturnValue({
-      univer: {
-        dispose: vi.fn(),
-      },
-    });
-    newAPIMock.mockReturnValue(apiMock);
+    mockCreateUniverWithAPI(apiMock);
 
     vi.useFakeTimers();
 
@@ -1073,7 +1301,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       />
     );
 
-    await vi.advanceTimersByTimeAsync(0);
+    await flushSheetEffects();
 
     const updatedSkuData: SKUData[] = [
       {
@@ -1102,7 +1330,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       />
     );
 
-    await vi.advanceTimersByTimeAsync(0);
+    await flushSheetEffects();
 
     expect(apiMock.disposeUnit).toHaveBeenCalledWith('trial-production-sheet');
     expect(restoredRangeMock.activateAsCurrentCell).toHaveBeenCalled();

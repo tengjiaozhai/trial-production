@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { SKUData, SupplyTag } from '../types';
+import * as supplyProjectionModule from './supplyProjection';
 import {
   normalizeSelectedSupplyKey,
   projectSkuForStep,
@@ -65,5 +66,33 @@ describe('supplyProjection', () => {
       [makeSupply('四供'), makeSupply('一供'), makeSupply('三供'), makeSupply('二供')],
     );
     expect(listSupplyKeys(input)).toEqual(['一供', '二供', '三供', '四供']);
+  });
+
+  it('lists dynamic supply keys in canonical order and keeps empty last', () => {
+    const input = makeSku(
+      [makeSupply('六供'), makeSupply(''), makeSupply('二供'), makeSupply('五供'), makeSupply('一供')],
+    );
+    expect(listSupplyKeys(input)).toEqual(['一供', '二供', '五供', '六供', '']);
+  });
+
+  it('returns the first missing supply key before appending new ordinals', () => {
+    const input = makeSku([makeSupply('一供'), makeSupply('三供'), makeSupply('五供')]);
+    const getNextUnusedSupplyKey = (supplyProjectionModule as Record<string, unknown>).getNextUnusedSupplyKey;
+    expect(typeof getNextUnusedSupplyKey).toBe('function');
+    expect((getNextUnusedSupplyKey as (sku: SKUData) => string)(input)).toBe('二供');
+  });
+
+  it('appends the next ordinal when lower supply keys are already used', () => {
+    const input = makeSku([
+      makeSupply('一供'),
+      makeSupply('二供'),
+      makeSupply('三供'),
+      makeSupply('四供'),
+      makeSupply('五供'),
+      makeSupply('六供'),
+    ]);
+    const getNextUnusedSupplyKey = (supplyProjectionModule as Record<string, unknown>).getNextUnusedSupplyKey;
+    expect(typeof getNextUnusedSupplyKey).toBe('function');
+    expect((getNextUnusedSupplyKey as (sku: SKUData) => string)(input)).toBe('七供');
   });
 });

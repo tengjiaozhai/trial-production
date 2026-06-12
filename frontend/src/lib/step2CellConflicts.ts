@@ -230,6 +230,24 @@ export function buildStep2CellConflicts(input: {
       // Find supply-scoped conflicts
       for (const supply of sku.supplies) {
         const currentVal = supply.values[field.id];
+        
+        // 检查一供或二供是否已经解决了冲突
+        const firstSupply = sku.supplies.find(s => s.supplyKey === '一供');
+        const secondSupply = sku.supplies.find(s => s.supplyKey === '二供');
+        const firstSupplyVal = firstSupply?.values[field.id];
+        const secondSupplyVal = secondSupply?.values[field.id];
+        
+        const isFirstSupplyResolved = firstSupplyVal && 
+          conflictCandidates.some(c => normalizeCompareValue(c.writeValue) === normalizeCompareValue(firstSupplyVal));
+        const isSecondSupplyResolved = secondSupplyVal && 
+          conflictCandidates.some(c => normalizeCompareValue(c.writeValue) === normalizeCompareValue(secondSupplyVal));
+        
+        // 如果一供或二供已经解决冲突，且当前供应不是一供或二供，则跳过冲突检测
+        if ((isFirstSupplyResolved || isSecondSupplyResolved) && 
+            supply.supplyKey !== '一供' && supply.supplyKey !== '二供') {
+          continue;
+        }
+        
         if (isSupplyConflictResolved(currentVal, conflictCandidates, respectCurrentValues)) continue;
 
         const cellId = `step2-cell-${sku.id}-${supply.id}-${field.id}`;
