@@ -27,6 +27,22 @@ export interface TrialProductionSheetModel {
   step5Model?: ReturnType<typeof buildStep5TableModel>;
 }
 
+/**
+ * 根据当前步骤过滤字段：
+ * - Step1 类字段：始终显示
+ * - Auto 类字段：Step2 显示，Step3 隐藏
+ * - Manual 类字段：Step2 隐藏，Step3 显示
+ * - Step4/5：全部显示
+ */
+export function filterFieldsByStep(fields: FieldDefinition[], step: StepId): FieldDefinition[] {
+  if (step === 4 || step === 5) return fields;
+  return fields.filter((f) => {
+    if (f.fieldCategory === 'auto') return step === 2;
+    if (f.fieldCategory === 'manual') return step === 3;
+    return true; // step1 和未标注的默认显示
+  });
+}
+
 export function buildTrialProductionSheetModel(args: {
   activeFields: FieldDefinition[];
   skuData: SKUData[];
@@ -54,6 +70,9 @@ export function buildTrialProductionSheetModel(args: {
     };
   }
 
+  // Filter fields by current step
+  const visibleFields = filterFieldsByStep(activeFields, currentStep);
+
   // Build columns from skuData
   const columns = skuData.flatMap((sku) =>
     sku.supplies.map((supply) => ({
@@ -68,11 +87,11 @@ export function buildTrialProductionSheetModel(args: {
   const cellMap: Record<string, TrialProductionCellKey> = {};
   let rowIndex = 0;
 
-  const groups = Array.from(new Set(activeFields.map((f) => f.group)));
+  const groups = Array.from(new Set(visibleFields.map((f) => f.group)));
 
   for (let gi = 0; gi < groups.length; gi++) {
     const group = groups[gi];
-    const groupFields = activeFields.filter((f) => f.group === group);
+    const groupFields = visibleFields.filter((f) => f.group === group);
     if (groupFields.length === 0) continue;
 
     // Add group header row
