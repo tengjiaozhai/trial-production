@@ -130,24 +130,46 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
     modelRef.current = model;
     cellMapRef.current = model.cellMap;
 
+    // Lookup indexes: O(1) sku / supply / field lookups in event handlers
+    // (avoids O(N) / O(M) linear scans on every cell edit)
+    const skuIndex = useMemo(() => {
+      const skuMap = new Map<string, SKUData>();
+      const supplyMap = new Map<string, (typeof skuData)[number]['supplies'][number]>();
+      for (const sku of skuData) {
+        skuMap.set(sku.id, sku);
+        for (const supply of sku.supplies) {
+          supplyMap.set(supply.id, supply);
+        }
+      }
+      return { skuMap, supplyMap };
+    }, [skuData]);
+
+    const fieldIndex = useMemo(() => {
+      const map = new Map<string, FieldDefinition>();
+      for (const field of activeFields) {
+        map.set(field.id, field);
+      }
+      return map;
+    }, [activeFields]);
+
     const currentCellValues = useMemo(() => {
       const map: Record<string, string> = {};
       for (const [key, cellKey] of Object.entries(model.cellMap) as [string, import('../lib/univerTrialProductionSheet').TrialProductionCellKey][]) {
         if (!cellKey.fieldId) continue;
-        const sku = skuData.find((s) => s.id === cellKey.skuId);
+        const sku = skuIndex.skuMap.get(cellKey.skuId);
         if (!sku) continue;
 
         let raw = '';
         if (isSkuSpanningField(cellKey.fieldId)) {
           raw = sku.supplies[0]?.values[cellKey.fieldId] ?? '';
         } else {
-          const supply = sku.supplies.find((s) => s.id === cellKey.supplyId);
+          const supply = cellKey.supplyId ? skuIndex.supplyMap.get(cellKey.supplyId) : undefined;
           raw = supply?.values[cellKey.fieldId] ?? '';
         }
         map[key] = normalizeFieldValue(cellKey.fieldId, raw);
       }
       return map;
-    }, [model, skuData]);
+    }, [model, skuIndex]);
 
     const clearFocusRetryTimers = () => {
       for (const timer of focusRetryTimersRef.current) {
@@ -171,7 +193,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
     };
 
     const getCurrentBusinessValue = (skuId: string, supplyId: string | undefined, fieldId: string): string => {
-      const sku = skuData.find((item) => item.id === skuId);
+      const sku = skuIndex.skuMap.get(skuId);
       if (!sku) {
         return '';
       }
@@ -180,17 +202,17 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
         return normalizeFieldValue(fieldId, sku.supplies[0]?.values[fieldId] ?? '');
       }
 
-      const supply = sku.supplies.find((item) => item.id === supplyId);
+      const supply = supplyId ? skuIndex.supplyMap.get(supplyId) : undefined;
       return normalizeFieldValue(fieldId, supply?.values[fieldId] ?? '');
     };
 
     const getCurrentSelectedSupplyKey = (skuId: string): string => {
-      const sku = skuData.find((item) => item.id === skuId);
+      const sku = skuIndex.skuMap.get(skuId);
       return sku?.selectedSupplyKey ?? sku?.supplies[0]?.supplyKey ?? '';
     };
 
-    const getRowFieldDefinition = (fieldId: string | undefined) =>
-      fieldId ? activeFields.find((field) => field.id === fieldId) : undefined;
+    const getRowFieldDefinition = (fieldId: string | undefined): FieldDefinition | undefined =>
+      fieldId ? fieldIndex.get(fieldId) : undefined;
 
     const getGroupTitleForStep5Row = (rowIndex: number): string | undefined => {
       const rows = modelRef.current?.step5Model?.rows;
@@ -669,7 +691,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       return () => {
         disposable?.dispose?.();
       };
-    }, [univerReady, onStructureRowInsert, onStructureColumnInsert, activeFields]);
+    }, [univerReady, onStructureRowInsert, onStructureColumnInsert, fieldIndex]);
 
     // Listen for cell edit events
     useEffect(() => {
@@ -788,7 +810,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
         disposable?.dispose?.();
         valueChangedDisposable?.dispose?.();
       };
-    }, [univerReady, onUpdateValue, onSelectedSupplyChange, onFieldLabelChange, activeFields]);
+    }, [univerReady, onUpdateValue, onSelectedSupplyChange, onFieldLabelChange, fieldIndex]);
 
     return (
       <div
