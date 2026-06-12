@@ -1,4 +1,5 @@
 import type { TrialProductionCellKey } from './univerTrialProductionSheet';
+import { normalizeBusinessValue } from './skuValueNormalization';
 
 export interface TrialProductionSheetEdit {
   key: TrialProductionCellKey;
@@ -6,33 +7,41 @@ export interface TrialProductionSheetEdit {
 }
 
 export function normalizeUniverEditValue(value: unknown): string {
-  if (value === null || value === undefined) {
-    return '';
-  }
-
-  if (typeof value === 'object' && value !== null && 'toPlainText' in value) {
-    const toPlainText = (value as { toPlainText?: () => string }).toPlainText;
-    if (typeof toPlainText === 'function') {
-      return toPlainText.call(value).replace(/\r?\n$/, '');
-    }
-  }
-
-  return String(value);
+  return normalizeBusinessValue(value);
 }
 
 export function normalizeUniverCellDataValue(value: unknown): string {
-  if (typeof value === 'object' && value !== null) {
-    if ('v' in value) {
-      return normalizeUniverEditValue((value as { v?: unknown }).v);
-    }
+  return normalizeBusinessValue(value);
+}
 
-    const dataStream = (value as { p?: { body?: { dataStream?: unknown } } }).p?.body?.dataStream;
-    if (typeof dataStream === 'string') {
-      return dataStream.replace(/\r?\n$/, '');
-    }
+export function hasUniverCellDataValue(value: unknown): boolean {
+  if (value === null || value === undefined) {
+    return false;
   }
 
-  return normalizeUniverEditValue(value);
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return true;
+  }
+
+  if (typeof value !== 'object') {
+    return false;
+  }
+
+  if ('toPlainText' in value) {
+    return true;
+  }
+
+  if ('v' in value) {
+    return true;
+  }
+
+  const bodyDataStream = (value as { body?: { dataStream?: unknown } }).body?.dataStream;
+  if (typeof bodyDataStream === 'string') {
+    return true;
+  }
+
+  const richTextDataStream = (value as { p?: { body?: { dataStream?: unknown } } }).p?.body?.dataStream;
+  return typeof richTextDataStream === 'string';
 }
 
 export function mapUniverEditToBusinessEdit(input: {

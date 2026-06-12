@@ -9,12 +9,51 @@ import { FUniver } from '@univerjs/core/facade';
 import type { SKUData, FieldDefinition, StepId, SupplyTag } from '../types';
 import type { Step2CellConflict } from '../lib/step2CellConflicts';
 import { buildTrialProductionSheetModel } from '../lib/univerTrialProductionSheet';
-import { mapUniverEditToBusinessEdit, normalizeUniverCellDataValue, normalizeUniverEditValue } from '../lib/univerSheetEvents';
+import { hasUniverCellDataValue, mapUniverEditToBusinessEdit, normalizeUniverCellDataValue, normalizeUniverEditValue } from '../lib/univerSheetEvents';
 import { isSkuSpanningField } from '../lib/step5TableModel';
 import { normalizeBusinessValue, normalizeFieldValue, PROD_LOC_OPTIONS } from '../lib/skuValueNormalization';
 
 export interface TrialProductionSheetHandle {
   focusCellByBusinessKey: (skuId: string, supplyId: string | undefined, fieldId: string) => void;
+}
+
+interface SheetViewportState {
+  activeRow: number;
+  activeColumn: number;
+  viewStartRow: number;
+  viewStartColumn: number;
+}
+
+function captureSheetViewportState(worksheet: {
+  getActiveCell?: () => { _range?: { actualRow?: number; startRow?: number; actualColumn?: number; startColumn?: number } } | null;
+  getScrollState?: () => { sheetViewStartRow?: number; sheetViewStartColumn?: number } | null;
+} | null | undefined): SheetViewportState | null {
+  if (!worksheet) {
+    return null;
+  }
+
+  const activeCell = worksheet.getActiveCell?.();
+  const scrollState = worksheet.getScrollState?.();
+  const activeRow = activeCell?._range?.actualRow ?? activeCell?._range?.startRow;
+  const activeColumn = activeCell?._range?.actualColumn ?? activeCell?._range?.startColumn;
+  const viewStartRow = scrollState?.sheetViewStartRow;
+  const viewStartColumn = scrollState?.sheetViewStartColumn;
+
+  if (
+    !Number.isFinite(activeRow) ||
+    !Number.isFinite(activeColumn) ||
+    !Number.isFinite(viewStartRow) ||
+    !Number.isFinite(viewStartColumn)
+  ) {
+    return null;
+  }
+
+  return {
+    activeRow,
+    activeColumn,
+    viewStartRow,
+    viewStartColumn,
+  };
 }
 
 interface TrialProductionSheetProps {
@@ -51,6 +90,8 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
     const cellMapRef = useRef<Record<string, import('../lib/univerTrialProductionSheet').TrialProductionCellKey>>({});
     const modelRef = useRef<ReturnType<typeof buildTrialProductionSheetModel> | null>(null);
     const focusRetryTimersRef = useRef<number[]>([]);
+    const viewportRestoreTimersRef = useRef<number[]>([]);
+    const previousStepRef = useRef<StepId | null>(null);
 
     // Build the sheet model
     const model = useMemo(() => buildTrialProductionSheetModel({
@@ -68,6 +109,13 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
         window.clearTimeout(timer);
       }
       focusRetryTimersRef.current = [];
+    };
+
+    const clearViewportRestoreTimers = () => {
+      for (const timer of viewportRestoreTimersRef.current) {
+        window.clearTimeout(timer);
+      }
+      viewportRestoreTimersRef.current = [];
     };
 
     const getCurrentBusinessValue = (skuId: string, supplyId: string | undefined, fieldId: string): string => {
@@ -167,6 +215,56 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       }
     };
 
+    const restoreSheetViewportState = (viewportState: SheetViewportState | null) => {
+      const api = univerAPIRef.current;
+      if (!api || !viewportState) {
+        return;
+      }
+
+      const isWindows = typeof navigator !== 'undefined'
+        ? /win/i.test(`${navigator.userAgent ?? ''} ${navigator.platform ?? ''}`)
+        : false;
+
+      const restoreViewport = () => {
+        const worksheet = api.getActiveWorkbook()?.getActiveSheet();
+        if (!worksheet) {
+          return;
+        }
+
+        try {
+          const activeRange = worksheet.getCellMergeData(viewportState.activeRow, viewportState.activeColumn)
+            ?? worksheet.getRange(viewportState.activeRow, viewportState.activeColumn);
+          if (typeof activeRange.activateAsCurrentCell === 'function') {
+            activeRange.activateAsCurrentCell();
+          } else {
+            activeRange.activate();
+          }
+        } catch {
+          // ignore active-cell restore errors
+        }
+
+        try {
+          worksheet.scrollToCell(viewportState.viewStartRow, viewportState.viewStartColumn, 0);
+        } catch {
+          // ignore viewport restore errors
+        }
+      };
+
+      clearViewportRestoreTimers();
+      restoreViewport();
+
+      if (!isWindows) {
+        return;
+      }
+
+      for (const delay of [0, 180, 1200]) {
+        const timer = window.setTimeout(() => {
+          restoreViewport();
+        }, delay);
+        viewportRestoreTimersRef.current.push(timer);
+      }
+    };
+
     // Expose focus method to parent
     useImperativeHandle(ref, () => ({
       focusCellByBusinessKey,
@@ -197,6 +295,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
 
       return () => {
         clearFocusRetryTimers();
+        clearViewportRestoreTimers();
         univerInstance.univer.dispose();
         univerRef.current = null;
         univerAPIRef.current = null;
@@ -207,6 +306,12 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
     useEffect(() => {
       const api = univerAPIRef.current;
       if (!api) return;
+      const preserveViewport = previousStepRef.current === currentStep;
+      const currentWorkbook = preserveViewport ? api.getActiveWorkbook() : null;
+      const viewportState = preserveViewport
+        ? captureSheetViewportState(currentWorkbook?.getActiveSheet())
+        : null;
+      previousStepRef.current = currentStep;
 
       // Build Univer workbook snapshot from model
       const snapshot = buildWorkbookSnapshot(model, skuData, activeFields, currentStep);
@@ -320,9 +425,14 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
             }
           }
         }
+
+        restoreSheetViewportState(viewportState);
       }, 0);
 
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        clearViewportRestoreTimers();
+      };
     }, [model, skuData, activeFields, currentStep, skuSupplyKeys]);
 
     // Listen for cell edit events
@@ -383,6 +493,9 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
           for (const [columnKey, cellData] of Object.entries(rowValues as Record<string, unknown>)) {
             const column = Number(columnKey);
             if (!Number.isFinite(column) || column <= 0) continue;
+            if (!hasUniverCellDataValue(cellData)) {
+              continue;
+            }
 
             if (rowObj.fieldId === 'supply_select') {
               const col = modelRef.current?.columns[column - 1];

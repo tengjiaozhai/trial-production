@@ -517,6 +517,84 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     vi.useRealTimers();
   });
 
+  it('ignores supply_select SheetValueChanged events that only carry style data', async () => {
+    let sheetValueChangedHandler: ((params: any) => void) | undefined;
+    const worksheetMock = {
+      getRange: vi.fn(() => ({ setDataValidation: vi.fn() })),
+      getCellMergeData: vi.fn(),
+      scrollToCell: vi.fn(),
+    };
+    const workbookMock = {
+      getId: vi.fn(() => 'trial-production-sheet'),
+      getActiveSheet: vi.fn(() => worksheetMock),
+    };
+    const onSelectedSupplyChange = vi.fn();
+    const apiMock = {
+      createWorkbook: vi.fn(),
+      getActiveWorkbook: vi.fn().mockReturnValue(workbookMock),
+      disposeUnit: vi.fn(),
+      addEvent: vi.fn((eventName: string, handler: (params: any) => void) => {
+        if (eventName === 'SheetValueChanged') {
+          sheetValueChangedHandler = handler;
+        }
+        return { dispose: vi.fn() };
+      }),
+      executeCommand: vi.fn(),
+      newDataValidation: vi.fn(() => createValidationBuilder()),
+      Event: {
+        BeforeSheetEditEnd: 'BeforeSheetEditEnd',
+        SheetValueChanged: 'SheetValueChanged',
+      },
+    };
+
+    createUniverMock.mockReturnValue({
+      univer: {
+        dispose: vi.fn(),
+      },
+    });
+    newAPIMock.mockReturnValue(apiMock);
+
+    vi.useFakeTimers();
+
+    render(
+      <TrialProductionSheet
+        currentStep={3}
+        skuData={step3VisibleSkuData}
+        activeFields={activeFields}
+        skuSupplyKeys={{ 'sku-a1': ['一供', '二供', '三供', '四供'], 'sku-b1': ['一供'] }}
+        onUpdateValue={vi.fn()}
+        onSelectedSupplyChange={onSelectedSupplyChange}
+      />
+    );
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    sheetValueChangedHandler?.({
+      payload: {
+        id: 'sheet.mutation.set-range-values',
+        params: {
+          cellValue: {
+            3: {
+              1: {
+                s: {
+                  bd: {
+                    r: {
+                      s: 1,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(onSelectedSupplyChange).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
   it('reacts to prod_loc dropdown changes from SheetValueChanged', async () => {
     let sheetValueChangedHandler: ((params: any) => void) | undefined;
     const worksheetMock = {
@@ -677,6 +755,100 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     vi.useRealTimers();
   });
 
+  it('ignores prod_loc SheetValueChanged events that only carry style data', async () => {
+    let sheetValueChangedHandler: ((params: any) => void) | undefined;
+    const worksheetMock = {
+      getRange: vi.fn(() => ({ setDataValidation: vi.fn() })),
+      getCellMergeData: vi.fn(),
+      scrollToCell: vi.fn(),
+    };
+    const workbookMock = {
+      getId: vi.fn(() => 'trial-production-sheet'),
+      getActiveSheet: vi.fn(() => worksheetMock),
+    };
+    const onUpdateValue = vi.fn();
+    const apiMock = {
+      createWorkbook: vi.fn(),
+      getActiveWorkbook: vi.fn().mockReturnValue(workbookMock),
+      disposeUnit: vi.fn(),
+      addEvent: vi.fn((eventName: string, handler: (params: any) => void) => {
+        if (eventName === 'SheetValueChanged') {
+          sheetValueChangedHandler = handler;
+        }
+        return { dispose: vi.fn() };
+      }),
+      executeCommand: vi.fn(),
+      newDataValidation: vi.fn(() => createValidationBuilder()),
+      Event: {
+        BeforeSheetEditEnd: 'BeforeSheetEditEnd',
+        SheetValueChanged: 'SheetValueChanged',
+      },
+    };
+
+    createUniverMock.mockReturnValue({
+      univer: {
+        dispose: vi.fn(),
+      },
+    });
+    newAPIMock.mockReturnValue(apiMock);
+
+    vi.useFakeTimers();
+
+    const skuDataWithProdLoc: SKUData[] = [
+      {
+        ...step3VisibleSkuData[0],
+        supplies: [
+          {
+            ...step3VisibleSkuData[0].supplies[0],
+            values: {
+              ...step3VisibleSkuData[0].supplies[0].values,
+              prod_loc: '宜宾',
+            },
+          },
+        ],
+      },
+      step3VisibleSkuData[1],
+    ];
+
+    render(
+      <TrialProductionSheet
+        currentStep={3}
+        skuData={skuDataWithProdLoc}
+        activeFields={activeFields}
+        skuSupplyKeys={{ 'sku-a1': ['一供', '二供', '三供', '四供'], 'sku-b1': ['一供'] }}
+        onUpdateValue={onUpdateValue}
+        onSelectedSupplyChange={vi.fn()}
+      />
+    );
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    sheetValueChangedHandler?.({
+      payload: {
+        id: 'sheet.mutation.set-range-values',
+        params: {
+          cellValue: {
+            4: {
+              1: {
+                s: {
+                  bd: {
+                    r: {
+                      s: 1,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    expect(onUpdateValue).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
   it('focuses the matched business cell with current-cell activation', async () => {
     const focusRangeMock = {
       activate: vi.fn(),
@@ -801,6 +973,140 @@ describe('TrialProductionSheet workbook lifecycle', () => {
 
     expect(focusRangeMock.activateAsCurrentCell).toHaveBeenCalledTimes(1);
     expect(worksheetMock.scrollToCell).toHaveBeenCalledWith(4, 1, 0);
+
+    vi.useRealTimers();
+  });
+
+  it('restores the active viewport after same-step workbook recreation', async () => {
+    const restoredRangeMock = {
+      activate: vi.fn(),
+      activateAsCurrentCell: vi.fn(),
+      setDataValidation: vi.fn(),
+      setBorder: vi.fn(),
+    };
+    const borderRangeMock = {
+      setDataValidation: vi.fn(),
+      setBorder: vi.fn(),
+    };
+    const oldWorksheetMock = {
+      getActiveCell: vi.fn(() => ({
+        _range: {
+          actualRow: 4,
+          actualColumn: 9,
+          startRow: 4,
+          startColumn: 9,
+        },
+      })),
+      getScrollState: vi.fn(() => ({
+        sheetViewStartRow: 4,
+        sheetViewStartColumn: 9,
+      })),
+      getRange: vi.fn(() => borderRangeMock),
+      getCellMergeData: vi.fn(() => undefined),
+      scrollToCell: vi.fn(),
+      setFrozenRows: vi.fn(),
+      cancelFreeze: vi.fn(),
+    };
+    const newWorksheetMock = {
+      getRange: vi.fn((row?: number, column?: number) => {
+        if (row === 4 && column === 9) {
+          return restoredRangeMock;
+        }
+        return borderRangeMock;
+      }),
+      getCellMergeData: vi.fn(() => undefined),
+      scrollToCell: vi.fn(),
+      setFrozenRows: vi.fn(),
+      cancelFreeze: vi.fn(),
+    };
+    const oldWorkbook = {
+      getId: vi.fn(() => 'trial-production-sheet'),
+      getActiveSheet: vi.fn(() => oldWorksheetMock),
+    };
+    const newWorkbook = {
+      getId: vi.fn(() => 'trial-production-sheet-next'),
+      getActiveSheet: vi.fn(() => newWorksheetMock),
+    };
+    let currentWorkbook: typeof oldWorkbook | typeof newWorkbook | null = null;
+    let createCount = 0;
+    const apiMock = {
+      createWorkbook: vi.fn(() => {
+        currentWorkbook = createCount === 0 ? oldWorkbook : newWorkbook;
+        createCount += 1;
+      }),
+      getActiveWorkbook: vi.fn(() => currentWorkbook),
+      disposeUnit: vi.fn(),
+      addEvent: vi.fn(() => ({ dispose: vi.fn() })),
+      executeCommand: vi.fn(),
+      newDataValidation: vi.fn(() => createValidationBuilder()),
+      Event: {
+        BeforeSheetEditEnd: 'BeforeSheetEditEnd',
+        SheetValueChanged: 'SheetValueChanged',
+      },
+      Enum: {
+        BorderType: {
+          ALL: 'ALL',
+        },
+        BorderStyleTypes: {
+          THIN: 'THIN',
+        },
+      },
+    };
+
+    createUniverMock.mockReturnValue({
+      univer: {
+        dispose: vi.fn(),
+      },
+    });
+    newAPIMock.mockReturnValue(apiMock);
+
+    vi.useFakeTimers();
+
+    const { rerender } = render(
+      <TrialProductionSheet
+        currentStep={3}
+        skuData={step3VisibleSkuData}
+        activeFields={activeFields}
+        skuSupplyKeys={{ 'sku-a1': ['一供', '二供', '三供', '四供'], 'sku-b1': ['一供'] }}
+        onUpdateValue={vi.fn()}
+        onSelectedSupplyChange={vi.fn()}
+      />
+    );
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    const updatedSkuData: SKUData[] = [
+      {
+        ...step3VisibleSkuData[0],
+        supplies: [
+          {
+            ...step3VisibleSkuData[0].supplies[0],
+            values: {
+              ...step3VisibleSkuData[0].supplies[0].values,
+              prod_loc: '宜宾',
+            },
+          },
+        ],
+      },
+      step3VisibleSkuData[1],
+    ];
+
+    rerender(
+      <TrialProductionSheet
+        currentStep={3}
+        skuData={updatedSkuData}
+        activeFields={activeFields}
+        skuSupplyKeys={{ 'sku-a1': ['一供', '二供', '三供', '四供'], 'sku-b1': ['一供'] }}
+        onUpdateValue={vi.fn()}
+        onSelectedSupplyChange={vi.fn()}
+      />
+    );
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(apiMock.disposeUnit).toHaveBeenCalledWith('trial-production-sheet');
+    expect(restoredRangeMock.activateAsCurrentCell).toHaveBeenCalled();
+    expect(newWorksheetMock.scrollToCell).toHaveBeenCalledWith(4, 9, 0);
 
     vi.useRealTimers();
   });

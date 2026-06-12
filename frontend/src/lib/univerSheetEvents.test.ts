@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { RichTextValue } from '@univerjs/core';
-import { mapUniverEditToBusinessEdit } from './univerSheetEvents';
+import { hasUniverCellDataValue, mapUniverEditToBusinessEdit, normalizeUniverCellDataValue } from './univerSheetEvents';
 import type { TrialProductionCellKey } from './univerTrialProductionSheet';
 
 const sampleCellMap: Record<string, TrialProductionCellKey> = {
@@ -63,6 +63,26 @@ describe('mapUniverEditToBusinessEdit', () => {
     expect(result!.value).toBe('沙特（艾为PD IC）');
   });
 
+  it('extracts nested rich text from structured cell values', () => {
+    const result = mapUniverEditToBusinessEdit({
+      row: 0,
+      column: 1,
+      value: {
+        v: {
+          p: {
+            body: {
+              dataStream: '宜宾\r\n',
+            },
+          },
+        },
+      },
+      cellMap: sampleCellMap,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result!.value).toBe('宜宾');
+  });
+
   it('returns null for unmapped cells', () => {
     const result = mapUniverEditToBusinessEdit({
       row: 99,
@@ -111,5 +131,50 @@ describe('mapUniverEditToBusinessEdit', () => {
     expect(result).not.toBeNull();
     expect(result!.key.fieldId).toBe('mb_id');
     expect(result!.key.supplyId).toBeUndefined();
+  });
+});
+
+describe('normalizeUniverCellDataValue', () => {
+  it('returns empty string for style-only cell payloads', () => {
+    expect(
+      normalizeUniverCellDataValue({
+        s: {
+          bd: {
+            r: {
+              s: 1,
+            },
+          },
+        },
+      })
+    ).toBe('');
+  });
+});
+
+describe('hasUniverCellDataValue', () => {
+  it('detects payloads that contain a business value', () => {
+    expect(hasUniverCellDataValue({ v: '二供' })).toBe(true);
+    expect(
+      hasUniverCellDataValue({
+        p: {
+          body: {
+            dataStream: '宜宾\r\n',
+          },
+        },
+      })
+    ).toBe(true);
+  });
+
+  it('ignores style-only payloads', () => {
+    expect(
+      hasUniverCellDataValue({
+        s: {
+          bd: {
+            r: {
+              s: 1,
+            },
+          },
+        },
+      })
+    ).toBe(false);
   });
 });
