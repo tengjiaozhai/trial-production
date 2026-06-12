@@ -456,7 +456,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       return () => {
         clearViewportRestoreTimers();
       };
-    }, [model, skuData, activeFields, currentStep, skuSupplyKeys]);
+    }, [model, skuData, activeFields, currentStep, skuSupplyKeys, univerReady]);
 
     // Listen for cell edit events
     useEffect(() => {
