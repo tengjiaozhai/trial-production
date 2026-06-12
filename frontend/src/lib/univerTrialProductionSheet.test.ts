@@ -25,6 +25,15 @@ const singleSku: SKUData[] = [
   },
 ];
 
+const fieldsWithCategory: FieldDefinition[] = [
+  { id: 'project', label: '项目名称', group: '基础信息', behavior: 'auto', fieldCategory: 'step1' },
+  { id: 'band', label: '频段', group: '产品规格', behavior: 'auto', fieldCategory: 'step1' },
+  { id: 'lcd', label: 'LCD', group: '电子物料', behavior: 'auto', fieldCategory: 'auto' },
+  { id: 'battery', label: '电池', group: '电子物料', behavior: 'auto', fieldCategory: 'auto' },
+  { id: 'pkg_process', label: '包装流程', group: '包装工艺', behavior: 'manual', fieldCategory: 'manual' },
+  { id: 'ebom', label: 'EBOM（料号）', group: '结构层级清单', behavior: 'manual', fieldCategory: 'manual' },
+];
+
 const twoSkus: SKUData[] = [
   {
     id: 'sku1',
@@ -430,5 +439,80 @@ describe('buildWorkbookSnapshot - group rows merge', () => {
     expect(snapshot.sheets.sheet1.cellData[1]?.[1]?.v).toBe('项目名称');
     expect(snapshot.sheets.sheet1.cellData[1]?.[2]?.v).toBe('X6728');
     expect(snapshot.sheets.sheet1.mergeData.length).toBeGreaterThan(0);
+  });
+});
+
+describe('filterFieldsByStep', () => {
+  it('shows step1 + auto fields in step2, hides manual', () => {
+    const model = buildTrialProductionSheetModel({
+      activeFields: fieldsWithCategory,
+      skuData: singleSku,
+      currentStep: 2,
+    });
+
+    const fieldRows = model.rows.filter((r) => r.kind === 'field');
+    const fieldIds = fieldRows.map((r) => r.fieldId);
+
+    expect(fieldIds).toContain('project');
+    expect(fieldIds).toContain('band');
+    expect(fieldIds).toContain('lcd');
+    expect(fieldIds).toContain('battery');
+    expect(fieldIds).not.toContain('pkg_process');
+    expect(fieldIds).not.toContain('ebom');
+  });
+
+  it('shows step1 + manual fields in step3, hides auto', () => {
+    const model = buildTrialProductionSheetModel({
+      activeFields: fieldsWithCategory,
+      skuData: singleSku,
+      currentStep: 3,
+    });
+
+    const fieldRows = model.rows.filter((r) => r.kind === 'field');
+    const fieldIds = fieldRows.map((r) => r.fieldId);
+
+    expect(fieldIds).toContain('project');
+    expect(fieldIds).toContain('band');
+    expect(fieldIds).toContain('pkg_process');
+    expect(fieldIds).toContain('ebom');
+    expect(fieldIds).not.toContain('lcd');
+    expect(fieldIds).not.toContain('battery');
+  });
+
+  it('shows all fields in step4', () => {
+    const model = buildTrialProductionSheetModel({
+      activeFields: fieldsWithCategory,
+      skuData: singleSku,
+      currentStep: 4,
+    });
+
+    const fieldRows = model.rows.filter((r) => r.kind === 'field');
+    const fieldIds = fieldRows.map((r) => r.fieldId);
+
+    expect(fieldIds).toContain('project');
+    expect(fieldIds).toContain('band');
+    expect(fieldIds).toContain('lcd');
+    expect(fieldIds).toContain('battery');
+    expect(fieldIds).toContain('pkg_process');
+    expect(fieldIds).toContain('ebom');
+  });
+
+  it('shows fields without fieldCategory in all steps', () => {
+    const fieldsWithoutCategory: FieldDefinition[] = [
+      { id: 'project', label: '项目名称', group: '基础信息', behavior: 'auto' },
+      { id: 'lcd', label: 'LCD', group: '电子物料', behavior: 'auto' },
+    ];
+
+    const model = buildTrialProductionSheetModel({
+      activeFields: fieldsWithoutCategory,
+      skuData: singleSku,
+      currentStep: 3,
+    });
+
+    const fieldRows = model.rows.filter((r) => r.kind === 'field');
+    const fieldIds = fieldRows.map((r) => r.fieldId);
+
+    expect(fieldIds).toContain('project');
+    expect(fieldIds).toContain('lcd');
   });
 });
