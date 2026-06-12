@@ -48,10 +48,13 @@ function createValidationBuilder() {
   };
 }
 
-function mockCreateUniverWithAPI(apiMock: unknown) {
+function mockCreateUniverWithAPI(apiMock: unknown, commandServiceMock?: unknown) {
   createUniverMock.mockReturnValue({
     univer: {
       dispose: vi.fn(),
+      __getInjector: vi.fn(() => ({
+        get: vi.fn(() => commandServiceMock),
+      })),
     },
     univerAPI: apiMock,
   });
@@ -819,6 +822,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
 
   it('bridges sheet.command.insert-row into a parent row-insert callback', async () => {
     let commandExecutedHandler: ((command: any) => void) | undefined;
+    let beforeCommandExecuteHandler: ((command: any) => void) | undefined;
     const worksheetMock = {
       getRange: vi.fn(() => ({ setDataValidation: vi.fn() })),
       getCellMergeData: vi.fn(),
@@ -829,15 +833,21 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       getActiveSheet: vi.fn(() => worksheetMock),
     };
     const onStructureRowInsert = vi.fn();
+    const commandServiceMock = {
+      beforeCommandExecuted: vi.fn((handler: (command: any) => void) => {
+        beforeCommandExecuteHandler = handler;
+        return { dispose: vi.fn() };
+      }),
+      onCommandExecuted: vi.fn((handler: (command: any) => void) => {
+        commandExecutedHandler = handler;
+        return { dispose: vi.fn() };
+      }),
+    };
     const apiMock = {
       createWorkbook: vi.fn(),
       getActiveWorkbook: vi.fn().mockReturnValue(workbookMock),
       disposeUnit: vi.fn(),
       addEvent: vi.fn(() => ({ dispose: vi.fn() })),
-      onCommandExecuted: vi.fn((handler: (command: any) => void) => {
-        commandExecutedHandler = handler;
-        return { dispose: vi.fn() };
-      }),
       executeCommand: vi.fn(),
       newDataValidation: vi.fn(() => createValidationBuilder()),
       Event: {
@@ -846,7 +856,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       },
     };
 
-    mockCreateUniverWithAPI(apiMock);
+    mockCreateUniverWithAPI(apiMock, commandServiceMock);
 
     vi.useFakeTimers();
 
@@ -866,7 +876,23 @@ describe('TrialProductionSheet workbook lifecycle', () => {
 
     await flushSheetEffects();
 
+    expect(beforeCommandExecuteHandler).toBeDefined();
     expect(commandExecutedHandler).toBeDefined();
+
+    beforeCommandExecuteHandler?.({
+      id: 'sheet.command.insert-row',
+      params: {
+        unitId: 'trial-production-sheet',
+        subUnitId: 'sheet1',
+        direction: Direction.UP,
+        range: {
+          startRow: 6,
+          endRow: 6,
+          startColumn: 0,
+          endColumn: 2,
+        },
+      },
+    });
 
     commandExecutedHandler?.({
       id: 'sheet.command.insert-row',
@@ -895,6 +921,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
 
   it('bridges sheet.command.insert-col into a parent column-insert callback', async () => {
     let commandExecutedHandler: ((command: any) => void) | undefined;
+    let beforeCommandExecuteHandler: ((command: any) => void) | undefined;
     const worksheetMock = {
       getRange: vi.fn(() => ({ setDataValidation: vi.fn() })),
       getCellMergeData: vi.fn(),
@@ -905,15 +932,21 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       getActiveSheet: vi.fn(() => worksheetMock),
     };
     const onStructureColumnInsert = vi.fn();
+    const commandServiceMock = {
+      beforeCommandExecuted: vi.fn((handler: (command: any) => void) => {
+        beforeCommandExecuteHandler = handler;
+        return { dispose: vi.fn() };
+      }),
+      onCommandExecuted: vi.fn((handler: (command: any) => void) => {
+        commandExecutedHandler = handler;
+        return { dispose: vi.fn() };
+      }),
+    };
     const apiMock = {
       createWorkbook: vi.fn(),
       getActiveWorkbook: vi.fn().mockReturnValue(workbookMock),
       disposeUnit: vi.fn(),
       addEvent: vi.fn(() => ({ dispose: vi.fn() })),
-      onCommandExecuted: vi.fn((handler: (command: any) => void) => {
-        commandExecutedHandler = handler;
-        return { dispose: vi.fn() };
-      }),
       executeCommand: vi.fn(),
       newDataValidation: vi.fn(() => createValidationBuilder()),
       Event: {
@@ -922,7 +955,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       },
     };
 
-    mockCreateUniverWithAPI(apiMock);
+    mockCreateUniverWithAPI(apiMock, commandServiceMock);
 
     vi.useFakeTimers();
 
@@ -942,7 +975,23 @@ describe('TrialProductionSheet workbook lifecycle', () => {
 
     await flushSheetEffects();
 
+    expect(beforeCommandExecuteHandler).toBeDefined();
     expect(commandExecutedHandler).toBeDefined();
+
+    beforeCommandExecuteHandler?.({
+      id: 'sheet.command.insert-col',
+      params: {
+        unitId: 'trial-production-sheet',
+        subUnitId: 'sheet1',
+        direction: Direction.RIGHT,
+        range: {
+          startRow: 0,
+          endRow: 8,
+          startColumn: 2,
+          endColumn: 2,
+        },
+      },
+    });
 
     commandExecutedHandler?.({
       id: 'sheet.command.insert-col',
@@ -961,6 +1010,189 @@ describe('TrialProductionSheet workbook lifecycle', () => {
 
     expect(onStructureColumnInsert).toHaveBeenCalledWith({
       position: 'after',
+      anchorSkuId: 'sku-a1',
+      anchorSupplyId: 'a1-s2',
+    });
+
+    vi.useRealTimers();
+  });
+
+  it('bridges context-menu row insertion commands using the active cell anchor', async () => {
+    let commandExecutedHandler: ((command: any) => void) | undefined;
+    let beforeCommandExecuteHandler: ((command: any) => void) | undefined;
+    const worksheetMock = {
+      getRange: vi.fn(() => ({ setDataValidation: vi.fn() })),
+      getCellMergeData: vi.fn(),
+      scrollToCell: vi.fn(),
+      getActiveCell: vi.fn(() => ({
+        _range: {
+          actualRow: 6,
+          actualColumn: 1,
+          startRow: 6,
+          startColumn: 1,
+        },
+      })),
+      getScrollState: vi.fn(() => ({
+        sheetViewStartRow: 1,
+        sheetViewStartColumn: 0,
+      })),
+    };
+    const workbookMock = {
+      getId: vi.fn(() => 'trial-production-sheet'),
+      getActiveSheet: vi.fn(() => worksheetMock),
+    };
+    const onStructureRowInsert = vi.fn();
+    const commandServiceMock = {
+      beforeCommandExecuted: vi.fn((handler: (command: any) => void) => {
+        beforeCommandExecuteHandler = handler;
+        return { dispose: vi.fn() };
+      }),
+      onCommandExecuted: vi.fn((handler: (command: any) => void) => {
+        commandExecutedHandler = handler;
+        return { dispose: vi.fn() };
+      }),
+    };
+    const apiMock = {
+      createWorkbook: vi.fn(),
+      getActiveWorkbook: vi.fn().mockReturnValue(workbookMock),
+      disposeUnit: vi.fn(),
+      addEvent: vi.fn(() => ({ dispose: vi.fn() })),
+      executeCommand: vi.fn(),
+      newDataValidation: vi.fn(() => createValidationBuilder()),
+      Event: {
+        BeforeSheetEditEnd: 'BeforeSheetEditEnd',
+        SheetValueChanged: 'SheetValueChanged',
+      },
+    };
+
+    mockCreateUniverWithAPI(apiMock, commandServiceMock);
+
+    vi.useFakeTimers();
+
+    render(
+      <TrialProductionSheet
+        {...({
+          currentStep: 3,
+          skuData: step3VisibleSkuData,
+          activeFields,
+          skuSupplyKeys: { 'sku-a1': ['一供', '二供', '三供', '四供'], 'sku-b1': ['一供'] },
+          onUpdateValue: vi.fn(),
+          onSelectedSupplyChange: vi.fn(),
+          onStructureRowInsert,
+        } as any)}
+      />
+    );
+
+    await flushSheetEffects();
+
+    beforeCommandExecuteHandler?.({
+      id: 'sheet.command.insert-multi-rows-above',
+      params: {
+        value: 1,
+      },
+    });
+
+    commandExecutedHandler?.({
+      id: 'sheet.command.insert-multi-rows-above',
+      params: {
+        value: 1,
+      },
+    });
+
+    expect(onStructureRowInsert).toHaveBeenCalledWith({
+      position: 'before',
+      anchorRowKind: 'field',
+      anchorFieldId: 'mb_id',
+      anchorGroup: '产品规格',
+    });
+
+    vi.useRealTimers();
+  });
+
+  it('bridges context-menu column insertion commands using the active cell anchor', async () => {
+    let commandExecutedHandler: ((command: any) => void) | undefined;
+    let beforeCommandExecuteHandler: ((command: any) => void) | undefined;
+    const worksheetMock = {
+      getRange: vi.fn(() => ({ setDataValidation: vi.fn() })),
+      getCellMergeData: vi.fn(),
+      scrollToCell: vi.fn(),
+      getActiveCell: vi.fn(() => ({
+        _range: {
+          actualRow: 8,
+          actualColumn: 1,
+          startRow: 8,
+          startColumn: 1,
+        },
+      })),
+      getScrollState: vi.fn(() => ({
+        sheetViewStartRow: 1,
+        sheetViewStartColumn: 0,
+      })),
+    };
+    const workbookMock = {
+      getId: vi.fn(() => 'trial-production-sheet'),
+      getActiveSheet: vi.fn(() => worksheetMock),
+    };
+    const onStructureColumnInsert = vi.fn();
+    const commandServiceMock = {
+      beforeCommandExecuted: vi.fn((handler: (command: any) => void) => {
+        beforeCommandExecuteHandler = handler;
+        return { dispose: vi.fn() };
+      }),
+      onCommandExecuted: vi.fn((handler: (command: any) => void) => {
+        commandExecutedHandler = handler;
+        return { dispose: vi.fn() };
+      }),
+    };
+    const apiMock = {
+      createWorkbook: vi.fn(),
+      getActiveWorkbook: vi.fn().mockReturnValue(workbookMock),
+      disposeUnit: vi.fn(),
+      addEvent: vi.fn(() => ({ dispose: vi.fn() })),
+      executeCommand: vi.fn(),
+      newDataValidation: vi.fn(() => createValidationBuilder()),
+      Event: {
+        BeforeSheetEditEnd: 'BeforeSheetEditEnd',
+        SheetValueChanged: 'SheetValueChanged',
+      },
+    };
+
+    mockCreateUniverWithAPI(apiMock, commandServiceMock);
+
+    vi.useFakeTimers();
+
+    render(
+      <TrialProductionSheet
+        {...({
+          currentStep: 3,
+          skuData: step3VisibleSkuData,
+          activeFields,
+          skuSupplyKeys: { 'sku-a1': ['一供', '二供', '三供', '四供'], 'sku-b1': ['一供'] },
+          onUpdateValue: vi.fn(),
+          onSelectedSupplyChange: vi.fn(),
+          onStructureColumnInsert,
+        } as any)}
+      />
+    );
+
+    await flushSheetEffects();
+
+    beforeCommandExecuteHandler?.({
+      id: 'sheet.command.insert-multi-cols-before',
+      params: {
+        value: 1,
+      },
+    });
+
+    commandExecutedHandler?.({
+      id: 'sheet.command.insert-multi-cols-before',
+      params: {
+        value: 1,
+      },
+    });
+
+    expect(onStructureColumnInsert).toHaveBeenCalledWith({
+      position: 'before',
       anchorSkuId: 'sku-a1',
       anchorSupplyId: 'a1-s2',
     });

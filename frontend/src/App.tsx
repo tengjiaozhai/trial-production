@@ -55,6 +55,8 @@ import type { UserInfo } from './lib/auth';
 import { normalizeFieldValue, normalizeHistoryEntries, normalizeHistoryEntry, normalizeSkuDataValues } from './lib/skuValueNormalization';
 import { getLocalBypassUser, shouldBypassLocalLogin } from './config/localAuth';
 import { buildNextCustomFieldLabel, insertDynamicSupply, updateCustomFieldLabel } from './lib/dynamicStructure';
+import { getQaSeedEntries, shouldAllowQaSeed } from './lib/qaHistorySeeds';
+import { resolveHistoryLoadTransition } from './lib/historyLoadTransition';
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState<StepId>(1);
@@ -88,6 +90,20 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
   const [currentUser, setCurrentUser] = useState<UserInfo | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const host = window.location.hostname;
+    if (host !== '127.0.0.1' && host !== 'localhost' && host !== '::1') return;
+
+    (window as typeof window & {
+      __trialDebug?: () => { currentStep: StepId; activeFields: FieldDefinition[]; skuData: SKUData[] };
+    }).__trialDebug = () => ({
+      currentStep,
+      activeFields,
+      skuData,
+    });
+  }, [currentStep, activeFields, skuData]);
 
   // Check login status on mount
   useEffect(() => {
@@ -127,6 +143,17 @@ export default function App() {
 
   // Load history from localStorage
   useEffect(() => {
+    if (typeof window !== 'undefined' && shouldAllowQaSeed(window.location.hostname)) {
+      const seededEntries = getQaSeedEntries(window.location.search);
+      if (seededEntries) {
+        const normalizedSeed = normalizeHistoryEntries(seededEntries);
+        setHistory(normalizedSeed.entries);
+        localStorage.setItem('trial_production_history', JSON.stringify(normalizedSeed.entries));
+        setShowHistory(true);
+        return;
+      }
+    }
+
     const savedHistory = localStorage.getItem('trial_production_history');
     if (savedHistory) {
       try {
@@ -277,12 +304,19 @@ export default function App() {
 
   const loadHistoryItem = (item: HistoryEntry) => {
     const normalized = normalizeHistoryEntry(item);
+    const transition = resolveHistoryLoadTransition(currentStep, normalized.entry.currentStep);
     setProjectInfo(normalized.entry.projectInfo);
     setSkuData(normalized.entry.skuData.map(normalizeSelectedSupplyKey));
     setActiveFields(normalized.entry.activeFields);
     setIsFlowComplete(normalized.entry.isFlowComplete);
     setShowHistory(false);
-    setCurrentStep(normalized.entry.currentStep);
+    setCurrentStep(transition.immediateStep);
+
+    if (transition.delayedStep && transition.delayMs) {
+      window.setTimeout(() => {
+        setCurrentStep(transition.delayedStep!);
+      }, transition.delayMs);
+    }
 
     if (normalized.changed) {
       setHistory((prev) => {

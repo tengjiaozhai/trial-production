@@ -5,7 +5,7 @@ import UniverPresetSheetsCoreZhCN from '@univerjs/preset-sheets-core/locales/zh-
 import { UniverSheetsDataValidationPreset } from '@univerjs/preset-sheets-data-validation';
 import UniverPresetSheetsDataValidationZhCN from '@univerjs/preset-sheets-data-validation/locales/zh-CN';
 import '@univerjs/preset-sheets-data-validation/lib/index.css';
-import { Direction } from '@univerjs/core';
+import { Direction, ICommandService } from '@univerjs/core';
 import { FUniver } from '@univerjs/core/facade';
 import type { SKUData, FieldDefinition, StepId, SupplyTag } from '../types';
 import type { Step2CellConflict } from '../lib/step2CellConflicts';
@@ -39,6 +39,22 @@ export interface StructureColumnInsertPayload {
   anchorSkuId: string;
   anchorSupplyId: string;
 }
+
+const STRUCTURE_ROW_INSERT_COMMAND_IDS = new Set([
+  'sheet.command.insert-row',
+  'sheet.command.insert-row-before',
+  'sheet.command.insert-row-after',
+  'sheet.command.insert-multi-rows-above',
+  'sheet.command.insert-multi-rows-after',
+]);
+
+const STRUCTURE_COLUMN_INSERT_COMMAND_IDS = new Set([
+  'sheet.command.insert-col',
+  'sheet.command.insert-col-before',
+  'sheet.command.insert-col-after',
+  'sheet.command.insert-multi-cols-before',
+  'sheet.command.insert-multi-cols-right',
+]);
 
 function captureSheetViewportState(worksheet: {
   getActiveCell?: () => { _range?: { actualRow?: number; startRow?: number; actualColumn?: number; startColumn?: number } } | null;
@@ -119,6 +135,11 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
     const lastWrittenCellValuesRef = useRef<Record<string, string>>({});
     const lastStructureKeyRef = useRef<string | null>(null);
     const pendingStructureViewportRef = useRef<SheetViewportState | null>(null);
+    const pendingStructureInsertRef = useRef<
+      | { type: 'row'; payload: StructureRowInsertPayload }
+      | { type: 'column'; payload: StructureColumnInsertPayload }
+      | null
+    >(null);
     const focusRetryTimersRef = useRef<number[]>([]);
     const viewportRestoreTimersRef = useRef<number[]>([]);
     const univerReadyTimersRef = useRef<number[]>([]);
@@ -307,6 +328,35 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
         anchorSkuId: anchorColumn.skuId,
         anchorSupplyId: anchorColumn.supplyId,
       };
+    };
+
+    const resolveStructureInsertFromActiveCell = (
+      commandId: string,
+      worksheet: {
+        getActiveCell?: () => { _range?: { actualRow?: number; startRow?: number; actualColumn?: number; startColumn?: number } } | null;
+      } | null | undefined,
+    ) => {
+      const activeCell = worksheet?.getActiveCell?.();
+      const activeRow = activeCell?._range?.actualRow ?? activeCell?._range?.startRow;
+      const activeColumn = activeCell?._range?.actualColumn ?? activeCell?._range?.startColumn;
+
+      if (STRUCTURE_ROW_INSERT_COMMAND_IDS.has(commandId) && Number.isFinite(activeRow)) {
+        const position = commandId === 'sheet.command.insert-multi-rows-after' || commandId === 'sheet.command.insert-row-after'
+          ? 'after'
+          : 'before';
+        const payload = resolveStructureRowInsertPayload(activeRow as number, position);
+        return payload ? { type: 'row' as const, payload } : null;
+      }
+
+      if (STRUCTURE_COLUMN_INSERT_COMMAND_IDS.has(commandId) && Number.isFinite(activeColumn)) {
+        const position = commandId === 'sheet.command.insert-multi-cols-right' || commandId === 'sheet.command.insert-col-after'
+          ? 'after'
+          : 'before';
+        const payload = resolveStructureColumnInsertPayload(activeColumn as number, position);
+        return payload ? { type: 'column' as const, payload } : null;
+      }
+
+      return null;
     };
 
     // js-early-exit + js-set-map-lookups: split focusCellByBusinessKey into small
@@ -649,44 +699,61 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
 
     useEffect(() => {
       if (!univerReady) return;
-      const api = univerAPIRef.current;
-      if (!api) return;
+      const commandService = univerRef.current?.univer?.__getInjector?.().get?.(ICommandService);
+      if (!commandService) return;
       const isStructureCommand = (command: any) =>
-        Boolean(command?.params?.range) &&
-        (command.id === 'sheet.command.insert-row' || command.id === 'sheet.command.insert-col');
+        STRUCTURE_ROW_INSERT_COMMAND_IDS.has(command?.id) || STRUCTURE_COLUMN_INSERT_COMMAND_IDS.has(command?.id);
 
-      const beforeDisposable = api.addEvent(api.Event.BeforeCommandExecute, (command: any) => {
+      const beforeDisposable = commandService.beforeCommandExecuted((command: any) => {
         if (!isStructureCommand(command)) return;
-        pendingStructureViewportRef.current = captureSheetViewportState(
-          api.getActiveWorkbook()?.getActiveSheet()
-        );
+        const worksheet = univerAPIRef.current?.getActiveWorkbook()?.getActiveSheet();
+        pendingStructureViewportRef.current = captureSheetViewportState(worksheet);
+        pendingStructureInsertRef.current = resolveStructureInsertFromActiveCell(command.id, worksheet);
       });
 
-      const disposable = api.addEvent(api.Event.CommandExecuted, (command: any) => {
+      const disposable = commandService.onCommandExecuted((command: any) => {
         if (!isStructureCommand(command)) return;
-        if (!command?.params?.range) return;
+        if (command.id === 'sheet.command.insert-row' || command.id === 'sheet.command.insert-col') {
+          if (!command?.params?.range) return;
 
-        if (command.id === 'sheet.command.insert-row' && onStructureRowInsert) {
-          const position = command.params.direction === Direction.UP ? 'before' : 'after';
-          const anchorRowIndex = command.params.direction === Direction.UP
-            ? command.params.range.startRow
-            : command.params.range.startRow - 1;
-          const payload = resolveStructureRowInsertPayload(anchorRowIndex, position);
-          if (payload) {
-            onStructureRowInsert(payload);
+          if (command.id === 'sheet.command.insert-row' && onStructureRowInsert) {
+            const position = command.params.direction === Direction.UP ? 'before' : 'after';
+            const anchorRowIndex = command.params.direction === Direction.UP
+              ? command.params.range.startRow
+              : command.params.range.startRow - 1;
+            const payload = resolveStructureRowInsertPayload(anchorRowIndex, position);
+            if (payload) {
+              onStructureRowInsert(payload);
+            }
+            pendingStructureInsertRef.current = null;
+            return;
+          }
+
+          if (command.id === 'sheet.command.insert-col' && onStructureColumnInsert) {
+            const position = command.params.direction === Direction.LEFT ? 'before' : 'after';
+            const anchorColumnIndex = command.params.direction === Direction.LEFT
+              ? command.params.range.startColumn
+              : command.params.range.startColumn - 1;
+            const payload = resolveStructureColumnInsertPayload(anchorColumnIndex, position);
+            if (payload) {
+              onStructureColumnInsert(payload);
+            }
+            pendingStructureInsertRef.current = null;
           }
           return;
         }
 
-        if (command.id === 'sheet.command.insert-col' && onStructureColumnInsert) {
-          const position = command.params.direction === Direction.LEFT ? 'before' : 'after';
-          const anchorColumnIndex = command.params.direction === Direction.LEFT
-            ? command.params.range.startColumn
-            : command.params.range.startColumn - 1;
-          const payload = resolveStructureColumnInsertPayload(anchorColumnIndex, position);
-          if (payload) {
-            onStructureColumnInsert(payload);
-          }
+        const pendingInsert = pendingStructureInsertRef.current;
+        pendingStructureInsertRef.current = null;
+        if (!pendingInsert) return;
+
+        if (pendingInsert.type === 'row' && onStructureRowInsert) {
+          onStructureRowInsert(pendingInsert.payload);
+          return;
+        }
+
+        if (pendingInsert.type === 'column' && onStructureColumnInsert) {
+          onStructureColumnInsert(pendingInsert.payload);
         }
       });
 
