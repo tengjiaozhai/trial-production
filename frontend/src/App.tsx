@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Upload, FileText, Download, CheckCircle, Play, Plus, X, RotateCw, Save, History, Trash2 } from 'lucide-react';
+import { Upload, FileText, Download, Play, Plus, X, RotateCw, Save, History, Trash2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { arrayMove } from '@dnd-kit/sortable';
 
@@ -1028,9 +1028,12 @@ export default function App() {
       <header className="h-[60px] bg-[linear-gradient(180deg,rgba(255,255,255,0.88)_0%,rgba(246,249,255,0.78)_100%)] backdrop-blur-xl border-b border-[#DDE7F3]/80 flex items-center justify-between px-6 shrink-0 z-[110]">
         <div className="flex items-center gap-6">
           <div className="font-black text-xl tracking-tight text-[#0f2e4a] flex items-center gap-2">
-            <div className="w-6 h-6 rounded bg-[#0f2e4a] flex items-center justify-center text-white shrink-0">
-               <CheckCircle size={14} strokeWidth={3} />
-            </div>
+            <img
+              src="/favicon.png"
+              alt=""
+              className="w-6 h-6 shrink-0 rounded object-cover"
+              aria-hidden="true"
+            />
             试产搭配表智能生成助手
           </div>
         </div>
