@@ -1,6 +1,5 @@
 import type { SKUData, StepId, SupplyTag } from '../types';
-
-const SUPPLY_ORDER: SupplyTag[] = ['一供', '二供', '三供', '四供', ''];
+import { getNextUnusedSupplyKeyFromKeys, sortSupplyKeys } from './supplyKeys';
 
 export function normalizeSelectedSupplyKey(sku: SKUData): SKUData {
   const valid = new Set<string>(sku.supplies.map((s) => s.supplyKey));
@@ -25,6 +24,10 @@ export function projectSkusForStep(skus: SKUData[], step: StepId | number): SKUD
 }
 
 export function listSupplyKeys(sku: SKUData): SupplyTag[] {
-  const keys = new Set<string>(sku.supplies.map((s) => s.supplyKey));
-  return SUPPLY_ORDER.filter((k) => keys.has(k));
+  const keys = new Set<SupplyTag>(sku.supplies.map((s) => s.supplyKey));
+  return sortSupplyKeys(keys);
+}
+
+export function getNextUnusedSupplyKey(sku: SKUData): SupplyTag {
+  return getNextUnusedSupplyKeyFromKeys(sku.supplies.map((s) => s.supplyKey));
 }
