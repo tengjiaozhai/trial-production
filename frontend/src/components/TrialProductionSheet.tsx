@@ -110,6 +110,8 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
     const [univerReady, setUniverReady] = useState(false);
     const cellMapRef = useRef<Record<string, import('../lib/univerTrialProductionSheet').TrialProductionCellKey>>({});
     const modelRef = useRef<ReturnType<typeof buildTrialProductionSheetModel> | null>(null);
+    const lastWrittenCellValuesRef = useRef<Record<string, string>>({});
+    const lastStructureKeyRef = useRef<string | null>(null);
     const focusRetryTimersRef = useRef<number[]>([]);
     const viewportRestoreTimersRef = useRef<number[]>([]);
     const univerReadyTimersRef = useRef<number[]>([]);
@@ -125,6 +127,25 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
     }), [activeFields, currentStep, efuseConfigs, skuData, step2Conflicts]);
     modelRef.current = model;
     cellMapRef.current = model.cellMap;
+
+    const currentCellValues = useMemo(() => {
+      const map: Record<string, string> = {};
+      for (const [key, cellKey] of Object.entries(model.cellMap) as [string, import('../lib/univerTrialProductionSheet').TrialProductionCellKey][]) {
+        if (!cellKey.fieldId) continue;
+        const sku = skuData.find((s) => s.id === cellKey.skuId);
+        if (!sku) continue;
+
+        let raw = '';
+        if (isSkuSpanningField(cellKey.fieldId)) {
+          raw = sku.supplies[0]?.values[cellKey.fieldId] ?? '';
+        } else {
+          const supply = sku.supplies.find((s) => s.id === cellKey.supplyId);
+          raw = supply?.values[cellKey.fieldId] ?? '';
+        }
+        map[key] = normalizeFieldValue(cellKey.fieldId, raw);
+      }
+      return map;
+    }, [model, skuData]);
 
     const clearFocusRetryTimers = () => {
       for (const timer of focusRetryTimersRef.current) {
