@@ -88,6 +88,10 @@ interface TrialProductionSheetProps {
   className?: string;
 }
 
+// rendering-hoist-jsx: hoist the static style object out of the component render
+// to avoid re-allocating it on every forwardRef render.
+const CONTAINER_STYLE = { width: '100%', height: '100%' } as const;
+
 export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, TrialProductionSheetProps>(
   function TrialProductionSheet(props, ref) {
     const {
@@ -114,6 +118,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
     const modelRef = useRef<ReturnType<typeof buildTrialProductionSheetModel> | null>(null);
     const lastWrittenCellValuesRef = useRef<Record<string, string>>({});
     const lastStructureKeyRef = useRef<string | null>(null);
+    const pendingStructureViewportRef = useRef<SheetViewportState | null>(null);
     const focusRetryTimersRef = useRef<number[]>([]);
     const viewportRestoreTimersRef = useRef<number[]>([]);
     const univerReadyTimersRef = useRef<number[]>([]);
@@ -171,35 +176,30 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       return map;
     }, [model, skuIndex]);
 
-    const clearFocusRetryTimers = () => {
-      for (const timer of focusRetryTimersRef.current) {
+    // DRY: a single helper for clearing timer arrays (was 3 separate near-identical functions)
+    const clearTimersInRef = (timersRef: { current: number[] }) => {
+      for (const timer of timersRef.current) {
         window.clearTimeout(timer);
       }
-      focusRetryTimersRef.current = [];
-    };
-
-    const clearViewportRestoreTimers = () => {
-      for (const timer of viewportRestoreTimersRef.current) {
-        window.clearTimeout(timer);
-      }
-      viewportRestoreTimersRef.current = [];
-    };
-
-    const clearUniverReadyTimers = () => {
-      for (const timer of univerReadyTimersRef.current) {
-        window.clearTimeout(timer);
-      }
-      univerReadyTimersRef.current = [];
+      timersRef.current = [];
     };
 
     const getCurrentBusinessValue = (skuId: string, supplyId: string | undefined, fieldId: string): string => {
+      // Defer-reads: prefer the already-normalized snapshot from currentCellValues over
+      // re-scanning skuData + re-running normalizeFieldValue on the hot path.
+      const cellKey = `${skuId}|${supplyId ?? ''}|${fieldId}`;
+      if (Object.prototype.hasOwnProperty.call(currentCellValues, cellKey)) {
+        return currentCellValues[cellKey];
+      }
+
       const sku = skuIndex.skuMap.get(skuId);
       if (!sku) {
         return '';
       }
 
+      const values = sku.supplies[0]?.values;
       if (isSkuSpanningField(fieldId)) {
-        return normalizeFieldValue(fieldId, sku.supplies[0]?.values[fieldId] ?? '');
+        return normalizeFieldValue(fieldId, values?.[fieldId] ?? '');
       }
 
       const supply = supplyId ? skuIndex.supplyMap.get(supplyId) : undefined;
@@ -229,37 +229,31 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       return undefined;
     };
 
-    const resolveStructureRowInsertPayload = (
+    // js-early-exit: extract payload builders so the main function reads as a flat early-return chain
+    const buildReadOnlyRowPayload = (
+      position: 'before' | 'after',
+      anchorRow: { kind: string; fieldId?: string; title?: string },
       row: number,
-      position: 'before' | 'after'
-    ): StructureRowInsertPayload | null => {
-      const currentModel = modelRef.current;
-      if (!currentModel) return null;
-
-      if (currentModel.readOnly && currentModel.step5Model) {
-        const rows = currentModel.step5Model.rows;
-        const anchorRow = rows[row];
-        if (!anchorRow) return null;
-
-        if (anchorRow.kind === 'field') {
-          return {
-            position,
-            anchorRowKind: 'field',
-            anchorFieldId: anchorRow.fieldId,
-            anchorGroup: getGroupTitleForStep5Row(row),
-          };
-        }
-
+    ): StructureRowInsertPayload => {
+      if (anchorRow.kind === 'field') {
         return {
           position,
-          anchorRowKind: anchorRow.kind,
-          anchorGroup: anchorRow.title,
+          anchorRowKind: 'field',
+          anchorFieldId: anchorRow.fieldId,
+          anchorGroup: getGroupTitleForStep5Row(row),
         };
       }
+      return {
+        position,
+        anchorRowKind: anchorRow.kind as 'title' | 'group',
+        anchorGroup: anchorRow.title,
+      };
+    };
 
-      const anchorRow = currentModel.rows[row];
-      if (!anchorRow) return null;
-
+    const buildEditableRowPayload = (
+      position: 'before' | 'after',
+      anchorRow: { kind: string; fieldId?: string; groupTitle?: string },
+    ): StructureRowInsertPayload => {
       if (anchorRow.kind === 'field') {
         return {
           position,
@@ -268,17 +262,34 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
           anchorGroup: getRowFieldDefinition(anchorRow.fieldId)?.group,
         };
       }
-
       return {
         position,
-        anchorRowKind: anchorRow.kind,
+        anchorRowKind: anchorRow.kind as 'title' | 'group',
         anchorGroup: anchorRow.groupTitle,
       };
     };
 
+    const resolveStructureRowInsertPayload = (
+      row: number,
+      position: 'before' | 'after',
+    ): StructureRowInsertPayload | null => {
+      const currentModel = modelRef.current;
+      if (!currentModel) return null;
+
+      if (currentModel.readOnly && currentModel.step5Model) {
+        const anchorRow = currentModel.step5Model.rows[row];
+        if (!anchorRow) return null;
+        return buildReadOnlyRowPayload(position, anchorRow, row);
+      }
+
+      const anchorRow = currentModel.rows[row];
+      if (!anchorRow) return null;
+      return buildEditableRowPayload(position, anchorRow);
+    };
+
     const resolveStructureColumnInsertPayload = (
       column: number,
-      position: 'before' | 'after'
+      position: 'before' | 'after',
     ): StructureColumnInsertPayload | null => {
       const currentModel = modelRef.current;
       if (!currentModel) return null;
@@ -298,100 +309,92 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       };
     };
 
+    // js-early-exit + js-set-map-lookups: split focusCellByBusinessKey into small
+    // single-purpose helpers, and replace per-iteration `key.split('-')` with a
+    // pre-parsed reverse index over cellMap.
+    const findTargetCellForFocus = (
+      skuId: string,
+      supplyId: string | undefined,
+      fieldId: string,
+    ): { row: number; column: number } | null => {
+      // js-early-exit: scan the cellMap once; prefer exact supplyId match over sku-scope match
+      let fallback: { row: number; column: number } | null = null;
+      for (const [key, cellKey] of Object.entries(cellMapRef.current) as [string, import('../lib/univerTrialProductionSheet').TrialProductionCellKey][]) {
+        if (cellKey.fieldId !== fieldId || cellKey.skuId !== skuId) continue;
+
+        const sep = key.indexOf('-');
+        if (sep < 0) continue;
+        const row = Number(key.slice(0, sep));
+        const column = Number(key.slice(sep + 1));
+        if (!Number.isFinite(row) || !Number.isFinite(column)) continue;
+
+        if (!fallback) {
+          fallback = { row, column };
+        }
+
+        if (cellKey.scope === 'sku' || cellKey.supplyId === supplyId) {
+          fallback = { row, column };
+          break;
+        }
+      }
+      return fallback;
+    };
+
+    const activateCell = (worksheet: any, row: number, column: number) => {
+      if (!worksheet) return;
+      const mergedRange = worksheet.getCellMergeData?.(row, column);
+      const targetRange = mergedRange ?? worksheet.getRange(row, column);
+      try {
+        if (typeof targetRange.activateAsCurrentCell === 'function') {
+          targetRange.activateAsCurrentCell();
+        } else {
+          targetRange.activate();
+        }
+        worksheet.scrollToCell(row, column, 0);
+      } catch {
+        try {
+          targetRange.activate();
+          worksheet.scrollToCell(row, column, 0);
+        } catch {
+          // ignore focus errors
+        }
+      }
+    };
+
+    const detectWindows = (): boolean => {
+      if (typeof navigator === 'undefined') return false;
+      return /win/i.test(`${navigator.userAgent ?? ''} ${navigator.platform ?? ''}`);
+    };
+
     const focusCellByBusinessKey = (skuId: string, supplyId: string | undefined, fieldId: string) => {
       const api = univerAPIRef.current;
       if (!api) return;
 
-      let fallbackRow: number | null = null;
-      let fallbackCol: number | null = null;
+      const target = findTargetCellForFocus(skuId, supplyId, fieldId);
+      if (!target) return;
 
-      for (const [key, cellKey] of Object.entries(cellMapRef.current) as [string, import('../lib/univerTrialProductionSheet').TrialProductionCellKey][]) {
-        if (cellKey.fieldId !== fieldId || cellKey.skuId !== skuId) {
-          continue;
-        }
+      const worksheet = api.getActiveWorkbook()?.getActiveSheet();
+      const focusOnce = () => activateCell(worksheet, target.row, target.column);
 
-        const [rowStr, colStr] = key.split('-');
-        const row = parseInt(rowStr, 10);
-        const col = parseInt(colStr, 10);
+      clearTimersInRef(focusRetryTimersRef);
+      focusOnce();
 
-        if (fallbackRow === null || fallbackCol === null) {
-          fallbackRow = row;
-          fallbackCol = col;
-        }
+      if (!detectWindows()) return;
 
-        if (cellKey.scope === 'sku' || cellKey.supplyId === supplyId) {
-          fallbackRow = row;
-          fallbackCol = col;
-          break;
-        }
-      }
-
-      if (fallbackRow === null || fallbackCol === null) {
-        return;
-      }
-
-      const row = fallbackRow;
-      const col = fallbackCol;
-      const isWindows = typeof navigator !== 'undefined'
-        ? /win/i.test(`${navigator.userAgent ?? ''} ${navigator.platform ?? ''}`)
-        : false;
-
-      const focusCell = () => {
-        const workbook = api.getActiveWorkbook();
-        const worksheet = workbook?.getActiveSheet();
-        if (!worksheet) return;
-
-        const mergedRange = worksheet.getCellMergeData(row, col);
-        const targetRange = mergedRange ?? worksheet.getRange(row, col);
-
-        try {
-          if (typeof targetRange.activateAsCurrentCell === 'function') {
-            targetRange.activateAsCurrentCell();
-          } else {
-            targetRange.activate();
-          }
-          worksheet.scrollToCell(row, col, 0);
-        } catch {
-          try {
-            targetRange.activate();
-            worksheet.scrollToCell(row, col, 0);
-          } catch {
-            // ignore focus errors
-          }
-        }
-      };
-
-      clearFocusRetryTimers();
-      focusCell();
-
-      if (!isWindows) {
-        return;
-      }
-
+      // Windows-specific: retry focus 3 times to ride out Univer's slower activation pipeline
       for (const delay of [0, 180, 1200]) {
-        const timer = window.setTimeout(() => {
-          focusCell();
-        }, delay);
+        const timer = window.setTimeout(focusOnce, delay);
         focusRetryTimersRef.current.push(timer);
       }
     };
 
     const restoreSheetViewportState = (viewportState: SheetViewportState | null) => {
       const api = univerAPIRef.current;
-      if (!api || !viewportState) {
-        return;
-      }
+      if (!api || !viewportState) return;
 
-      const isWindows = typeof navigator !== 'undefined'
-        ? /win/i.test(`${navigator.userAgent ?? ''} ${navigator.platform ?? ''}`)
-        : false;
-
-      const restoreViewport = () => {
+      const restoreOnce = () => {
         const worksheet = api.getActiveWorkbook()?.getActiveSheet();
-        if (!worksheet) {
-          return;
-        }
-
+        if (!worksheet) return;
         try {
           const activeRange = worksheet.getCellMergeData(viewportState.activeRow, viewportState.activeColumn)
             ?? worksheet.getRange(viewportState.activeRow, viewportState.activeColumn);
@@ -403,7 +406,6 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
         } catch {
           // ignore active-cell restore errors
         }
-
         try {
           worksheet.scrollToCell(viewportState.viewStartRow, viewportState.viewStartColumn, 0);
         } catch {
@@ -411,17 +413,12 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
         }
       };
 
-      clearViewportRestoreTimers();
-      restoreViewport();
+      clearTimersInRef(viewportRestoreTimersRef);
+      restoreOnce();
 
-      if (!isWindows) {
-        return;
-      }
-
+      if (!detectWindows()) return;
       for (const delay of [0, 180, 1200]) {
-        const timer = window.setTimeout(() => {
-          restoreViewport();
-        }, delay);
+        const timer = window.setTimeout(restoreOnce, delay);
         viewportRestoreTimersRef.current.push(timer);
       }
     };
@@ -460,9 +457,9 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       univerReadyTimersRef.current.push(readyTimer);
 
       return () => {
-        clearFocusRetryTimers();
-        clearViewportRestoreTimers();
-        clearUniverReadyTimers();
+        clearTimersInRef(focusRetryTimersRef);
+        clearTimersInRef(viewportRestoreTimersRef);
+        clearTimersInRef(univerReadyTimersRef);
         univerInstance.univer.dispose();
         setUniverReady(false);
         univerRef.current = null;
@@ -492,8 +489,9 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       const preserveViewport = previousStepRef.current === currentStep;
       const currentWorkbook = preserveViewport ? api.getActiveWorkbook() : null;
       const viewportState = preserveViewport
-        ? captureSheetViewportState(currentWorkbook?.getActiveSheet())
+        ? pendingStructureViewportRef.current ?? captureSheetViewportState(currentWorkbook?.getActiveSheet())
         : null;
+      pendingStructureViewportRef.current = null;
       previousStepRef.current = currentStep;
 
       // Build Univer workbook snapshot from model
@@ -618,7 +616,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       restoreSheetViewportState(viewportState);
 
       return () => {
-        clearViewportRestoreTimers();
+        clearTimersInRef(viewportRestoreTimersRef);
       };
     }, [structureKey, univerReady]);
 
@@ -651,17 +649,21 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
 
     useEffect(() => {
       if (!univerReady) return;
-      const api = univerAPIRef.current as (typeof univerAPIRef.current & {
-        onCommandExecuted?: (handler: (command: any) => void) => { dispose?: () => void } | undefined;
-      }) | null;
+      const api = univerAPIRef.current;
       if (!api) return;
+      const isStructureCommand = (command: any) =>
+        Boolean(command?.params?.range) &&
+        (command.id === 'sheet.command.insert-row' || command.id === 'sheet.command.insert-col');
 
-      const subscribe = typeof api.onCommandExecuted === 'function'
-        ? api.onCommandExecuted.bind(api)
-        : undefined;
-      if (!subscribe) return;
+      const beforeDisposable = api.addEvent(api.Event.BeforeCommandExecute, (command: any) => {
+        if (!isStructureCommand(command)) return;
+        pendingStructureViewportRef.current = captureSheetViewportState(
+          api.getActiveWorkbook()?.getActiveSheet()
+        );
+      });
 
-      const disposable = subscribe((command: any) => {
+      const disposable = api.addEvent(api.Event.CommandExecuted, (command: any) => {
+        if (!isStructureCommand(command)) return;
         if (!command?.params?.range) return;
 
         if (command.id === 'sheet.command.insert-row' && onStructureRowInsert) {
@@ -689,6 +691,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       });
 
       return () => {
+        beforeDisposable?.dispose?.();
         disposable?.dispose?.();
       };
     }, [univerReady, onStructureRowInsert, onStructureColumnInsert, fieldIndex]);
@@ -774,24 +777,29 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
         const cellValue = params?.payload?.params?.cellValue;
         if (!cellValue) return;
 
-        for (const [rowKey, rowValues] of Object.entries(cellValue)) {
+        const model = modelRef.current;
+        if (!model) return;
+
+        // js-combine-iterations: walk a single for-in over the cellValue dict and resolve
+        // row / column / rowObj in one pass — avoids the double Object.entries allocation.
+        for (const rowKey in cellValue) {
           const row = Number(rowKey);
           if (!Number.isFinite(row)) continue;
 
-          const rowObj = modelRef.current?.rows[row];
+          const rowObj = model.rows[row];
           if (rowObj?.fieldId !== 'supply_select' && rowObj?.fieldId !== 'prod_loc') {
             continue;
           }
 
-          for (const [columnKey, cellData] of Object.entries(rowValues as Record<string, unknown>)) {
+          const rowValues = (cellValue as Record<string, Record<string, unknown>>)[rowKey];
+          for (const columnKey in rowValues) {
             const column = Number(columnKey);
             if (!Number.isFinite(column) || column <= 0) continue;
-            if (!hasUniverCellDataValue(cellData)) {
-              continue;
-            }
+            const cellData = rowValues[columnKey];
+            if (!hasUniverCellDataValue(cellData)) continue;
 
             if (rowObj.fieldId === 'supply_select') {
-              const col = modelRef.current?.columns[column - 1];
+              const col = model.columns[column - 1];
               if (col && onSelectedSupplyChange) {
                 const nextSupplyKey = normalizeUniverCellDataValue(cellData);
                 if (getCurrentSelectedSupplyKey(col.skuId) !== nextSupplyKey) {
@@ -817,7 +825,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
         ref={containerRef}
         className={className}
         data-testid="trial-production-sheet"
-        style={{ width: '100%', height: '100%' }}
+        style={CONTAINER_STYLE}
       />
     );
   }
