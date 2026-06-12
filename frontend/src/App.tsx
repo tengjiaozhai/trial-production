@@ -9,6 +9,7 @@ import Sidebar from './components/Sidebar';
 import { TrialProductionSheet } from './components/TrialProductionSheet';
 import type { TrialProductionSheetHandle } from './components/TrialProductionSheet';
 import { HistoryModal } from './components/HistoryModal';
+import { ConflictBadge } from './components/ConflictBadge';
 import { 
   ProjectInfo, 
   Template, 
@@ -1668,7 +1669,17 @@ export default function App() {
                 完成并导出
               </button>
             ) : (
-              <div title={disableNextToPreview && currentStep === 2 ? '存在冲突，请先解决冲突' : undefined}>
+              <div
+                title={
+                  disableNextToPreview && currentStep === 2
+                    ? `存在 ${step2Conflicts.length} 个冲突，请先解决冲突`
+                    : undefined
+                }
+                className="flex items-center gap-3"
+              >
+                {currentStep === 2 && step2Conflicts.length > 0 && (
+                  <ConflictBadge count={step2Conflicts.length} />
+                )}
                 <button
                   disabled={disableNextToPreview}
                   onClick={() => {
