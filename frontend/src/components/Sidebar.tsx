@@ -56,7 +56,7 @@ export function Sidebar({
       onFocusCell(result.skuId, result.supplyId, fieldId);
     }
   };
-  const hasDataSources = projectInfo.files.length > 0;
+  const hasDataSources = (projectInfo.files?.length ?? 0) > 0;
 
   const checklist = [
     { label: '项目名称', done: !!projectInfo.name },

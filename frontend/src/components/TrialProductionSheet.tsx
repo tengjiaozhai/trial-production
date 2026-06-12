@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
+import { useEffect, useMemo, useRef, forwardRef, useImperativeHandle, useState } from 'react';
 import { createUniver, LocaleType, mergeLocales } from '@univerjs/presets';
 import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core';
 import UniverPresetSheetsCoreZhCN from '@univerjs/preset-sheets-core/locales/zh-CN';
@@ -86,7 +86,8 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
 
     const containerRef = useRef<HTMLDivElement>(null);
     const univerRef = useRef<ReturnType<typeof createUniver> | null>(null);
-    const univerAPIRef = useRef<ReturnType<typeof FUniver.newAPI> | null>(null);
+    const univerAPIRef = useRef<ReturnType<typeof createUniver>['univerAPI'] | null>(null);
+    const [univerReady, setUniverReady] = useState(false);
     const cellMapRef = useRef<Record<string, import('../lib/univerTrialProductionSheet').TrialProductionCellKey>>({});
     const modelRef = useRef<ReturnType<typeof buildTrialProductionSheetModel> | null>(null);
     const focusRetryTimersRef = useRef<number[]>([]);
@@ -272,7 +273,8 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
 
     // Initialize Univer once
     useEffect(() => {
-      if (!containerRef.current || univerRef.current) return;
+      const container = containerRef.current;
+      if (!container || univerRef.current) return;
 
       const univerInstance = createUniver({
         locale: LocaleType.ZH_CN,
@@ -291,19 +293,27 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       });
 
       univerRef.current = univerInstance;
-      univerAPIRef.current = FUniver.newAPI(univerInstance.univer);
+      univerAPIRef.current = univerInstance.univerAPI;
+      setUniverReady(true);
 
       return () => {
         clearFocusRetryTimers();
         clearViewportRestoreTimers();
         univerInstance.univer.dispose();
+        setUniverReady(false);
         univerRef.current = null;
         univerAPIRef.current = null;
+        try {
+          univerInstance.univer.dispose();
+        } catch {
+          // ignore dispose errors during unmount
+        }
       };
     }, []);
 
     // Load workbook snapshot when model changes
     useEffect(() => {
+      if (!univerReady) return;
       const api = univerAPIRef.current;
       if (!api) return;
       const preserveViewport = previousStepRef.current === currentStep;
@@ -437,6 +447,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
 
     // Listen for cell edit events
     useEffect(() => {
+      if (!univerReady) return;
       const api = univerAPIRef.current;
       if (!api) return;
 
@@ -517,7 +528,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
         disposable?.dispose?.();
         valueChangedDisposable?.dispose?.();
       };
-    }, [onUpdateValue, onSelectedSupplyChange]);
+    }, [univerReady, onUpdateValue, onSelectedSupplyChange]);
 
     return (
       <div
@@ -714,9 +725,17 @@ export function buildWorkbookSnapshot(
         cellData[rowIdx][0] = { v: row.indexLabel, s: groupStyle };
         cellData[rowIdx][1] = { v: row.fieldLabel, s: groupStyle };
 
+        const step5Cols = model.step5Model!.columns;
         let colCursor = 2;
+        let colIdx = 0;
         for (const cell of row.cells) {
-          cellData[rowIdx][colCursor] = { v: normalizeFieldValue(row.fieldId, cell.value), s: groupStyle };
+          let value = cell.value;
+          if (row.fieldId === 'supply_select' && !value) {
+            const skuId = step5Cols[colIdx]?.skuId;
+            const sku = skuId ? skuData.find((s) => s.id === skuId) : undefined;
+            value = normalizeBusinessValue(sku?.selectedSupplyKey ?? '');
+          }
+          cellData[rowIdx][colCursor] = { v: normalizeFieldValue(row.fieldId, value), s: groupStyle };
           if (cell.colSpan > 1) {
             mergeData.push({
               startRow: rowIdx,
@@ -726,6 +745,7 @@ export function buildWorkbookSnapshot(
             });
           }
           colCursor += cell.colSpan;
+          colIdx += cell.colSpan;
         }
       }
 
