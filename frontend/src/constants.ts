@@ -21,25 +21,25 @@ export const FIELD_DEFS: FieldDefinition[] = [
   { id: 'stage', label: '试产阶段', group: '基础信息', behavior: 'auto', fieldCategory: 'step1' },
   { id: 'supply_select', label: '一供/二供', group: '基础信息', behavior: 'manual', fieldCategory: 'step1' },
   { id: 'prod_loc', label: '试产地点', group: '基础信息', behavior: 'manual', fieldCategory: 'step1' },
-  { id: 'order_no', label: '订单号', group: '基础信息', behavior: 'manual', fieldCategory: 'step1' },
-  { id: 'prod_order', label: '生产顺序', group: '基础信息', behavior: 'manual', fieldCategory: 'step1' },
-  { id: 'software', label: '软件', group: '基础信息', behavior: 'manual', fieldCategory: 'step1' },
-  { id: 'online_time', label: '上线时间', group: '基础信息', behavior: 'manual', fieldCategory: 'step1' },
-  { id: 'assembly_time', label: '组装时间', group: '基础信息', behavior: 'manual', fieldCategory: 'step1' },
+  { id: 'order_no', label: '订单号', group: '基础信息', behavior: 'manual', fieldCategory: 'manual' },
+  { id: 'prod_order', label: '生产顺序', group: '基础信息', behavior: 'manual', fieldCategory: 'manual' },
+  { id: 'software', label: '软件', group: '基础信息', behavior: 'manual', fieldCategory: 'manual' },
+  { id: 'online_time', label: '上线时间', group: '基础信息', behavior: 'manual', fieldCategory: 'manual' },
+  { id: 'assembly_time', label: '组装时间', group: '基础信息', behavior: 'manual', fieldCategory: 'manual' },
 
   // 产品规格
-  { id: 'color', label: '颜色', group: '产品规格', behavior: 'manual', fieldCategory: 'step1' },
-  { id: 'unit_id', label: '整机标识', group: '产品规格', behavior: 'manual', fieldCategory: 'step1' },
-  { id: 'mb_id', label: '主板标识', group: '产品规格', behavior: 'manual', fieldCategory: 'step1' },
-  { id: 'cal_file', label: '校准文件', group: '产品规格', behavior: 'manual', fieldCategory: 'step1' },
+  { id: 'color', label: '颜色', group: '产品规格', behavior: 'manual', fieldCategory: 'manual' },
+  { id: 'unit_id', label: '整机标识', group: '产品规格', behavior: 'manual', fieldCategory: 'manual' },
+  { id: 'mb_id', label: '主板标识', group: '产品规格', behavior: 'manual', fieldCategory: 'manual' },
+  { id: 'cal_file', label: '校准文件', group: '产品规格', behavior: 'manual', fieldCategory: 'manual' },
   { id: 'band', label: '频段', group: '产品规格', behavior: 'auto', fieldCategory: 'step1' },
   { id: 'storage', label: '存储', group: '产品规格', behavior: 'auto', fieldCategory: 'step1' },
 
   // 生产配置
-  { id: 'pcba', label: 'PCBA', group: '生产配置', behavior: 'calc', fieldCategory: 'step1' },
-  { id: 'sub_board_qty', label: '小板数量', group: '生产配置', behavior: 'calc', fieldCategory: 'step1' },
-  { id: 'board_adj_qty', label: '调板数量', group: '生产配置', behavior: 'manual', fieldCategory: 'step1' },
-  { id: 'assembly_qty', label: '组装数量', group: '生产配置', behavior: 'calc', fieldCategory: 'step1' },
+  { id: 'pcba', label: 'PCBA', group: '生产配置', behavior: 'calc', fieldCategory: 'manual' },
+  { id: 'sub_board_qty', label: '小板数量', group: '生产配置', behavior: 'calc', fieldCategory: 'manual' },
+  { id: 'board_adj_qty', label: '调板数量', group: '生产配置', behavior: 'manual', fieldCategory: 'manual' },
+  { id: 'assembly_qty', label: '组装数量', group: '生产配置', behavior: 'calc', fieldCategory: 'manual' },
 
   // 电子物料
   { id: 'lcd', label: 'LCD', group: '电子物料', behavior: 'auto', fieldCategory: 'auto' },
@@ -102,7 +102,7 @@ export const FIELD_DEFS: FieldDefinition[] = [
   { id: 'field_test', label: '场测样机', group: '客户样机需求', behavior: 'auto', fieldCategory: 'auto' },
   { id: 'fan_sample', label: '粉丝样机', group: '客户样机需求', behavior: 'auto', fieldCategory: 'auto' },
   { id: 'ce_cert', label: 'CE认证样机', group: '客户样机需求', behavior: 'auto', fieldCategory: 'auto' },
-  { id: 'customer_sample_req', label: '客户样机需求', group: '客户样机需求', behavior: 'calc', fieldCategory: 'auto' },
+  { id: 'customer_sample_req', label: '客户样机需求', group: '客户样机需求', behavior: 'calc', fieldCategory: 'manual' },
 
   // 内部样机需求
   { id: 'hw_eng', label: '硬件', group: '内部样机需求', behavior: 'auto', fieldCategory: 'auto' },
@@ -117,11 +117,11 @@ export const FIELD_DEFS: FieldDefinition[] = [
   { id: 'ux', label: '体验', group: '内部样机需求', behavior: 'auto', fieldCategory: 'auto' },
   { id: 'parts', label: '器件', group: '内部样机需求', behavior: 'auto', fieldCategory: 'auto' },
   { id: 'pm', label: '产品', group: '内部样机需求', behavior: 'auto', fieldCategory: 'auto' },
-  { id: 't_long_rd_total', label: '天珑研发样机总计', group: '内部样机需求', behavior: 'calc', fieldCategory: 'step1' },
+  { id: 't_long_rd_total', label: '天珑研发样机总计', group: '内部样机需求', behavior: 'calc', fieldCategory: 'manual' },
 
   // 汇总统计
   { id: 'backup_unit', label: '备料样机', group: '汇总统计', behavior: 'manual', fieldCategory: 'manual' },
-  { id: 'total_qty', label: '总计', group: '汇总统计', behavior: 'calc', fieldCategory: 'step1' },
+  { id: 'total_qty', label: '总计', group: '汇总统计', behavior: 'calc', fieldCategory: 'manual' },
   { id: 'prod_yield', label: '生产良率', group: '汇总统计', behavior: 'manual', fieldCategory: 'manual' },
 ];
 
