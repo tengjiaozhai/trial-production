@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Upload, FileText, Download, Play, Plus, X, RotateCw, Save, History, Trash2 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { arrayMove } from '@dnd-kit/sortable';
 
 import { StepsIndicator } from './components/StepsIndicator';
-import { Sidebar } from './components/Sidebar';
+import Sidebar from './components/Sidebar';
 import { TrialProductionSheet } from './components/TrialProductionSheet';
 import type { TrialProductionSheetHandle } from './components/TrialProductionSheet';
 import { HistoryModal } from './components/HistoryModal';
@@ -945,7 +945,7 @@ export default function App() {
     }
   }, [currentStep, isFlowComplete, skuData]);
 
-  const handleUpdateValue = (skuId: string, supplyId: string, fieldId: string, value: string) => {
+  const handleUpdateValue = useCallback((skuId: string, supplyId: string, fieldId: string, value: string) => {
     const normalizedValue = normalizeFieldValue(fieldId, value);
     setSkuData(prev => {
       const next = prev.map(sku => {
@@ -970,7 +970,7 @@ export default function App() {
       return next;
     });
     setIsExportDisabled(true);
-  };
+  }, []);
 
   const handleUpdateSkuHeader = (skuId: string, part: 'stage' | 'order' | 'project', val: string) => {
     setSkuData(prev => prev.map(sku => {
@@ -983,14 +983,14 @@ export default function App() {
     }));
   };
 
-  const handleUpdateSelectedSupply = (skuId: string, supplyKey: string) => {
+  const handleUpdateSelectedSupply = useCallback((skuId: string, supplyKey: string) => {
     if (currentStep !== 3) return;
     setSkuData((prev) =>
       prev.map((sku) => (sku.id === skuId ? normalizeSelectedSupplyKey({ ...sku, selectedSupplyKey: supplyKey }) : sku))
     );
-  };
+  }, [currentStep]);
 
-  const handleStructureRowInsert = (payload: {
+  const handleStructureRowInsert = useCallback((payload: {
     position: 'before' | 'after';
     anchorRowKind: 'title' | 'group' | 'field';
     anchorFieldId?: string;
@@ -1040,9 +1040,9 @@ export default function App() {
       return prev;
     });
     setIsExportDisabled(true);
-  };
+  }, []);
 
-  const handleStructureColumnInsert = (payload: {
+  const handleStructureColumnInsert = useCallback((payload: {
     position: 'before' | 'after';
     anchorSkuId: string;
     anchorSupplyId: string;
@@ -1067,17 +1067,17 @@ export default function App() {
       })
     );
     setIsExportDisabled(true);
-  };
+  }, [currentStep]);
 
-  const handleFieldLabelChange = (fieldId: string, label: string) => {
+  const handleFieldLabelChange = useCallback((fieldId: string, label: string) => {
     const nextLabel = label.trim();
     if (!nextLabel) return;
 
     setActiveFields((prev) => updateCustomFieldLabel(prev, fieldId, nextLabel));
     setIsExportDisabled(true);
-  };
+  }, []);
 
-  const handleAppendField = () => {
+  const handleAppendField = useCallback(() => {
     setActiveFields((prev) => {
       if (prev.length === 0) return prev;
       const last = prev[prev.length - 1];
@@ -1085,9 +1085,9 @@ export default function App() {
       return insertFieldAfter(prev, last.id, newField);
     });
     setIsExportDisabled(true);
-  };
+  }, []);
 
-  const handleAppendSupplyToAllSkus = () => {
+  const handleAppendSupplyToAllSkus = useCallback(() => {
     setSkuData((prev) =>
       prev.map((sku) =>
         insertDynamicSupply({
@@ -1099,7 +1099,7 @@ export default function App() {
       )
     );
     setIsExportDisabled(true);
-  };
+  }, [currentStep]);
 
   const handleAddSku = () => {
     const newSku: SKUData = {

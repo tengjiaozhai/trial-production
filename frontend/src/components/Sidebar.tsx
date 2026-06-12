@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { CheckCircle2, Check, Circle, AlertCircle, Info, ArrowLeft, ShieldCheck, RotateCw } from 'lucide-react';
 import { StepId, ProjectInfo, SKUData, ValidationResult } from '@/src/types';
 import { AM_RULE_DEFS } from '@/src/constants';
@@ -44,18 +44,18 @@ export function Sidebar({
   onResolveStep2Conflict,
 }: SidebarProps) {
   
-  const focusStep2CellConflict = (conflict: Step2CellConflict) => {
+  const focusStep2CellConflict = useCallback((conflict: Step2CellConflict) => {
     if (onFocusCell) {
       onFocusCell(conflict.skuId, conflict.supplyId, conflict.fieldId);
     }
-  };
-  const focusStep4Validation = (result: ValidationResult) => {
+  }, [onFocusCell]);
+  const focusStep4Validation = useCallback((result: ValidationResult) => {
     const fieldId = result.targetFieldId ?? result.fieldId;
     if (!fieldId || !result.skuId) return;
     if (onFocusCell) {
       onFocusCell(result.skuId, result.supplyId, fieldId);
     }
-  };
+  }, [onFocusCell]);
   const hasDataSources = (projectInfo.files?.length ?? 0) > 0;
 
   const checklist = [
@@ -324,3 +324,9 @@ export function Sidebar({
 
   );
 }
+
+// rerender-memo: Sidebar receives many callbacks from App; without memo, any parent
+// setState re-renders the full 326-line JSX tree. Wrapping with React.memo
+// makes the component skip re-render when its props are reference-stable.
+const MemoizedSidebar = React.memo(Sidebar);
+export default MemoizedSidebar;
