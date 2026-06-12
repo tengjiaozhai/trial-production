@@ -1339,3 +1339,82 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     vi.useRealTimers();
   });
 });
+
+describe('TrialProductionSheet data sync', () => {
+  beforeEach(() => {
+    createUniverMock.mockReset();
+    newAPIMock.mockReset();
+  });
+
+  it('does not recreate the workbook when only a cell value changes', async () => {
+    const setValueMock = vi.fn();
+    const setDataValidation = vi.fn();
+    const worksheetMock = {
+      getRange: vi.fn(() => ({ setDataValidation, setValue: setValueMock })),
+      getCellMergeData: vi.fn(),
+      scrollToCell: vi.fn(),
+    };
+    const workbookMock = {
+      getId: vi.fn(() => 'trial-production-sheet'),
+      getActiveSheet: vi.fn(() => worksheetMock),
+    };
+    const apiMock = {
+      createWorkbook: vi.fn(),
+      getActiveWorkbook: vi.fn(() => workbookMock),
+      disposeUnit: vi.fn(),
+      addEvent: vi.fn(() => ({ dispose: vi.fn() })),
+      executeCommand: vi.fn(),
+      newDataValidation: vi.fn(() => createValidationBuilder()),
+      Event: {
+        BeforeSheetEditEnd: 'BeforeSheetEditEnd',
+      },
+    };
+    mockCreateUniverWithAPI(apiMock);
+    vi.useFakeTimers();
+
+    const { rerender } = render(
+      <TrialProductionSheet
+        currentStep={3}
+        skuData={step3VisibleSkuData}
+        activeFields={activeFields}
+        skuSupplyKeys={{ 'sku-a1': ['一供', '二供'], 'sku-b1': ['一供'] }}
+        onUpdateValue={vi.fn()}
+        onSelectedSupplyChange={vi.fn()}
+      />
+    );
+    await flushSheetEffects();
+    expect(apiMock.createWorkbook).toHaveBeenCalledTimes(1);
+    apiMock.disposeUnit.mockClear();
+    apiMock.createWorkbook.mockClear();
+
+    // Change only one cell value, keep structure identical
+    const updatedSkus: SKUData[] = step3VisibleSkuData.map((sku, idx) =>
+      idx === 0
+        ? {
+            ...sku,
+            supplies: sku.supplies.map((sup, sidx) =>
+              sidx === 0 ? { ...sup, values: { ...sup.values, band: '欧洲' } } : sup
+            ),
+          }
+        : sku
+    );
+
+    rerender(
+      <TrialProductionSheet
+        currentStep={3}
+        skuData={updatedSkus}
+        activeFields={activeFields}
+        skuSupplyKeys={{ 'sku-a1': ['一供', '二供'], 'sku-b1': ['一供'] }}
+        onUpdateValue={vi.fn()}
+        onSelectedSupplyChange={vi.fn()}
+      />
+    );
+    await flushSheetEffects();
+
+    expect(apiMock.disposeUnit).not.toHaveBeenCalled();
+    expect(apiMock.createWorkbook).not.toHaveBeenCalled();
+    expect(setValueMock).toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+});

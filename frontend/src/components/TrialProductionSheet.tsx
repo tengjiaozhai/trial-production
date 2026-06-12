@@ -11,6 +11,8 @@ import type { SKUData, FieldDefinition, StepId, SupplyTag } from '../types';
 import type { Step2CellConflict } from '../lib/step2CellConflicts';
 import { buildTrialProductionSheetModel } from '../lib/univerTrialProductionSheet';
 import { hasUniverCellDataValue, mapUniverEditToBusinessEdit, normalizeUniverCellDataValue, normalizeUniverEditValue } from '../lib/univerSheetEvents';
+import { buildStructureKey } from '../lib/sheetStructureKey';
+import { diffSheetData } from '../lib/sheetDataDiff';
 import { isSkuSpanningField } from '../lib/step5TableModel';
 import { normalizeBusinessValue, normalizeFieldValue, PROD_LOC_OPTIONS } from '../lib/skuValueNormalization';
 
@@ -451,9 +453,18 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       };
     }, []);
 
-    // Load workbook snapshot when model changes
+    // Structure fingerprint: only changes when step / fields / efuse config change
+    const structureKey = useMemo(
+      () => buildStructureKey({ currentStep, activeFields, efuseConfigs }),
+      [activeFields, currentStep, efuseConfigs],
+    );
+
+    // Effect 1: rebuild workbook ONLY when structure changes
     useEffect(() => {
       if (!univerReady) return;
+      if (lastStructureKeyRef.current === structureKey) return;
+      lastStructureKeyRef.current = structureKey;
+
       const api = univerAPIRef.current;
       if (!api) return;
       const preserveViewport = previousStepRef.current === currentStep;
@@ -480,6 +491,9 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       } catch {
         // ignore workbook recreation errors
       }
+
+      // Reset data diff baseline after rebuild
+      lastWrittenCellValuesRef.current = currentCellValues;
 
       // Freeze first 4 rows in Step 2, cancel for other steps
       try {
@@ -584,7 +598,34 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       return () => {
         clearViewportRestoreTimers();
       };
-    }, [model, skuData, activeFields, currentStep, skuSupplyKeys, univerReady]);
+    }, [structureKey, univerReady]);
+
+    // Effect 2: sync incremental cell changes via setValue (no workbook rebuild)
+    useEffect(() => {
+      if (!univerReady) return;
+      const api = univerAPIRef.current;
+      const worksheet = api?.getActiveWorkbook()?.getActiveSheet() as
+        | { getRange: (row: number, column: number) => { setValue: (v: string) => void } }
+        | null
+        | undefined;
+      if (!worksheet) return;
+
+      const diff = diffSheetData({
+        cellMap: cellMapRef.current,
+        cellValues: currentCellValues,
+        previousCellValues: lastWrittenCellValuesRef.current,
+      });
+      if (diff.length === 0) return;
+
+      for (const entry of diff) {
+        try {
+          worksheet.getRange(entry.row, entry.column).setValue(entry.value);
+        } catch {
+          // ignore per-cell write errors
+        }
+      }
+      lastWrittenCellValuesRef.current = currentCellValues;
+    }, [currentCellValues, univerReady]);
 
     useEffect(() => {
       if (!univerReady) return;
