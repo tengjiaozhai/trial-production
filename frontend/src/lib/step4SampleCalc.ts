@@ -147,6 +147,11 @@ export function buildSupplyValuesForSupplyKey(
     }
 
     if (needFallback) {
+      // 检查一供是否有多个选项（冲突），冲突时不使用 fallback
+      const firstSupplyOptions = options.filter(o => o.supply === '一供');
+      const hasFirstSupplyConflict = firstSupplyOptions.length > 1;
+      if (hasFirstSupplyConflict) continue;
+
       const fieldDef = activeFields?.find(f => f.id === fieldId);
       if (fieldDef?.behavior === 'auto') {
         const fallbackHit = options.find((o) => o.supply === '一供');

@@ -1106,6 +1106,13 @@ export default function App() {
     const normalizedValue = normalizeFieldValue(conflict.fieldId, candidate);
 
     setSkuData(prev => {
+      // 在循环外部计算 targetSupplyKey（基于当前冲突的 supplyId）
+      const currentSku = prev.find(s => s.id === conflict.skuId);
+      const targetSupply = currentSku?.supplies.find(s => s.id === conflict.supplyId);
+      const targetSupplyKey = targetSupply?.supplyKey;
+      // 只有一供冲突解决时才自动填充三供四供
+      const isFirstSupply = targetSupplyKey === '一供';
+
       return prev.map(sku => {
         const isCurrentSku = sku.id === conflict.skuId;
 
@@ -1115,13 +1122,6 @@ export default function App() {
           c.fieldId === conflict.fieldId &&
           c.scope === 'supply'
         );
-
-        // 获取当前点击的供应类型（一供或二供）
-        const targetSupply = sku.supplies.find(s => s.id === conflict.supplyId);
-        const targetSupplyKey = targetSupply?.supplyKey;
-
-        // 只有一供冲突解决时才自动填充三供四供
-        const isFirstSupply = targetSupplyKey === '一供';
 
         return {
           ...sku,
