@@ -1,4 +1,4 @@
-import { useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import { useEffect, useMemo, useRef, forwardRef, useImperativeHandle } from 'react';
 import { createUniver, LocaleType, mergeLocales } from '@univerjs/presets';
 import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core';
 import UniverPresetSheetsCoreZhCN from '@univerjs/preset-sheets-core/locales/zh-CN';
@@ -11,6 +11,7 @@ import type { Step2CellConflict } from '../lib/step2CellConflicts';
 import { buildTrialProductionSheetModel } from '../lib/univerTrialProductionSheet';
 import { mapUniverEditToBusinessEdit, normalizeUniverCellDataValue, normalizeUniverEditValue } from '../lib/univerSheetEvents';
 import { isSkuSpanningField } from '../lib/step5TableModel';
+import { normalizeBusinessValue, normalizeFieldValue, PROD_LOC_OPTIONS } from '../lib/skuValueNormalization';
 
 export interface TrialProductionSheetHandle {
   focusCellByBusinessKey: (skuId: string, supplyId: string | undefined, fieldId: string) => void;
@@ -49,56 +50,126 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
     const univerAPIRef = useRef<ReturnType<typeof FUniver.newAPI> | null>(null);
     const cellMapRef = useRef<Record<string, import('../lib/univerTrialProductionSheet').TrialProductionCellKey>>({});
     const modelRef = useRef<ReturnType<typeof buildTrialProductionSheetModel> | null>(null);
+    const focusRetryTimersRef = useRef<number[]>([]);
 
     // Build the sheet model
-    const model = buildTrialProductionSheetModel({
+    const model = useMemo(() => buildTrialProductionSheetModel({
       activeFields,
       skuData,
       currentStep,
       step2Conflicts,
       efuseConfigs,
-    });
+    }), [activeFields, currentStep, efuseConfigs, skuData, step2Conflicts]);
     modelRef.current = model;
     cellMapRef.current = model.cellMap;
 
-    // Expose focus method to parent
-    useImperativeHandle(ref, () => ({
-      focusCellByBusinessKey: (skuId: string, supplyId: string | undefined, fieldId: string) => {
-        const api = univerAPIRef.current;
-        if (!api) return;
+    const clearFocusRetryTimers = () => {
+      for (const timer of focusRetryTimersRef.current) {
+        window.clearTimeout(timer);
+      }
+      focusRetryTimersRef.current = [];
+    };
 
-        // Find the cell position from cellMap
-        for (const [key, cellKey] of Object.entries(cellMapRef.current) as [string, import('../lib/univerTrialProductionSheet').TrialProductionCellKey][]) {
-          const match =
-            cellKey.fieldId === fieldId &&
-            cellKey.skuId === skuId &&
-            (cellKey.scope === 'sku' || cellKey.supplyId === supplyId);
-          if (match) {
-            const [rowStr, colStr] = key.split('-');
-            const row = parseInt(rowStr, 10);
-            const col = parseInt(colStr, 10);
-            try {
-              const workbook = api.getActiveWorkbook();
-              if (!workbook) return;
-              const worksheet = workbook.getActiveSheet();
-              const targetRange = worksheet.getCellMergeData(row, col) ?? worksheet.getRange(row, col);
-              targetRange.activate();
-              worksheet.scrollToCell(row, col);
-            } catch {
-              try {
-                const workbook = api.getActiveWorkbook();
-                const worksheet = workbook?.getActiveSheet();
-                const targetRange = worksheet?.getCellMergeData(row, col) ?? worksheet?.getRange(row, col);
-                targetRange?.activate();
-                worksheet?.scrollToCell(row, col);
-              } catch {
-                // ignore focus errors
-              }
-            }
-            return;
+    const getCurrentBusinessValue = (skuId: string, supplyId: string | undefined, fieldId: string): string => {
+      const sku = skuData.find((item) => item.id === skuId);
+      if (!sku) {
+        return '';
+      }
+
+      if (isSkuSpanningField(fieldId)) {
+        return normalizeFieldValue(fieldId, sku.supplies[0]?.values[fieldId] ?? '');
+      }
+
+      const supply = sku.supplies.find((item) => item.id === supplyId);
+      return normalizeFieldValue(fieldId, supply?.values[fieldId] ?? '');
+    };
+
+    const getCurrentSelectedSupplyKey = (skuId: string): string => {
+      const sku = skuData.find((item) => item.id === skuId);
+      return sku?.selectedSupplyKey ?? sku?.supplies[0]?.supplyKey ?? '';
+    };
+
+    const focusCellByBusinessKey = (skuId: string, supplyId: string | undefined, fieldId: string) => {
+      const api = univerAPIRef.current;
+      if (!api) return;
+
+      let fallbackRow: number | null = null;
+      let fallbackCol: number | null = null;
+
+      for (const [key, cellKey] of Object.entries(cellMapRef.current) as [string, import('../lib/univerTrialProductionSheet').TrialProductionCellKey][]) {
+        if (cellKey.fieldId !== fieldId || cellKey.skuId !== skuId) {
+          continue;
+        }
+
+        const [rowStr, colStr] = key.split('-');
+        const row = parseInt(rowStr, 10);
+        const col = parseInt(colStr, 10);
+
+        if (fallbackRow === null || fallbackCol === null) {
+          fallbackRow = row;
+          fallbackCol = col;
+        }
+
+        if (cellKey.scope === 'sku' || cellKey.supplyId === supplyId) {
+          fallbackRow = row;
+          fallbackCol = col;
+          break;
+        }
+      }
+
+      if (fallbackRow === null || fallbackCol === null) {
+        return;
+      }
+
+      const row = fallbackRow;
+      const col = fallbackCol;
+      const isWindows = typeof navigator !== 'undefined'
+        ? /win/i.test(`${navigator.userAgent ?? ''} ${navigator.platform ?? ''}`)
+        : false;
+
+      const focusCell = () => {
+        const workbook = api.getActiveWorkbook();
+        const worksheet = workbook?.getActiveSheet();
+        if (!worksheet) return;
+
+        const mergedRange = worksheet.getCellMergeData(row, col);
+        const targetRange = mergedRange ?? worksheet.getRange(row, col);
+
+        try {
+          if (typeof targetRange.activateAsCurrentCell === 'function') {
+            targetRange.activateAsCurrentCell();
+          } else {
+            targetRange.activate();
+          }
+          worksheet.scrollToCell(row, col, 0);
+        } catch {
+          try {
+            targetRange.activate();
+            worksheet.scrollToCell(row, col, 0);
+          } catch {
+            // ignore focus errors
           }
         }
-      },
+      };
+
+      clearFocusRetryTimers();
+      focusCell();
+
+      if (!isWindows) {
+        return;
+      }
+
+      for (const delay of [0, 180, 1200]) {
+        const timer = window.setTimeout(() => {
+          focusCell();
+        }, delay);
+        focusRetryTimersRef.current.push(timer);
+      }
+    };
+
+    // Expose focus method to parent
+    useImperativeHandle(ref, () => ({
+      focusCellByBusinessKey,
     }));
 
     // Initialize Univer once
@@ -125,6 +196,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       univerAPIRef.current = FUniver.newAPI(univerInstance.univer);
 
       return () => {
+        clearFocusRetryTimers();
         univerInstance.univer.dispose();
         univerRef.current = null;
         univerAPIRef.current = null;
@@ -228,17 +300,16 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
               );
 
               if (prodLocRow) {
-                const prodLocOptions = ['宜宾', '南昌', '河源', '越南', '自定义'];
-                const rule = api.newDataValidation()
-                  .requireValueInList(prodLocOptions, false, true)
-                  .setOptions({
-                    allowBlank: true,
-                    showErrorMessage: true,
-                    error: '请选择试产地点',
-                  })
-                  .build();
-
                 for (let ci = 0; ci < model.columns.length; ci++) {
+                  const rule = api.newDataValidation()
+                    .requireValueInList([...PROD_LOC_OPTIONS], false, true)
+                    .setOptions({
+                      allowBlank: true,
+                      showErrorMessage: true,
+                      error: '请选择试产地点',
+                    })
+                    .build();
+
                   try {
                     worksheet.getRange(prodLocRow.rowIndex, ci + 1).setDataValidation(rule);
                   } catch {
@@ -268,7 +339,18 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
         });
 
         if (edit) {
-          onUpdateValue(edit.key.skuId, edit.key.supplyId ?? '', edit.key.fieldId, edit.value);
+          const nextValue = normalizeFieldValue(edit.key.fieldId, edit.value);
+          const currentValue = getCurrentBusinessValue(edit.key.skuId, edit.key.supplyId, edit.key.fieldId);
+          if (currentValue === nextValue) {
+            return;
+          }
+
+          onUpdateValue(
+            edit.key.skuId,
+            edit.key.supplyId ?? '',
+            edit.key.fieldId,
+            nextValue,
+          );
         }
       };
 
@@ -305,7 +387,10 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
             if (rowObj.fieldId === 'supply_select') {
               const col = modelRef.current?.columns[column - 1];
               if (col && onSelectedSupplyChange) {
-                onSelectedSupplyChange(col.skuId, normalizeUniverCellDataValue(cellData));
+                const nextSupplyKey = normalizeUniverCellDataValue(cellData);
+                if (getCurrentSelectedSupplyKey(col.skuId) !== nextSupplyKey) {
+                  onSelectedSupplyChange(col.skuId, nextSupplyKey);
+                }
               }
               continue;
             }
@@ -405,7 +490,7 @@ function calculateColumnWidths(
       while (ci < model.columns.length) {
         const skuId = model.columns[ci].skuId;
         const sku = skuData.find(s => s.id === skuId);
-        const value = String(sku?.supplies[0]?.values[fieldId] ?? '');
+        const value = normalizeFieldValue(fieldId, sku?.supplies[0]?.values[fieldId] ?? '');
         // Apply to all columns spanned by this SKU
         let end = ci;
         while (end + 1 < model.columns.length && model.columns[end + 1].skuId === skuId) end++;
@@ -420,7 +505,7 @@ function calculateColumnWidths(
         const col = model.columns[ci];
         const sku = skuData.find(s => s.id === col.skuId);
         const supply = sku?.supplies.find(s => s.id === col.supplyId);
-        const value = String(supply?.values[fieldId] ?? '');
+        const value = normalizeFieldValue(fieldId, supply?.values[fieldId] ?? '');
         if (value.length > maxTextsPerCol[ci].length) maxTextsPerCol[ci] = value;
       }
     }
@@ -518,7 +603,7 @@ export function buildWorkbookSnapshot(
 
         let colCursor = 2;
         for (const cell of row.cells) {
-          cellData[rowIdx][colCursor] = { v: cell.value, s: groupStyle };
+          cellData[rowIdx][colCursor] = { v: normalizeFieldValue(row.fieldId, cell.value), s: groupStyle };
           if (cell.colSpan > 1) {
             mergeData.push({
               startRow: rowIdx,
@@ -569,7 +654,7 @@ export function buildWorkbookSnapshot(
             }
 
             const sku = skuData.find((s) => s.id === skuId);
-            const value = sku?.supplies[0]?.values[row.fieldId] ?? '';
+            const value = normalizeFieldValue(row.fieldId, sku?.supplies[0]?.values[row.fieldId] ?? '');
             cellData[rowIdx][startColumn] = { v: value, s: groupStyle };
             if (endColumn > startColumn) {
               mergeData.push({
@@ -595,7 +680,7 @@ export function buildWorkbookSnapshot(
             }
 
             const sku = skuData.find((s) => s.id === skuId);
-            const value = sku?.selectedSupplyKey ?? sku?.supplies[0]?.supplyKey ?? '';
+            const value = normalizeBusinessValue(sku?.selectedSupplyKey ?? sku?.supplies[0]?.supplyKey ?? '');
             cellData[rowIdx][startColumn] = { v: value, s: groupStyle };
             if (endColumn > startColumn) {
               mergeData.push({
@@ -615,7 +700,7 @@ export function buildWorkbookSnapshot(
             const supply = sku.supplies.find((s) => s.id === col.supplyId);
             if (!supply) continue;
 
-            const value = supply.values[row.fieldId] ?? '';
+            const value = normalizeFieldValue(row.fieldId, supply.values[row.fieldId] ?? '');
             cellData[rowIdx][ci + 1] = { v: value, s: groupStyle };
           }
         }

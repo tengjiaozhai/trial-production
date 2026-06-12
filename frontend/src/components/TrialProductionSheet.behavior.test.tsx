@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@testing-library/react';
+import { createRef } from 'react';
 import { TrialProductionSheet } from './TrialProductionSheet';
+import type { TrialProductionSheetHandle } from './TrialProductionSheet';
 import type { FieldDefinition, SKUData } from '../types';
 import { RichTextValue } from '@univerjs/core';
 
@@ -169,6 +171,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
 
   it('applies data validation to the prod_loc row in step 3', async () => {
     const setDataValidation = vi.fn();
+    const validationBuilders: ReturnType<typeof createValidationBuilder>[] = [];
     const worksheetMock = {
       getRange: vi.fn(() => ({ setDataValidation })),
       getCellMergeData: vi.fn(),
@@ -184,7 +187,11 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       disposeUnit: vi.fn(),
       addEvent: vi.fn(() => ({ dispose: vi.fn() })),
       executeCommand: vi.fn(),
-      newDataValidation: vi.fn(() => createValidationBuilder()),
+      newDataValidation: vi.fn(() => {
+        const builder = createValidationBuilder();
+        validationBuilders.push(builder);
+        return builder;
+      }),
       Event: {
         BeforeSheetEditEnd: 'BeforeSheetEditEnd',
       },
@@ -215,6 +222,87 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     expect(worksheetMock.getRange).toHaveBeenCalledWith(4, 1);
     expect(worksheetMock.getRange).toHaveBeenCalledWith(4, 2);
     expect(setDataValidation).toHaveBeenCalled();
+    expect(apiMock.newDataValidation).toHaveBeenCalledTimes(3);
+    expect(validationBuilders[1]?.requireValueInList).toHaveBeenCalledWith(
+      ['宜宾', '南昌', '河源', '越南', '自定义'],
+      false,
+      true,
+    );
+    expect(validationBuilders[2]?.requireValueInList).toHaveBeenCalledWith(
+      ['宜宾', '南昌', '河源', '越南', '自定义'],
+      false,
+      true,
+    );
+
+    vi.useRealTimers();
+  });
+
+  it('does not recreate the workbook when the parent rerenders with identical props', async () => {
+    const worksheetMock = {
+      getRange: vi.fn(() => ({ setDataValidation: vi.fn() })),
+      getCellMergeData: vi.fn(),
+      scrollToCell: vi.fn(),
+    };
+    const workbookMock = {
+      getId: vi.fn(() => 'trial-production-sheet'),
+      getActiveSheet: vi.fn(() => worksheetMock),
+    };
+    const apiMock = {
+      createWorkbook: vi.fn(),
+      getActiveWorkbook: vi
+        .fn()
+        .mockReturnValueOnce(null)
+        .mockReturnValue(workbookMock),
+      disposeUnit: vi.fn(),
+      addEvent: vi.fn(() => ({ dispose: vi.fn() })),
+      executeCommand: vi.fn(),
+      newDataValidation: vi.fn(() => createValidationBuilder()),
+      Event: {
+        BeforeSheetEditEnd: 'BeforeSheetEditEnd',
+        SheetValueChanged: 'SheetValueChanged',
+      },
+    };
+    const onUpdateValue = vi.fn();
+    const onSelectedSupplyChange = vi.fn();
+    const skuSupplyKeys = { 'sku-a1': ['一供', '二供', '三供', '四供'], 'sku-b1': ['一供'] } as const;
+
+    createUniverMock.mockReturnValue({
+      univer: {
+        dispose: vi.fn(),
+      },
+    });
+    newAPIMock.mockReturnValue(apiMock);
+
+    vi.useFakeTimers();
+
+    const { rerender } = render(
+      <TrialProductionSheet
+        currentStep={3}
+        skuData={step3VisibleSkuData}
+        activeFields={activeFields}
+        skuSupplyKeys={skuSupplyKeys}
+        onUpdateValue={onUpdateValue}
+        onSelectedSupplyChange={onSelectedSupplyChange}
+      />
+    );
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    rerender(
+      <TrialProductionSheet
+        currentStep={3}
+        skuData={step3VisibleSkuData}
+        activeFields={activeFields}
+        skuSupplyKeys={skuSupplyKeys}
+        onUpdateValue={onUpdateValue}
+        onSelectedSupplyChange={onSelectedSupplyChange}
+      />
+    );
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(apiMock.createWorkbook).toHaveBeenCalledTimes(1);
+    expect(apiMock.disposeUnit).not.toHaveBeenCalled();
 
     vi.useRealTimers();
   });
@@ -345,6 +433,78 @@ describe('TrialProductionSheet workbook lifecycle', () => {
         params: {
           cellValue: {
             3: {
+              1: { v: '三供' },
+            },
+          },
+        },
+      },
+    });
+
+    expect(onSelectedSupplyChange).toHaveBeenCalledWith('sku-a1', '三供');
+
+    vi.useRealTimers();
+  });
+
+  it('ignores supply_select SheetValueChanged events when the selected supply key is unchanged', async () => {
+    let sheetValueChangedHandler: ((params: any) => void) | undefined;
+    const worksheetMock = {
+      getRange: vi.fn(() => ({ setDataValidation: vi.fn() })),
+      getCellMergeData: vi.fn(),
+      scrollToCell: vi.fn(),
+    };
+    const workbookMock = {
+      getId: vi.fn(() => 'trial-production-sheet'),
+      getActiveSheet: vi.fn(() => worksheetMock),
+    };
+    const onSelectedSupplyChange = vi.fn();
+    const apiMock = {
+      createWorkbook: vi.fn(),
+      getActiveWorkbook: vi.fn().mockReturnValue(workbookMock),
+      disposeUnit: vi.fn(),
+      addEvent: vi.fn((eventName: string, handler: (params: any) => void) => {
+        if (eventName === 'SheetValueChanged') {
+          sheetValueChangedHandler = handler;
+        }
+        return { dispose: vi.fn() };
+      }),
+      executeCommand: vi.fn(),
+      newDataValidation: vi.fn(() => createValidationBuilder()),
+      Event: {
+        BeforeSheetEditEnd: 'BeforeSheetEditEnd',
+        SheetValueChanged: 'SheetValueChanged',
+      },
+    };
+
+    createUniverMock.mockReturnValue({
+      univer: {
+        dispose: vi.fn(),
+      },
+    });
+    newAPIMock.mockReturnValue(apiMock);
+
+    vi.useFakeTimers();
+
+    render(
+      <TrialProductionSheet
+        currentStep={3}
+        skuData={step3VisibleSkuData}
+        activeFields={activeFields}
+        skuSupplyKeys={{ 'sku-a1': ['一供', '二供', '三供', '四供'], 'sku-b1': ['一供'] }}
+        onUpdateValue={vi.fn()}
+        onSelectedSupplyChange={onSelectedSupplyChange}
+      />
+    );
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(sheetValueChangedHandler).toBeDefined();
+
+    sheetValueChangedHandler?.({
+      payload: {
+        id: 'sheet.mutation.set-range-values',
+        params: {
+          cellValue: {
+            3: {
               1: { v: '二供' },
             },
           },
@@ -352,7 +512,7 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       },
     });
 
-    expect(onSelectedSupplyChange).toHaveBeenCalledWith('sku-a1', '二供');
+    expect(onSelectedSupplyChange).not.toHaveBeenCalled();
 
     vi.useRealTimers();
   });
@@ -425,6 +585,222 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     });
 
     expect(onUpdateValue).toHaveBeenCalledWith('sku-a1', 'a1-s2', 'prod_loc', '宜宾');
+
+    vi.useRealTimers();
+  });
+
+  it('ignores prod_loc SheetValueChanged events when the cell value is unchanged', async () => {
+    let sheetValueChangedHandler: ((params: any) => void) | undefined;
+    const worksheetMock = {
+      getRange: vi.fn(() => ({ setDataValidation: vi.fn() })),
+      getCellMergeData: vi.fn(),
+      scrollToCell: vi.fn(),
+    };
+    const workbookMock = {
+      getId: vi.fn(() => 'trial-production-sheet'),
+      getActiveSheet: vi.fn(() => worksheetMock),
+    };
+    const onUpdateValue = vi.fn();
+    const apiMock = {
+      createWorkbook: vi.fn(),
+      getActiveWorkbook: vi.fn().mockReturnValue(workbookMock),
+      disposeUnit: vi.fn(),
+      addEvent: vi.fn((eventName: string, handler: (params: any) => void) => {
+        if (eventName === 'SheetValueChanged') {
+          sheetValueChangedHandler = handler;
+        }
+        return { dispose: vi.fn() };
+      }),
+      executeCommand: vi.fn(),
+      newDataValidation: vi.fn(() => createValidationBuilder()),
+      Event: {
+        BeforeSheetEditEnd: 'BeforeSheetEditEnd',
+        SheetValueChanged: 'SheetValueChanged',
+      },
+    };
+
+    createUniverMock.mockReturnValue({
+      univer: {
+        dispose: vi.fn(),
+      },
+    });
+    newAPIMock.mockReturnValue(apiMock);
+
+    vi.useFakeTimers();
+
+    const skuDataWithProdLoc: SKUData[] = [
+      {
+        ...step3VisibleSkuData[0],
+        supplies: [
+          {
+            ...step3VisibleSkuData[0].supplies[0],
+            values: {
+              ...step3VisibleSkuData[0].supplies[0].values,
+              prod_loc: '宜宾',
+            },
+          },
+        ],
+      },
+      step3VisibleSkuData[1],
+    ];
+
+    render(
+      <TrialProductionSheet
+        currentStep={3}
+        skuData={skuDataWithProdLoc}
+        activeFields={activeFields}
+        skuSupplyKeys={{ 'sku-a1': ['一供', '二供', '三供', '四供'], 'sku-b1': ['一供'] }}
+        onUpdateValue={onUpdateValue}
+        onSelectedSupplyChange={vi.fn()}
+      />
+    );
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(sheetValueChangedHandler).toBeDefined();
+
+    sheetValueChangedHandler?.({
+      payload: {
+        id: 'sheet.mutation.set-range-values',
+        params: {
+          cellValue: {
+            4: {
+              1: { v: '宜宾' },
+            },
+          },
+        },
+      },
+    });
+
+    expect(onUpdateValue).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
+
+  it('focuses the matched business cell with current-cell activation', async () => {
+    const focusRangeMock = {
+      activate: vi.fn(),
+      activateAsCurrentCell: vi.fn(),
+      setDataValidation: vi.fn(),
+    };
+    const worksheetMock = {
+      getRange: vi.fn((row?: number, column?: number) => {
+        if (row === 4 && column === 1) {
+          return focusRangeMock;
+        }
+        return { setDataValidation: vi.fn() };
+      }),
+      getCellMergeData: vi.fn(() => undefined),
+      scrollToCell: vi.fn(),
+    };
+    const workbookMock = {
+      getId: vi.fn(() => 'trial-production-sheet'),
+      getActiveSheet: vi.fn(() => worksheetMock),
+    };
+    const apiMock = {
+      createWorkbook: vi.fn(),
+      getActiveWorkbook: vi.fn().mockReturnValue(workbookMock),
+      disposeUnit: vi.fn(),
+      addEvent: vi.fn(() => ({ dispose: vi.fn() })),
+      executeCommand: vi.fn(),
+      newDataValidation: vi.fn(() => createValidationBuilder()),
+      Event: {
+        BeforeSheetEditEnd: 'BeforeSheetEditEnd',
+        SheetValueChanged: 'SheetValueChanged',
+      },
+    };
+    const sheetRef = createRef<TrialProductionSheetHandle>();
+
+    createUniverMock.mockReturnValue({
+      univer: {
+        dispose: vi.fn(),
+      },
+    });
+    newAPIMock.mockReturnValue(apiMock);
+
+    vi.useFakeTimers();
+
+    render(
+      <TrialProductionSheet
+        ref={sheetRef}
+        currentStep={3}
+        skuData={step3VisibleSkuData}
+        activeFields={activeFields}
+        skuSupplyKeys={{ 'sku-a1': ['一供', '二供', '三供', '四供'], 'sku-b1': ['一供'] }}
+        onUpdateValue={vi.fn()}
+        onSelectedSupplyChange={vi.fn()}
+      />
+    );
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    sheetRef.current?.focusCellByBusinessKey('sku-a1', 'a1-s2', 'prod_loc');
+
+    expect(focusRangeMock.activateAsCurrentCell).toHaveBeenCalledTimes(1);
+    expect(worksheetMock.scrollToCell).toHaveBeenCalledWith(4, 1, 0);
+
+    vi.useRealTimers();
+  });
+
+  it('falls back to the visible sku cell when the original supply id is no longer present', async () => {
+    const focusRangeMock = {
+      activate: vi.fn(),
+      activateAsCurrentCell: vi.fn(),
+      setDataValidation: vi.fn(),
+    };
+    const worksheetMock = {
+      getRange: vi.fn((row?: number, column?: number) => {
+        if (row === 4 && column === 1) {
+          return focusRangeMock;
+        }
+        return { setDataValidation: vi.fn() };
+      }),
+      getCellMergeData: vi.fn(() => undefined),
+      scrollToCell: vi.fn(),
+    };
+    const workbookMock = {
+      getId: vi.fn(() => 'trial-production-sheet'),
+      getActiveSheet: vi.fn(() => worksheetMock),
+    };
+    const apiMock = {
+      createWorkbook: vi.fn(),
+      getActiveWorkbook: vi.fn().mockReturnValue(workbookMock),
+      disposeUnit: vi.fn(),
+      addEvent: vi.fn(() => ({ dispose: vi.fn() })),
+      executeCommand: vi.fn(),
+      newDataValidation: vi.fn(() => createValidationBuilder()),
+      Event: {
+        BeforeSheetEditEnd: 'BeforeSheetEditEnd',
+        SheetValueChanged: 'SheetValueChanged',
+      },
+    };
+    const sheetRef = createRef<TrialProductionSheetHandle>();
+
+    createUniverMock.mockReturnValue({
+      univer: {
+        dispose: vi.fn(),
+      },
+    });
+    newAPIMock.mockReturnValue(apiMock);
+
+    vi.useFakeTimers();
+
+    render(
+      <TrialProductionSheet
+        ref={sheetRef}
+        currentStep={4}
+        skuData={step3VisibleSkuData}
+        activeFields={activeFields}
+        onUpdateValue={vi.fn()}
+      />
+    );
+
+    await vi.advanceTimersByTimeAsync(0);
+
+    sheetRef.current?.focusCellByBusinessKey('sku-a1', 'a1-s1', 'prod_loc');
+
+    expect(focusRangeMock.activateAsCurrentCell).toHaveBeenCalledTimes(1);
+    expect(worksheetMock.scrollToCell).toHaveBeenCalledWith(4, 1, 0);
 
     vi.useRealTimers();
   });

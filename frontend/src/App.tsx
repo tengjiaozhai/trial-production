@@ -52,6 +52,7 @@ import type { CopiedSku } from './lib/tableOperations';
 import { LoginPage } from './components/LoginPage';
 import { checkLoginStatus } from './lib/auth';
 import type { UserInfo } from './lib/auth';
+import { normalizeFieldValue, normalizeHistoryEntries, normalizeHistoryEntry, normalizeSkuDataValues } from './lib/skuValueNormalization';
 
 export default function App() {
   const [currentStep, setCurrentStep] = useState<StepId>(1);
@@ -126,7 +127,12 @@ export default function App() {
             sku.supplies.every((sup) => typeof (sup as any).supplyKey === 'string')
           )
         );
-        setHistory(compatible);
+        const normalized = normalizeHistoryEntries(compatible);
+        setHistory(normalized.entries);
+
+        if (normalized.changed || compatible.length !== parsed.length) {
+          localStorage.setItem('trial_production_history', JSON.stringify(normalized.entries));
+        }
       } catch (e) {
         console.error('Failed to parse history', e);
       }
@@ -171,13 +177,15 @@ export default function App() {
       }
     }
 
+    const normalizedSkuState = normalizeSkuDataValues(skuData);
+
     const entry: HistoryEntry = {
       id: baseId,
       timestamp: Date.now(),
       name: projectInfo.name || '未命名试产单',
       version,
       projectInfo,
-      skuData,
+      skuData: normalizedSkuState.skuData,
       currentStep,
       activeFields,
       isFlowComplete: isExport || isFlowComplete,
@@ -258,21 +266,33 @@ export default function App() {
   };
 
   const loadHistoryItem = (item: HistoryEntry) => {
-    setProjectInfo(item.projectInfo);
-    setSkuData(item.skuData.map(normalizeSelectedSupplyKey));
+    const normalized = normalizeHistoryEntry(item);
+    setProjectInfo(normalized.entry.projectInfo);
+    setSkuData(normalized.entry.skuData.map(normalizeSelectedSupplyKey));
     setCurrentStep(item.currentStep);
     setActiveFields(item.activeFields);
     setIsFlowComplete(item.isFlowComplete);
     setShowHistory(false);
+
+    if (normalized.changed) {
+      setHistory((prev) => {
+        const next = prev.map((historyItem) => (
+          historyItem.id === normalized.entry.id ? normalized.entry : historyItem
+        ));
+        localStorage.setItem('trial_production_history', JSON.stringify(next));
+        return next;
+      });
+    }
   };
 
   const copyHistoryItem = (item: HistoryEntry) => {
+    const normalized = normalizeHistoryEntry(item);
     setProjectInfo({
-      ...item.projectInfo,
-      name: item.projectInfo.name,
+      ...normalized.entry.projectInfo,
+      name: normalized.entry.projectInfo.name,
       isCopied: true
     });
-    setSkuData(item.skuData.map((sku, i) => ({
+    setSkuData(normalized.entry.skuData.map((sku, i) => ({
       ...sku,
       id: `sku_copy_${Date.now()}_${i}`,
       supplies: sku.supplies.map((s, j) => ({
@@ -284,6 +304,16 @@ export default function App() {
     setActiveFields(item.activeFields);
     setIsFlowComplete(false);
     setShowHistory(false);
+
+    if (normalized.changed) {
+      setHistory((prev) => {
+        const next = prev.map((historyItem) => (
+          historyItem.id === normalized.entry.id ? normalized.entry : historyItem
+        ));
+        localStorage.setItem('trial_production_history', JSON.stringify(next));
+        return next;
+      });
+    }
   };
 
   const deleteHistoryItem = (id: string) => {
@@ -872,11 +902,12 @@ export default function App() {
   }, [currentStep, isFlowComplete, skuData]);
 
   const handleUpdateValue = (skuId: string, supplyId: string, fieldId: string, value: string) => {
+    const normalizedValue = normalizeFieldValue(fieldId, value);
     setSkuData(prev => {
       const next = prev.map(sku => {
         if (sku.id !== skuId) return sku;
         const updateSupply = (sup: SKUData['supplies'][number]) => {
-          const withInput = { ...sup.values, [fieldId]: value };
+          const withInput = { ...sup.values, [fieldId]: normalizedValue };
           return { ...sup, values: recomputeStep4Values(withInput) };
         };
 
@@ -953,8 +984,11 @@ export default function App() {
   const disableNextToPreview = 
     (currentStep === 4 && isExportDisabled) || 
     (currentStep === 2 && step2Conflicts.length > 0);
-  const visibleSkuData = projectSkusForStep(skuData, currentStep);
-  const skuSupplyKeys = Object.fromEntries(skuData.map(s => [s.id, listSupplyKeys(s)]));
+  const visibleSkuData = useMemo(() => projectSkusForStep(skuData, currentStep), [skuData, currentStep]);
+  const skuSupplyKeys = useMemo(
+    () => Object.fromEntries(skuData.map(s => [s.id, listSupplyKeys(s)])),
+    [skuData],
+  );
   const sheetRef = useRef<TrialProductionSheetHandle>(null);
 
   const handleSheetFocusCell = (skuId: string, supplyId: string | undefined, fieldId: string) => {

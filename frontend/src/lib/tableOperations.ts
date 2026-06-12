@@ -1,4 +1,5 @@
 import type { FieldDefinition, SkuSupply, SKUData, SupplyTag } from '../types';
+import { normalizeSupplyValues } from './skuValueNormalization';
 
 export function buildNewFieldId(): string {
   return `f_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -74,7 +75,7 @@ export function captureCopyFromSku(sku: SKUData): CopiedSku {
     supplies: sku.supplies.map(sup => ({
       supplyKey: sup.supplyKey,
       label: sup.label,
-      values: pickNonEmptyValues(sup.values),
+      values: pickNonEmptyValues(normalizeSupplyValues(sup.values).values),
     })),
   };
 }
@@ -101,7 +102,7 @@ export function pasteCopiedIntoTarget(
       id: supplyIdBuilder(),
       supplyKey: fromCopy?.supplyKey ?? targetSup.supplyKey,
       label: fromCopy?.label ?? targetSup.label,
-      values: fromCopy ? { ...fromCopy.values } : {},
+      values: fromCopy ? normalizeSupplyValues(fromCopy.values).values : {},
     };
   });
   return {
