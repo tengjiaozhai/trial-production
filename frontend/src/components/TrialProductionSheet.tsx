@@ -813,30 +813,38 @@ export function buildWorkbookSnapshot(
             ci += 1;
           }
         } else if (row.fieldId === 'supply_select') {
-          // Render selectedSupplyKey with merge across SKU columns
-          let ci = 0;
-          while (ci < model.columns.length) {
-            const startColumn = ci + 1;
-            const skuId = model.columns[ci].skuId;
-            let endColumn = startColumn;
+          if (currentStep === 2) {
+            // Step2: render each supply label individually (no merge)
+            for (let ci = 0; ci < model.columns.length; ci++) {
+              const col = model.columns[ci];
+              cellData[rowIdx][ci + 1] = { v: normalizeBusinessValue(col.label), s: groupStyle };
+            }
+          } else {
+            // Step3/4: render selectedSupplyKey with merge across SKU columns
+            let ci = 0;
+            while (ci < model.columns.length) {
+              const startColumn = ci + 1;
+              const skuId = model.columns[ci].skuId;
+              let endColumn = startColumn;
 
-            while (ci + 1 < model.columns.length && model.columns[ci + 1].skuId === skuId) {
+              while (ci + 1 < model.columns.length && model.columns[ci + 1].skuId === skuId) {
+                ci += 1;
+                endColumn = ci + 1;
+              }
+
+              const sku = skuData.find((s) => s.id === skuId);
+              const value = normalizeBusinessValue(sku?.selectedSupplyKey ?? sku?.supplies[0]?.supplyKey ?? '');
+              cellData[rowIdx][startColumn] = { v: value, s: groupStyle };
+              if (endColumn > startColumn) {
+                mergeData.push({
+                  startRow: rowIdx,
+                  endRow: rowIdx,
+                  startColumn,
+                  endColumn,
+                });
+              }
               ci += 1;
-              endColumn = ci + 1;
             }
-
-            const sku = skuData.find((s) => s.id === skuId);
-            const value = normalizeBusinessValue(sku?.selectedSupplyKey ?? sku?.supplies[0]?.supplyKey ?? '');
-            cellData[rowIdx][startColumn] = { v: value, s: groupStyle };
-            if (endColumn > startColumn) {
-              mergeData.push({
-                startRow: rowIdx,
-                endRow: rowIdx,
-                startColumn,
-                endColumn,
-              });
-            }
-            ci += 1;
           }
         } else {
           for (let ci = 0; ci < model.columns.length; ci++) {
