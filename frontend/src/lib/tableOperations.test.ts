@@ -124,6 +124,19 @@ describe('createBlankSkuFromTemplate', () => {
     });
   });
 
+  it('keeps dynamic supply keys and selection when cloning a template sku', () => {
+    const template = makeSku({
+      selectedSupplyKey: '六供',
+      supplies: [
+        { id: 's5', supplyKey: '五供', label: '五供', values: { storage: '4+128' } },
+        { id: 's6', supplyKey: '六供', label: '六供', values: { storage: '4+128' } },
+      ],
+    });
+    const result = createBlankSkuFromTemplate(template, 'sku_new');
+    expect(result.selectedSupplyKey).toBe('六供');
+    expect(result.supplies.map((sup) => sup.supplyKey)).toEqual(['五供', '六供']);
+  });
+
   it('empties values for all supplies', () => {
     const template = makeSku({});
     const result = createBlankSkuFromTemplate(template, 'sku_new');
