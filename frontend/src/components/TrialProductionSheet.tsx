@@ -92,6 +92,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
     const modelRef = useRef<ReturnType<typeof buildTrialProductionSheetModel> | null>(null);
     const focusRetryTimersRef = useRef<number[]>([]);
     const viewportRestoreTimersRef = useRef<number[]>([]);
+    const univerReadyTimersRef = useRef<number[]>([]);
     const previousStepRef = useRef<StepId | null>(null);
 
     // Build the sheet model
@@ -117,6 +118,13 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
         window.clearTimeout(timer);
       }
       viewportRestoreTimersRef.current = [];
+    };
+
+    const clearUniverReadyTimers = () => {
+      for (const timer of univerReadyTimersRef.current) {
+        window.clearTimeout(timer);
+      }
+      univerReadyTimersRef.current = [];
     };
 
     const getCurrentBusinessValue = (skuId: string, supplyId: string | undefined, fieldId: string): string => {
@@ -294,11 +302,15 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
 
       univerRef.current = univerInstance;
       univerAPIRef.current = univerInstance.univerAPI;
-      setUniverReady(true);
+      const readyTimer = window.setTimeout(() => {
+        setUniverReady(true);
+      }, 0);
+      univerReadyTimersRef.current.push(readyTimer);
 
       return () => {
         clearFocusRetryTimers();
         clearViewportRestoreTimers();
+        clearUniverReadyTimers();
         univerInstance.univer.dispose();
         setUniverReady(false);
         univerRef.current = null;
@@ -326,121 +338,122 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       // Build Univer workbook snapshot from model
       const snapshot = buildWorkbookSnapshot(model, skuData, activeFields, currentStep);
 
-      // Defer workbook creation to avoid React unmount race condition
-      const timer = setTimeout(() => {
-        try {
-          const currentWorkbook = api.getActiveWorkbook();
-          if (currentWorkbook) {
-            api.disposeUnit(currentWorkbook.getId());
-          }
-          api.createWorkbook(snapshot);
-        } catch {
-          // ignore workbook recreation errors
+      // Synchronously create the workbook.
+      // (Was wrapped in setTimeout(0) to "avoid React unmount race condition", but with
+      //  React 19 + unstable prop references (visibleSkuData re-created each render),
+      //  useEffect re-runs frequently and clearTimeout would cancel workbook creation
+      //  before it completed, leaving cellData written but the scene never rendered.)
+      try {
+        const existingWorkbook = api.getActiveWorkbook();
+        if (existingWorkbook) {
+          api.disposeUnit(existingWorkbook.getId());
         }
+        api.createWorkbook(snapshot);
+      } catch {
+        // ignore workbook recreation errors
+      }
 
-        // Freeze first 4 rows in Step 2, cancel for other steps
-        try {
-          const freezeWb = api.getActiveWorkbook();
-          if (freezeWb) {
-            const freezeWs = freezeWb.getActiveSheet();
-            if (freezeWs) {
-              if (currentStep === 2) {
-                freezeWs.setFrozenRows(4);
-              } else {
-                freezeWs.cancelFreeze();
-              }
+      // Freeze first 4 rows in Step 2, cancel for other steps
+      try {
+        const freezeWb = api.getActiveWorkbook();
+        if (freezeWb) {
+          const freezeWs = freezeWb.getActiveSheet();
+          if (freezeWs) {
+            if (currentStep === 2) {
+              freezeWs.setFrozenRows(4);
+            } else {
+              freezeWs.cancelFreeze();
             }
           }
-        } catch {
-          // ignore freeze errors
         }
+      } catch {
+        // ignore freeze errors
+      }
 
-        // Apply borders to all data cells
-        try {
-          const borderWb = api.getActiveWorkbook();
-          const borderWs = borderWb?.getActiveSheet();
-          if (borderWs) {
-            const bounds = getSheetDataBounds(model);
-            if (bounds.lastRow >= 0 && bounds.lastCol >= 0) {
-              borderWs
-                .getRange(0, 0, bounds.lastRow + 1, bounds.lastCol + 1)
-                .setBorder(
-                  api.Enum.BorderType.ALL,
-                  api.Enum.BorderStyleTypes.THIN,
-                  SHEET_BORDER_COLOR,
-                );
-            }
+      // Apply borders to all data cells
+      try {
+        const borderWb = api.getActiveWorkbook();
+        const borderWs = borderWb?.getActiveSheet();
+        if (borderWs) {
+          const bounds = getSheetDataBounds(model);
+          if (bounds.lastRow >= 0 && bounds.lastCol >= 0) {
+            borderWs
+              .getRange(0, 0, bounds.lastRow + 1, bounds.lastCol + 1)
+              .setBorder(
+                api.Enum.BorderType.ALL,
+                api.Enum.BorderStyleTypes.THIN,
+                SHEET_BORDER_COLOR,
+              );
           }
-        } catch {
-          // ignore border errors
         }
+      } catch {
+        // ignore border errors
+      }
 
-        // Apply Data Validation immediately after workbook creation
-        if (!model.readOnly) {
-          const workbook = api.getActiveWorkbook();
-          if (workbook) {
-            const worksheet = workbook.getActiveSheet();
-            if (worksheet) {
-              // supply_select dropdown
-              const supplySelectRow = model.rows.find(
-                (r) => r.kind === 'field' && r.fieldId === 'supply_select'
-              );
+      // Apply Data Validation immediately after workbook creation
+      if (!model.readOnly) {
+        const workbook = api.getActiveWorkbook();
+        if (workbook) {
+          const worksheet = workbook.getActiveSheet();
+          if (worksheet) {
+            // supply_select dropdown
+            const supplySelectRow = model.rows.find(
+              (r) => r.kind === 'field' && r.fieldId === 'supply_select'
+            );
 
-              if (supplySelectRow && skuSupplyKeys) {
-                for (let ci = 0; ci < model.columns.length; ci++) {
-                  const col = model.columns[ci];
-                  const keys = skuSupplyKeys[col.skuId];
-                  if (!keys || keys.length < 2) continue;
+            if (supplySelectRow && skuSupplyKeys) {
+              for (let ci = 0; ci < model.columns.length; ci++) {
+                const col = model.columns[ci];
+                const keys = skuSupplyKeys[col.skuId];
+                if (!keys || keys.length < 2) continue;
 
-                  const rule = api.newDataValidation()
-                    .requireValueInList(keys.filter(k => k !== ''), false, true)
-                    .setOptions({
-                      allowBlank: false,
-                      showErrorMessage: true,
-                      error: '请选择供应标签',
-                    })
-                    .build();
+                const rule = api.newDataValidation()
+                  .requireValueInList(keys.filter(k => k !== ''), false, true)
+                  .setOptions({
+                    allowBlank: false,
+                    showErrorMessage: true,
+                    error: '请选择供应标签',
+                  })
+                  .build();
 
-                  try {
-                    worksheet.getRange(supplySelectRow.rowIndex, ci + 1).setDataValidation(rule);
-                  } catch {
-                    // ignore
-                  }
-                }
-              }
-
-              // prod_loc dropdown
-              const prodLocRow = model.rows.find(
-                (r) => r.kind === 'field' && r.fieldId === 'prod_loc'
-              );
-
-              if (prodLocRow) {
-                for (let ci = 0; ci < model.columns.length; ci++) {
-                  const rule = api.newDataValidation()
-                    .requireValueInList([...PROD_LOC_OPTIONS], false, true)
-                    .setOptions({
-                      allowBlank: true,
-                      showErrorMessage: true,
-                      error: '请选择试产地点',
-                    })
-                    .build();
-
-                  try {
-                    worksheet.getRange(prodLocRow.rowIndex, ci + 1).setDataValidation(rule);
-                  } catch {
-                    // ignore
-                  }
+                try {
+                  worksheet.getRange(supplySelectRow.rowIndex, ci + 1).setDataValidation(rule);
+                } catch {
+                  // ignore
                 }
               }
             }
+
+            // prod_loc dropdown
+            const prodLocRow = model.rows.find(
+              (r) => r.kind === 'field' && r.fieldId === 'prod_loc'
+            );
+
+            if (prodLocRow) {
+              for (let ci = 0; ci < model.columns.length; ci++) {
+                const rule = api.newDataValidation()
+                  .requireValueInList([...PROD_LOC_OPTIONS], false, true)
+                  .setOptions({
+                    allowBlank: true,
+                    showErrorMessage: true,
+                    error: '请选择试产地点',
+                  })
+                  .build();
+
+                try {
+                  worksheet.getRange(prodLocRow.rowIndex, ci + 1).setDataValidation(rule);
+                } catch {
+                  // ignore
+                }
+              }
+            }
           }
         }
+      }
 
-        restoreSheetViewportState(viewportState);
-      }, 0);
+      restoreSheetViewportState(viewportState);
 
       return () => {
-        clearTimeout(timer);
         clearViewportRestoreTimers();
       };
     }, [model, skuData, activeFields, currentStep, skuSupplyKeys]);

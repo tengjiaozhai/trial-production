@@ -275,12 +275,31 @@ export default function App() {
 
   const loadHistoryItem = (item: HistoryEntry) => {
     const normalized = normalizeHistoryEntry(item);
+    const nextStep = normalized.entry.currentStep;
     setProjectInfo(normalized.entry.projectInfo);
     setSkuData(normalized.entry.skuData.map(normalizeSelectedSupplyKey));
-    setCurrentStep(item.currentStep);
-    setActiveFields(item.activeFields);
-    setIsFlowComplete(item.isFlowComplete);
+    setActiveFields(normalized.entry.activeFields);
+    setIsFlowComplete(normalized.entry.isFlowComplete);
     setShowHistory(false);
+
+    const applyLoadedStep = () => {
+      setCurrentStep(nextStep);
+    };
+
+    if (currentStep < 2 && nextStep === 5) {
+      // Step 5 preview renders correctly after Step 4 is already mounted.
+      // History loading from Step 1 goes through the first Univer mount path, which
+      // can leave the preview shell empty. Warm the sheet through Step 4 first, then
+      // advance to Step 5 after Step 4 has had time to finish its initial render.
+      setCurrentStep(4);
+      window.setTimeout(applyLoadedStep, 800);
+    } else if (currentStep < 2 && nextStep >= 2) {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(applyLoadedStep);
+      });
+    } else {
+      applyLoadedStep();
+    }
 
     if (normalized.changed) {
       setHistory((prev) => {
