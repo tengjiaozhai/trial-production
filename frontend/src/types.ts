@@ -40,6 +40,7 @@ export interface FieldDefinition {
   label: string;
   group: string;
   behavior: FieldBehavior;
+  fieldCategory?: 'step1' | 'auto' | 'manual';
   wait?: boolean;
 }
 
