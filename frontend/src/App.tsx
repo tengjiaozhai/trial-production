@@ -1077,6 +1077,30 @@ export default function App() {
     setIsExportDisabled(true);
   };
 
+  const handleAppendField = () => {
+    setActiveFields((prev) => {
+      if (prev.length === 0) return prev;
+      const last = prev[prev.length - 1];
+      const newField = createInsertedField(last.id, prev, buildNextCustomFieldLabel(prev));
+      return insertFieldAfter(prev, last.id, newField);
+    });
+    setIsExportDisabled(true);
+  };
+
+  const handleAppendSupplyToAllSkus = () => {
+    setSkuData((prev) =>
+      prev.map((sku) =>
+        insertDynamicSupply({
+          sku,
+          currentStep,
+          newSupplyId: buildNewSupplyId(),
+          newSupplyKey: getNextUnusedSupplyKey(sku),
+        })
+      )
+    );
+    setIsExportDisabled(true);
+  };
+
   const handleAddSku = () => {
     const newSku: SKUData = {
       id: `sku_${Date.now()}`,
@@ -1568,6 +1592,8 @@ export default function App() {
                     onStructureColumnInsert={handleStructureColumnInsert}
                     onFieldLabelChange={handleFieldLabelChange}
                     onStep5LayoutChange={setStep5Layout}
+                    onAppendField={handleAppendField}
+                    onAppendSupplyToAllSkus={handleAppendSupplyToAllSkus}
                   />
                 </div>
               </motion.div>

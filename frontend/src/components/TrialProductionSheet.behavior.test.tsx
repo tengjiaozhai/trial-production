@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, render } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { createRef } from 'react';
 import { TrialProductionSheet } from './TrialProductionSheet';
 import type { TrialProductionSheetHandle } from './TrialProductionSheet';
@@ -1837,6 +1837,126 @@ describe('TrialProductionSheet data sync', () => {
 
     expect(executeCommand).not.toHaveBeenCalled();
 
+    vi.useRealTimers();
+  });
+});
+
+describe('TrialProductionSheet structure toolbar', () => {
+  beforeEach(() => {
+    createUniverMock.mockReset();
+    newAPIMock.mockReset();
+  });
+
+  function setupShallowApiMock() {
+    const worksheetMock = {
+      getRange: vi.fn(() => ({ setDataValidation: vi.fn() })),
+      getCellMergeData: vi.fn(),
+      scrollToCell: vi.fn(),
+    };
+    const workbookMock = {
+      getId: vi.fn(() => 'trial-production-sheet'),
+      getActiveSheet: vi.fn(() => worksheetMock),
+    };
+    const apiMock = {
+      createWorkbook: vi.fn(),
+      getActiveWorkbook: vi.fn(() => workbookMock),
+      disposeUnit: vi.fn(),
+      addEvent: vi.fn(() => ({ dispose: vi.fn() })),
+      executeCommand: vi.fn(),
+      newDataValidation: vi.fn(() => createValidationBuilder()),
+      Event: { BeforeSheetEditEnd: 'BeforeSheetEditEnd' },
+    };
+    mockCreateUniverWithAPI(apiMock);
+    return apiMock;
+  }
+
+  it('renders the append-supply and append-field buttons when the callbacks are provided', async () => {
+    setupShallowApiMock();
+    vi.useFakeTimers();
+
+    render(
+      <TrialProductionSheet
+        currentStep={2}
+        skuData={step2SkuData}
+        activeFields={activeFields}
+        onUpdateValue={vi.fn()}
+        onAppendField={vi.fn()}
+        onAppendSupplyToAllSkus={vi.fn()}
+      />
+    );
+    await flushSheetEffects();
+
+    expect(screen.getByTestId('append-supply-button')).toBeTruthy();
+    expect(screen.getByTestId('append-field-button')).toBeTruthy();
+
+    vi.useRealTimers();
+  });
+
+  it('does not render the structure buttons when no callbacks are provided', async () => {
+    setupShallowApiMock();
+    vi.useFakeTimers();
+
+    render(
+      <TrialProductionSheet
+        currentStep={2}
+        skuData={step2SkuData}
+        activeFields={activeFields}
+        onUpdateValue={vi.fn()}
+      />
+    );
+    await flushSheetEffects();
+
+    expect(screen.queryByTestId('append-supply-button')).toBeNull();
+    expect(screen.queryByTestId('append-field-button')).toBeNull();
+
+    vi.useRealTimers();
+  });
+
+  it('invokes onAppendField when the + 新增字段 button is clicked', async () => {
+    setupShallowApiMock();
+    vi.useFakeTimers();
+    const onAppendField = vi.fn();
+
+    render(
+      <TrialProductionSheet
+        currentStep={2}
+        skuData={step2SkuData}
+        activeFields={activeFields}
+        onUpdateValue={vi.fn()}
+        onAppendField={onAppendField}
+      />
+    );
+    await flushSheetEffects();
+
+    act(() => {
+      fireEvent.click(screen.getByTestId('append-field-button'));
+    });
+
+    expect(onAppendField).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
+
+  it('invokes onAppendSupplyToAllSkus when the + 新增供位 button is clicked', async () => {
+    setupShallowApiMock();
+    vi.useFakeTimers();
+    const onAppendSupplyToAllSkus = vi.fn();
+
+    render(
+      <TrialProductionSheet
+        currentStep={2}
+        skuData={step2SkuData}
+        activeFields={activeFields}
+        onUpdateValue={vi.fn()}
+        onAppendSupplyToAllSkus={onAppendSupplyToAllSkus}
+      />
+    );
+    await flushSheetEffects();
+
+    act(() => {
+      fireEvent.click(screen.getByTestId('append-supply-button'));
+    });
+
+    expect(onAppendSupplyToAllSkus).toHaveBeenCalledTimes(1);
     vi.useRealTimers();
   });
 });

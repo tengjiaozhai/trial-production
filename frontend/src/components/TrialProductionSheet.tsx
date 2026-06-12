@@ -7,6 +7,7 @@ import UniverPresetSheetsDataValidationZhCN from '@univerjs/preset-sheets-data-v
 import '@univerjs/preset-sheets-data-validation/lib/index.css';
 import { Direction, ICommandService } from '@univerjs/core';
 import { FUniver } from '@univerjs/core/facade';
+import { Plus } from 'lucide-react';
 import type { SKUData, FieldDefinition, StepId, SupplyTag } from '../types';
 import type { Step2CellConflict } from '../lib/step2CellConflicts';
 import { buildTrialProductionSheetModel } from '../lib/univerTrialProductionSheet';
@@ -101,6 +102,8 @@ interface TrialProductionSheetProps {
   onStructureColumnInsert?: (payload: StructureColumnInsertPayload) => void;
   onFieldLabelChange?: (fieldId: string, label: string) => void;
   onStep5LayoutChange?: (layout: { supplyWidths: Record<string, number>; rowHeights: Record<string, number> }) => void;
+  onAppendField?: () => void;
+  onAppendSupplyToAllSkus?: () => void;
   className?: string;
 }
 
@@ -123,6 +126,8 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       onStructureColumnInsert,
       onFieldLabelChange,
       onStep5LayoutChange,
+      onAppendField,
+      onAppendSupplyToAllSkus,
       className,
     } = props;
 
@@ -889,11 +894,43 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
 
     return (
       <div
-        ref={containerRef}
-        className={className}
-        data-testid="trial-production-sheet"
-        style={CONTAINER_STYLE}
-      />
+        className="flex flex-col h-full"
+        data-testid="trial-production-sheet-wrapper"
+      >
+        {(onAppendField || onAppendSupplyToAllSkus) && (
+          <div
+            className="flex items-center gap-2 px-3 py-2 border-b border-[#DDE7F3] bg-[#F6F9FF]"
+            data-testid="trial-production-sheet-toolbar"
+          >
+            {onAppendSupplyToAllSkus && (
+              <button
+                type="button"
+                data-testid="append-supply-button"
+                onClick={onAppendSupplyToAllSkus}
+                className="flex items-center gap-1 px-2 py-1 text-[12px] font-bold text-[#2563EB] hover:bg-white rounded transition-colors"
+              >
+                <Plus size={12} /> 新增供位
+              </button>
+            )}
+            {onAppendField && (
+              <button
+                type="button"
+                data-testid="append-field-button"
+                onClick={onAppendField}
+                className="flex items-center gap-1 px-2 py-1 text-[12px] font-bold text-[#2563EB] hover:bg-white rounded transition-colors"
+              >
+                <Plus size={12} /> 新增字段
+              </button>
+            )}
+          </div>
+        )}
+        <div
+          ref={containerRef}
+          className={`${className ?? ''} flex-1 min-h-0`.trim()}
+          data-testid="trial-production-sheet"
+          style={CONTAINER_STYLE}
+        />
+      </div>
     );
   }
 );
