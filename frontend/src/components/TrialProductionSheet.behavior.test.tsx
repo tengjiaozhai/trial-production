@@ -1412,4 +1412,199 @@ describe('TrialProductionSheet data sync', () => {
 
     vi.useRealTimers();
   });
+
+  it('advances active cell to next column after Enter (BeforeSheetEditEnd confirm)', async () => {
+    const executeCommand = vi.fn();
+    const setValueMock = vi.fn();
+    const setDataValidation = vi.fn();
+    const worksheetMock = {
+      getRange: vi.fn(() => ({ setDataValidation, setValue: setValueMock })),
+      getCellMergeData: vi.fn(),
+      scrollToCell: vi.fn(),
+      getSheetSize: vi.fn(() => ({ rows: 50, columns: 10 })),
+    };
+    const workbookMock = {
+      getId: vi.fn(() => 'trial-production-sheet'),
+      getActiveSheet: vi.fn(() => worksheetMock),
+    };
+    let beforeEditEndHandler: ((params: any) => void) | null = null;
+    const apiMock = {
+      createWorkbook: vi.fn(),
+      getActiveWorkbook: vi.fn(() => workbookMock),
+      disposeUnit: vi.fn(),
+      addEvent: vi.fn((eventName: string, handler: any) => {
+        if (eventName === 'BeforeSheetEditEnd') beforeEditEndHandler = handler;
+        return { dispose: vi.fn() };
+      }),
+      executeCommand,
+      newDataValidation: vi.fn(() => createValidationBuilder()),
+      Event: { BeforeSheetEditEnd: 'BeforeSheetEditEnd' },
+    };
+    mockCreateUniverWithAPI(apiMock);
+    vi.useFakeTimers();
+
+    render(
+      <TrialProductionSheet
+        currentStep={3}
+        skuData={step3VisibleSkuData}
+        activeFields={activeFields}
+        skuSupplyKeys={{ 'sku-a1': ['一供', '二供'], 'sku-b1': ['一供'] }}
+        onUpdateValue={vi.fn()}
+        onSelectedSupplyChange={vi.fn()}
+      />
+    );
+    await flushSheetEffects();
+    await flushSheetEffects();
+
+    expect(beforeEditEndHandler).not.toBeNull();
+    executeCommand.mockClear();
+
+    act(() => {
+      beforeEditEndHandler!({
+        row: 4,
+        column: 1,
+        value: { toPlainText: () => '欧洲' },
+        isConfirm: true,
+        isZenEditor: false,
+        keycode: 13,
+      });
+    });
+    await flushSheetEffects();
+
+    expect(executeCommand).toHaveBeenCalled();
+    const callArgs = executeCommand.mock.calls[0];
+    expect(callArgs[0]).toMatch(/set-active-cell|set-selection|move/);
+    expect(callArgs[1]).toEqual(expect.objectContaining({ row: 4, column: 2 }));
+
+    vi.useRealTimers();
+  });
+
+  it('wraps to next row when Enter is pressed on the last column', async () => {
+    const executeCommand = vi.fn();
+    const setDataValidation = vi.fn();
+    const setValueMock = vi.fn();
+    const worksheetMock = {
+      getRange: vi.fn(() => ({ setDataValidation, setValue: setValueMock })),
+      getCellMergeData: vi.fn(),
+      scrollToCell: vi.fn(),
+      getSheetSize: vi.fn(() => ({ rows: 50, columns: 3 })),
+    };
+    const workbookMock = {
+      getId: vi.fn(() => 'trial-production-sheet'),
+      getActiveSheet: vi.fn(() => worksheetMock),
+    };
+    let beforeEditEndHandler: ((params: any) => void) | null = null;
+    const apiMock = {
+      createWorkbook: vi.fn(),
+      getActiveWorkbook: vi.fn(() => workbookMock),
+      disposeUnit: vi.fn(),
+      addEvent: vi.fn((eventName: string, handler: any) => {
+        if (eventName === 'BeforeSheetEditEnd') beforeEditEndHandler = handler;
+        return { dispose: vi.fn() };
+      }),
+      executeCommand,
+      newDataValidation: vi.fn(() => createValidationBuilder()),
+      Event: { BeforeSheetEditEnd: 'BeforeSheetEditEnd' },
+    };
+    mockCreateUniverWithAPI(apiMock);
+    vi.useFakeTimers();
+
+    render(
+      <TrialProductionSheet
+        currentStep={3}
+        skuData={step3VisibleSkuData}
+        activeFields={activeFields}
+        skuSupplyKeys={{ 'sku-a1': ['一供', '二供'], 'sku-b1': ['一供'] }}
+        onUpdateValue={vi.fn()}
+        onSelectedSupplyChange={vi.fn()}
+      />
+    );
+    await flushSheetEffects();
+    await flushSheetEffects();
+
+    expect(beforeEditEndHandler).not.toBeNull();
+    executeCommand.mockClear();
+
+    // Edit the last data column (column 2 in this fixture, label col 0 + 2 visible supplies)
+    act(() => {
+      beforeEditEndHandler!({
+        row: 4,
+        column: 2,
+        value: { toPlainText: '欧洲' },
+        isConfirm: true,
+        isZenEditor: false,
+        keycode: 13,
+      });
+    });
+    await flushSheetEffects();
+
+    expect(executeCommand).toHaveBeenCalled();
+    const callArgs = executeCommand.mock.calls[0];
+    expect(callArgs[1]).toEqual(expect.objectContaining({ row: 5, column: 1 }));
+
+    vi.useRealTimers();
+  });
+
+  it('does not advance active cell when editing the field-label column (column 0)', async () => {
+    const executeCommand = vi.fn();
+    const setDataValidation = vi.fn();
+    const setValueMock = vi.fn();
+    const worksheetMock = {
+      getRange: vi.fn(() => ({ setDataValidation, setValue: setValueMock })),
+      getCellMergeData: vi.fn(),
+      scrollToCell: vi.fn(),
+      getSheetSize: vi.fn(() => ({ rows: 50, columns: 10 })),
+    };
+    const workbookMock = {
+      getId: vi.fn(() => 'trial-production-sheet'),
+      getActiveSheet: vi.fn(() => worksheetMock),
+    };
+    let beforeEditEndHandler: ((params: any) => void) | null = null;
+    const apiMock = {
+      createWorkbook: vi.fn(),
+      getActiveWorkbook: vi.fn(() => workbookMock),
+      disposeUnit: vi.fn(),
+      addEvent: vi.fn((eventName: string, handler: any) => {
+        if (eventName === 'BeforeSheetEditEnd') beforeEditEndHandler = handler;
+        return { dispose: vi.fn() };
+      }),
+      executeCommand,
+      newDataValidation: vi.fn(() => createValidationBuilder()),
+      Event: { BeforeSheetEditEnd: 'BeforeSheetEditEnd' },
+    };
+    mockCreateUniverWithAPI(apiMock);
+    vi.useFakeTimers();
+
+    render(
+      <TrialProductionSheet
+        currentStep={3}
+        skuData={step3VisibleSkuData}
+        activeFields={activeFields}
+        skuSupplyKeys={{ 'sku-a1': ['一供', '二供'], 'sku-b1': ['一供'] }}
+        onUpdateValue={vi.fn()}
+        onSelectedSupplyChange={vi.fn()}
+      />
+    );
+    await flushSheetEffects();
+    await flushSheetEffects();
+
+    expect(beforeEditEndHandler).not.toBeNull();
+    executeCommand.mockClear();
+
+    act(() => {
+      beforeEditEndHandler!({
+        row: 4,
+        column: 0,
+        value: { toPlainText: '新标签' },
+        isConfirm: true,
+        isZenEditor: false,
+        keycode: 13,
+      });
+    });
+    await flushSheetEffects();
+
+    expect(executeCommand).not.toHaveBeenCalled();
+
+    vi.useRealTimers();
+  });
 });

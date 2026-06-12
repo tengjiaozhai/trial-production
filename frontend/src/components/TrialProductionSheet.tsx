@@ -717,10 +717,35 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
         }
 
         if (rowObj?.fieldId === 'supply_select' || rowObj?.fieldId === 'prod_loc') {
-          return;
+          // Drop-down values flow through SheetValueChanged, not direct update
+        } else {
+          handleBusinessCellUpdate(row, column, value);
         }
 
-        handleBusinessCellUpdate(row, column, value);
+        // Advance active cell to the next column (wrap to next row at row end).
+        // Skip the field-label column (column 0) — label edits don't flow horizontally.
+        if (column > 0) {
+          const currentModel = modelRef.current;
+          const lastCol = Math.max(currentModel?.columns.length ?? 0, 1);
+          const lastRow = Math.max((currentModel?.rows.length ?? 1) - 1, 0);
+          const nextColumn = column + 1 > lastCol ? 1 : column + 1;
+          const nextRow = column + 1 > lastCol ? Math.min(row + 1, lastRow) : row;
+          try {
+            api.executeCommand('sheet.operation.set-active-cell', {
+              row: nextRow,
+              column: nextColumn,
+            });
+          } catch {
+            try {
+              api.executeCommand('sheet.command.set-active-cell', {
+                row: nextRow,
+                column: nextColumn,
+              });
+            } catch {
+              // ignore move-active failures
+            }
+          }
+        }
       });
 
       const valueChangedDisposable = api.addEvent(api.Event.SheetValueChanged, (params: any) => {
