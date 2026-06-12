@@ -1210,18 +1210,21 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     vi.useRealTimers();
   });
 
-  it('restores the active viewport after same-step workbook recreation', async () => {
+  it('preserves the active viewport when only a cell value changes', async () => {
+    const setValueMock = vi.fn();
     const restoredRangeMock = {
       activate: vi.fn(),
       activateAsCurrentCell: vi.fn(),
       setDataValidation: vi.fn(),
       setBorder: vi.fn(),
+      setValue: setValueMock,
     };
     const borderRangeMock = {
       setDataValidation: vi.fn(),
       setBorder: vi.fn(),
+      setValue: setValueMock,
     };
-    const oldWorksheetMock = {
+    const worksheetMock = {
       getActiveCell: vi.fn(() => ({
         _range: {
           actualRow: 4,
@@ -1234,13 +1237,6 @@ describe('TrialProductionSheet workbook lifecycle', () => {
         sheetViewStartRow: 4,
         sheetViewStartColumn: 9,
       })),
-      getRange: vi.fn(() => borderRangeMock),
-      getCellMergeData: vi.fn(() => undefined),
-      scrollToCell: vi.fn(),
-      setFrozenRows: vi.fn(),
-      cancelFreeze: vi.fn(),
-    };
-    const newWorksheetMock = {
       getRange: vi.fn((row?: number, column?: number) => {
         if (row === 4 && column === 9) {
           return restoredRangeMock;
@@ -1252,22 +1248,13 @@ describe('TrialProductionSheet workbook lifecycle', () => {
       setFrozenRows: vi.fn(),
       cancelFreeze: vi.fn(),
     };
-    const oldWorkbook = {
+    const workbookMock = {
       getId: vi.fn(() => 'trial-production-sheet'),
-      getActiveSheet: vi.fn(() => oldWorksheetMock),
+      getActiveSheet: vi.fn(() => worksheetMock),
     };
-    const newWorkbook = {
-      getId: vi.fn(() => 'trial-production-sheet-next'),
-      getActiveSheet: vi.fn(() => newWorksheetMock),
-    };
-    let currentWorkbook: typeof oldWorkbook | typeof newWorkbook | null = null;
-    let createCount = 0;
     const apiMock = {
-      createWorkbook: vi.fn(() => {
-        currentWorkbook = createCount === 0 ? oldWorkbook : newWorkbook;
-        createCount += 1;
-      }),
-      getActiveWorkbook: vi.fn(() => currentWorkbook),
+      createWorkbook: vi.fn(),
+      getActiveWorkbook: vi.fn(() => workbookMock),
       disposeUnit: vi.fn(),
       addEvent: vi.fn(() => ({ dispose: vi.fn() })),
       executeCommand: vi.fn(),
@@ -1302,6 +1289,10 @@ describe('TrialProductionSheet workbook lifecycle', () => {
     );
 
     await flushSheetEffects();
+    await flushSheetEffects();
+    apiMock.disposeUnit.mockClear();
+    apiMock.createWorkbook.mockClear();
+    setValueMock.mockClear();
 
     const updatedSkuData: SKUData[] = [
       {
@@ -1332,9 +1323,13 @@ describe('TrialProductionSheet workbook lifecycle', () => {
 
     await flushSheetEffects();
 
-    expect(apiMock.disposeUnit).toHaveBeenCalledWith('trial-production-sheet');
-    expect(restoredRangeMock.activateAsCurrentCell).toHaveBeenCalled();
-    expect(newWorksheetMock.scrollToCell).toHaveBeenCalledWith(4, 9, 0);
+    // Data-only changes must NOT destroy or rebuild the workbook
+    expect(apiMock.disposeUnit).not.toHaveBeenCalled();
+    expect(apiMock.createWorkbook).not.toHaveBeenCalled();
+    // The changed cell should receive an incremental setValue call
+    expect(setValueMock).toHaveBeenCalled();
+    // The viewport must remain where it was — no scroll-to restore needed
+    expect(worksheetMock.scrollToCell).not.toHaveBeenCalled();
 
     vi.useRealTimers();
   });
