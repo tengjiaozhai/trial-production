@@ -11,8 +11,8 @@
     "dev-electron": "ee-bin dev --serve=electron",
     "build-frontend": "ee-bin build --cmds=frontend && ee-bin move --flag=frontend_dist",
     "build-electron": "ee-bin build --cmds=electron",
-    "build-w": "ee-bin build --cmds=win64",
-    "build-m": "ee-bin build --cmds=mac"
+    "build-w": "npm run build && ee-bin build --cmds=win64",
+    "build-m": "npm run build && ee-bin build --cmds=mac"
   },
   "author": "天珑",
   "license": "UNLICENSED",
