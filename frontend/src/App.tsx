@@ -552,76 +552,96 @@ export default function App() {
       const emmcSizes: string[] = Array.from(new Set(allPcbaOptions.map(item => item.emmc.match(/\d+/)?.[0] ?? '').filter((s): s is string => s !== '')));
       const ddrSizes: string[] = Array.from(new Set(allPcbaOptions.map(item => item.ddr.match(/\d+/)?.[0] ?? '').filter((s): s is string => s !== '')));
 
-      // 检测管控物料表，异步解析 LCD 选项 + 核心器件 LLM 匹配
+      // Stage 2: run the 3 LLM-backed processors in parallel (after PCBA parse).
+      // They are independent: material needs emmc/ddr sizes (already computed),
+      // key-material and sample are pure-LLM. Promise.all cuts total wall time
+      // from ~3x (sequential) to ~1x (parallel) for the 3 LLM calls.
       const materialFiles = fileList.filter((f: File) => f.name.includes('管控物料表'));
-      for (const materialFile of materialFiles) {
-        setLoadingText('解析管控物料表...');
-        const workbook = await extractManagedMaterialWorkbook(materialFile as File);
-        if (Object.keys(workbook.lcdBySheet).length > 0) {
-          setProjectInfo(prev => ({ ...prev, materialWorkbook: workbook }));
-        }
+      const keyMaterialFile = fileList.find((f: File) =>
+        /关键物料选项模版|关键物料选项模板|关键物料选型模板/.test(f.name)
+      );
+      const sampleFile = fileList.find((f: File) => f.name.includes('样机收集表'));
 
+      if (hasAnyLLMFile) setLoadingText('并行解析关键物料 / 样机 / 管控物料表...');
+
+      const materialTask = (async () => {
+        if (materialFiles.length === 0) return null;
+        const materialFile = materialFiles[0];
+        const workbook = await extractManagedMaterialWorkbook(materialFile as File);
         const coreRaw = await parseManagedMaterialCoreWorkbook(materialFile as File);
+        let coreMatch: Awaited<ReturnType<typeof matchManagedMaterialNamesWithLLM>> | null = null;
         if (coreRaw) {
-          setLoadingText('核心器件大模型匹配中...');
-          const coreMatch = await matchManagedMaterialNamesWithLLM({
+          coreMatch = await matchManagedMaterialNamesWithLLM({
             materialNames: coreRaw.materialNames,
             emmcSizes,
             ddrSizes,
           });
+        }
+        return { materialFile, workbook, coreRaw, coreMatch };
+      })();
+
+      const keyMaterialTask = (async () => {
+        if (!keyMaterialFile) return null;
+        const parsed = await parseKeyMaterialTemplate(keyMaterialFile as File);
+        if (!parsed) return null;
+        const category2ByField = await matchCategory2WithLLM(parsed.category2List);
+        const optionsByField = buildOptionsByField(parsed, category2ByField);
+        return { parsed, category2ByField, optionsByField };
+      })();
+
+      const sampleTask = (async () => {
+        if (!sampleFile) return null;
+        const sampleRaw = await parseSampleCollectionWorkbook(sampleFile as File);
+        if (!sampleRaw) return null;
+        const allRowNames = Array.from(new Set(sampleRaw.sheets.flatMap(s => s.rowNames)));
+        const rowNameByField = await matchSampleCollectionRowsWithLLM(allRowNames);
+        return { sampleRaw, rowNameByField };
+      })();
+
+      const [materialResult, keyMaterialResult, sampleResult] = await Promise.all([
+        materialTask,
+        keyMaterialTask,
+        sampleTask,
+      ]);
+
+      // Apply results to state (sequentially, after all 3 LLM calls finish)
+      if (materialResult) {
+        if (Object.keys(materialResult.workbook.lcdBySheet).length > 0) {
+          setProjectInfo(prev => ({ ...prev, materialWorkbook: materialResult.workbook }));
+        }
+        if (materialResult.coreRaw && materialResult.coreMatch) {
           setProjectInfo(prev => ({
             ...prev,
             managedMaterialCore: {
-              sourceFileName: coreRaw.sourceFileName,
-              sourceSheetName: coreRaw.sourceSheetName,
-              rows: coreRaw.rows,
-              materialNames: coreRaw.materialNames,
-              materialNameByStaticField: coreMatch.materialNameByStaticField,
-              materialNameByEmmcSize: coreMatch.materialNameByEmmcSize,
-              materialNameByDdrSize: coreMatch.materialNameByDdrSize,
-            },
-          }));
-        }
-
-        break; // 取第一个有效物料表
-      }
-
-      // 检测关键物料选型模板，异步解析并调用 LLM 匹配分类2
-      const keyMaterialFile = fileList.find((f: File) =>
-        /关键物料选项模版|关键物料选项模板|关键物料选型模板/.test(f.name)
-      );
-      if (keyMaterialFile) {
-        setLoadingText('关键物料大模型匹配中...');
-        const parsed = await parseKeyMaterialTemplate(keyMaterialFile as File);
-        if (parsed) {
-          const category2ByField = await matchCategory2WithLLM(parsed.category2List);
-          const optionsByField = buildOptionsByField(parsed, category2ByField);
-          setProjectInfo(prev => ({
-            ...prev,
-            keyMaterialTemplate: {
-              sourceFileName: parsed.sourceFileName,
-              sourceSheetName: parsed.sourceSheetName,
-              category2ByField,
-              optionsByField,
+              sourceFileName: materialResult.coreRaw!.sourceFileName,
+              sourceSheetName: materialResult.coreRaw!.sourceSheetName,
+              rows: materialResult.coreRaw!.rows,
+              materialNames: materialResult.coreRaw!.materialNames,
+              materialNameByStaticField: materialResult.coreMatch!.materialNameByStaticField,
+              materialNameByEmmcSize: materialResult.coreMatch!.materialNameByEmmcSize,
+              materialNameByDdrSize: materialResult.coreMatch!.materialNameByDdrSize,
             },
           }));
         }
       }
 
-      // 检测样机收集表，解析并调用 LLM 匹配内部样机需求行名
-      const sampleFile = fileList.find((f: File) => f.name.includes('样机收集表'));
-      if (sampleFile) {
-        setLoadingText('样机收集表大模型匹配中...');
-        const sampleRaw = await parseSampleCollectionWorkbook(sampleFile as File);
-        if (sampleRaw) {
-          // Collect all unique row names across sheets for LLM matching
-          const allRowNames = Array.from(new Set(sampleRaw.sheets.flatMap(s => s.rowNames)));
-          const rowNameByField = await matchSampleCollectionRowsWithLLM(allRowNames);
-          setProjectInfo(prev => ({
-            ...prev,
-            sampleCollection: { ...sampleRaw, rowNameByField },
-          }));
-        }
+      if (keyMaterialResult) {
+        setProjectInfo(prev => ({
+          ...prev,
+          keyMaterialTemplate: {
+            sourceFileName: keyMaterialResult.parsed.sourceFileName,
+            sourceSheetName: keyMaterialResult.parsed.sourceSheetName,
+            category2ByField: keyMaterialResult.category2ByField,
+            optionsByField: keyMaterialResult.optionsByField,
+          },
+        }));
+      }
+
+      if (sampleResult) {
+        setProjectInfo(prev => ({
+          ...prev,
+          sampleCollection: { ...sampleResult.sampleRaw, rowNameByField: sampleResult.rowNameByField },
+        }));
       }
 
       if (hasAnyLLMFile) setLoadingText('写入解析结果...');
