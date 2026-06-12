@@ -5,31 +5,27 @@ import { recomputeStep4Values } from './step4SampleCalc';
 export function clearStep2ConflictValues(skuData: SKUData[], conflicts: Step2CellConflict[]): SKUData[] {
   if (conflicts.length === 0) return skuData;
 
-  const conflictsBySku = new Map<string, Step2CellConflict[]>();
+  // 收集每个 SKU 的供应范围冲突 fieldId（使用 Set 去重）
+  const conflictFieldIdsBySku = new Map<string, Set<string>>();
   for (const conflict of conflicts) {
-    const existing = conflictsBySku.get(conflict.skuId) ?? [];
-    existing.push(conflict);
-    conflictsBySku.set(conflict.skuId, existing);
+    if (conflict.scope !== 'supply') continue;
+    const existing = conflictFieldIdsBySku.get(conflict.skuId) ?? new Set();
+    existing.add(conflict.fieldId);
+    conflictFieldIdsBySku.set(conflict.skuId, existing);
   }
 
   return skuData.map((sku) => {
-    const skuConflicts = conflictsBySku.get(sku.id);
-    if (!skuConflicts || skuConflicts.length === 0) return sku;
+    const conflictFieldIds = conflictFieldIdsBySku.get(sku.id);
+    if (!conflictFieldIds || conflictFieldIds.size === 0) return sku;
 
     let skuChanged = false;
     const nextSupplies = sku.supplies.map((supply) => {
-      const targetFieldIds = skuConflicts
-        .filter((conflict) => conflict.scope === 'sku' || conflict.supplyId === supply.id)
-        .map((conflict) => conflict.fieldId);
-
-      if (targetFieldIds.length === 0) return supply;
-
       let supplyChanged = false;
       const nextValues = { ...supply.values };
-      for (const fieldId of targetFieldIds) {
-        if (!Object.prototype.hasOwnProperty.call(nextValues, fieldId) || nextValues[fieldId] === '') {
-          continue;
-        }
+
+      // 清空所有供应的冲突字段值
+      for (const fieldId of conflictFieldIds) {
+        if (!nextValues[fieldId]) continue;
         nextValues[fieldId] = '';
         supplyChanged = true;
       }
@@ -43,9 +39,6 @@ export function clearStep2ConflictValues(skuData: SKUData[], conflicts: Step2Cel
     });
 
     if (!skuChanged) return sku;
-    return {
-      ...sku,
-      supplies: nextSupplies,
-    };
+    return { ...sku, supplies: nextSupplies };
   });
 }

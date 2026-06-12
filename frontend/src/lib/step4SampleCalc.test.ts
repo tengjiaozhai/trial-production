@@ -153,6 +153,13 @@ describe('deriveSupplyColumnsFromFieldOptions', () => {
 });
 
 describe('buildSupplyValuesForSupplyKey', () => {
+  const mockActiveFields = [
+    { id: 'lcd', label: 'LCD', group: '电子物料', behavior: 'auto' as const },
+    { id: 'battery', label: '电池', group: '电子物料', behavior: 'auto' as const },
+    { id: 'color', label: '颜色', group: '产品规格', behavior: 'auto' as const },
+    { id: 'unit_id', label: '整机标识', group: '基础信息', behavior: 'manual' as const },
+  ];
+
   it('fills only matched supply and leaves unmatched field absent', () => {
     const values = buildSupplyValuesForSupplyKey(
       {
@@ -167,5 +174,90 @@ describe('buildSupplyValuesForSupplyKey', () => {
 
     expect(values).toEqual({ emmc: 'E2' });
     expect(values.ddr).toBeUndefined();
+  });
+
+  it('should fallback to 一供 value for auto fields when current supply has no value', () => {
+    const values = buildSupplyValuesForSupplyKey(
+      {
+        lcd: [
+          { supply: '一供', text: 'BOE', sourceCategory2: 'LCD' },
+          { supply: '二供', text: 'CSOT', sourceCategory2: 'LCD' },
+        ],
+        battery: [
+          { supply: '一供', text: '3000mAh', sourceCategory2: '电池' },
+        ],
+        color: [
+          { supply: '一供', text: '黑色', sourceCategory2: '颜色' },
+          { supply: '二供', text: '白色', sourceCategory2: '颜色' },
+        ],
+      } as any,
+      '二供',
+      mockActiveFields,
+    );
+
+    expect(values.lcd).toBe('CSOT');
+    expect(values.battery).toBe('3000mAh');
+    expect(values.color).toBe('白色');
+  });
+
+  it('should NOT fallback for non-auto fields', () => {
+    const values = buildSupplyValuesForSupplyKey(
+      {
+        unit_id: [
+          { supply: '一供', text: 'X6728-A1', sourceCategory2: '整机标识' },
+        ],
+      } as any,
+      '二供',
+      mockActiveFields,
+    );
+
+    expect(values.unit_id).toBeUndefined();
+  });
+
+  it('should NOT fallback when supplyKey is empty', () => {
+    const values = buildSupplyValuesForSupplyKey(
+      {
+        lcd: [
+          { supply: '一供', text: 'BOE', sourceCategory2: 'LCD' },
+        ],
+      } as any,
+      '',
+      mockActiveFields,
+    );
+
+    expect(values.lcd).toBeUndefined();
+  });
+
+  it('should NOT fallback when supplyKey is 一供', () => {
+    const values = buildSupplyValuesForSupplyKey(
+      {
+        lcd: [
+          { supply: '一供', text: 'BOE', sourceCategory2: 'LCD' },
+        ],
+      } as any,
+      '一供',
+      mockActiveFields,
+    );
+
+    expect(values.lcd).toBe('BOE');
+  });
+
+  it('should fallback for 三供 and 四供 as well', () => {
+    const values = buildSupplyValuesForSupplyKey(
+      {
+        lcd: [
+          { supply: '一供', text: 'BOE', sourceCategory2: 'LCD' },
+          { supply: '二供', text: 'CSOT', sourceCategory2: 'LCD' },
+        ],
+        battery: [
+          { supply: '一供', text: '3000mAh', sourceCategory2: '电池' },
+        ],
+      } as any,
+      '三供',
+      mockActiveFields,
+    );
+
+    expect(values.lcd).toBe('BOE');
+    expect(values.battery).toBe('3000mAh');
   });
 });

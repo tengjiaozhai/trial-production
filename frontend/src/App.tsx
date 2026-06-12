@@ -740,7 +740,7 @@ export default function App() {
           const values: Record<string, string> = {
             storage: storageValue,
             band: bandValue,
-            ...buildSupplyValuesForSupplyKey(fieldOptions, col.supplyKey),
+            ...buildSupplyValuesForSupplyKey(fieldOptions, col.supplyKey, activeFields),
           };
           if (!values.customer_sample_req) values.customer_sample_req = '';
           const computed = recomputeStep4Values(values);
@@ -1005,14 +1005,44 @@ export default function App() {
   };
 
   const handleResolveStep2Conflict = (conflict: Step2CellConflict, candidate: string) => {
-    const supplyId = conflict.scope === 'supply' ? conflict.supplyId ?? '' : '';
-    handleUpdateValue(conflict.skuId, supplyId, conflict.fieldId, candidate);
+    // 仅处理供应范围冲突
+    if (conflict.scope !== 'supply' || !conflict.supplyId) {
+      handleUpdateValue(conflict.skuId, '', conflict.fieldId, candidate);
+      return;
+    }
+
+    const normalizedValue = normalizeFieldValue(conflict.fieldId, candidate);
+
+    setSkuData(prev => {
+      return prev.map(sku => {
+        if (sku.id !== conflict.skuId) return sku;
+
+        // 判断是否是一供的冲突
+        const targetSupply = sku.supplies.find(s => s.id === conflict.supplyId);
+        const isFirstSupply = targetSupply?.supplyKey === '一供';
+
+        return {
+          ...sku,
+          supplies: sku.supplies.map(sup => {
+            const isTarget = sup.id === conflict.supplyId;
+            // 一供冲突解决时，自动填充三供四供（仅当值为空）
+            const isFallback = isFirstSupply &&
+              (sup.supplyKey === '三供' || sup.supplyKey === '四供') &&
+              !sup.values[conflict.fieldId];
+
+            if (!isTarget && !isFallback) return sup;
+
+            const withInput = { ...sup.values, [conflict.fieldId]: normalizedValue };
+            return { ...sup, values: recomputeStep4Values(withInput) };
+          })
+        };
+      });
+    });
+
+    setIsExportDisabled(true);
+
     window.setTimeout(() => {
-      handleSheetFocusCell(
-        conflict.skuId,
-        conflict.scope === 'supply' ? conflict.supplyId : undefined,
-        conflict.fieldId
-      );
+      handleSheetFocusCell(conflict.skuId, conflict.supplyId, conflict.fieldId);
     }, 0);
   };
 

@@ -1,4 +1,4 @@
-import type { SplitFieldOption, SupplyTag } from '../types';
+import type { SplitFieldOption, SupplyTag, FieldDefinition } from '../types';
 import { stripVendorSuffix } from './utils';
 
 export const INTERNAL_IDS = [
@@ -131,12 +131,31 @@ export function deriveSupplyColumnsFromFieldOptions(
 
 export function buildSupplyValuesForSupplyKey(
   fieldOptions: Partial<Record<string, SplitFieldOption[]>>,
-  supplyKey: SupplyTag | ''
+  supplyKey: SupplyTag | '',
+  activeFields?: FieldDefinition[]
 ): Record<string, string> {
   const values: Record<string, string> = {};
+  const needFallback = supplyKey !== '' && supplyKey !== '一供';
+
   for (const [fieldId, options] of Object.entries(fieldOptions)) {
-    const hit = (options ?? []).find((o) => o.supply === supplyKey);
-    if (hit?.text) values[fieldId] = stripVendorSuffix(hit.text);
+    if (!options) continue;
+
+    const hit = options.find((o) => o.supply === supplyKey);
+    if (hit?.text) {
+      values[fieldId] = stripVendorSuffix(hit.text);
+      continue;
+    }
+
+    if (needFallback) {
+      const fieldDef = activeFields?.find(f => f.id === fieldId);
+      if (fieldDef?.behavior === 'auto') {
+        const fallbackHit = options.find((o) => o.supply === '一供');
+        if (fallbackHit?.text) {
+          values[fieldId] = stripVendorSuffix(fallbackHit.text);
+        }
+      }
+    }
   }
+
   return values;
 }
