@@ -8,7 +8,6 @@ export interface Step5Cell {
 
 export interface Step5FieldRow {
   kind: 'field';
-  indexLabel: string;
   fieldId: string;
   fieldLabel: string;
   cells: Step5Cell[];
@@ -52,7 +51,6 @@ export function buildStep5TableModel(args: {
   );
 
   const rows: Step5Row[] = [];
-  let visibleIndex = 1;
 
   const groups = Array.from(new Set(args.activeFields.map((f) => f.group)));
 
@@ -82,7 +80,6 @@ export function buildStep5TableModel(args: {
 
       rows.push({
         kind: 'field',
-        indexLabel: String(visibleIndex).padStart(2, '0'),
         fieldId: field.id,
         fieldLabel: formatFieldLabelWithEfuse({
           fieldId: field.id,
@@ -91,13 +88,11 @@ export function buildStep5TableModel(args: {
         }),
         cells,
       });
-      visibleIndex += 1;
     }
 
     if (args.includeSupplierRow && gi === 0) {
       rows.push({
         kind: 'field',
-        indexLabel: String(visibleIndex).padStart(2, '0'),
         fieldId: '__supplier__',
         fieldLabel: '一供/二供',
         cells: args.skuData.map((sku) => ({
@@ -105,7 +100,6 @@ export function buildStep5TableModel(args: {
           colSpan: 1,
         })),
       });
-      visibleIndex += 1;
     }
   }
 
