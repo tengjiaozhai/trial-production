@@ -68,8 +68,8 @@ export function buildTrialProductionWorkbook(args: {
   const merges: XLSX.Range[] = [];
 
   const totalValueCols = model.columns.length;
-  // Total columns: 1 (index) + 1 (label) + totalValueCols
-  const totalCols = 2 + totalValueCols;
+  // Total columns: 1 (label) + totalValueCols
+  const totalCols = 1 + totalValueCols;
 
   let rowIdx = 0; // 0-based row index
   let groupIndex = -1; // Track group index for ABAB coloring
@@ -98,13 +98,11 @@ export function buildTrialProductionWorkbook(args: {
       const style = getStyleForGroup(groupIndex, false);
       const cellStyle = createCellStyle(style);
 
-      // Col A: index label
-      ws[XLSX.utils.encode_cell({ r: rowIdx, c: 0 })] = { v: row.indexLabel, t: 's', s: cellStyle };
-      // Col B: field label
-      ws[XLSX.utils.encode_cell({ r: rowIdx, c: 1 })] = { v: row.fieldLabel, t: 's', s: cellStyle };
+      // Col A: field label
+      ws[XLSX.utils.encode_cell({ r: rowIdx, c: 0 })] = { v: row.fieldLabel, t: 's', s: cellStyle };
 
-      // Value cells starting at col C (c=2)
-      let colCursor = 2;
+      // Value cells starting at col B (c=1)
+      let colCursor = 1;
       for (const cell of row.cells) {
         ws[XLSX.utils.encode_cell({ r: rowIdx, c: colCursor })] = {
           v: cell.value,
@@ -131,9 +129,14 @@ export function buildTrialProductionWorkbook(args: {
 
   // Set column widths
   const defaultSupplyWidth = 22;
+  const maxLabelLength = Math.max(
+    ...model.rows
+      .filter((r): r is Extract<(typeof model.rows)[number], { kind: 'field' }> => r.kind === 'field')
+      .map((r) => r.fieldLabel.length),
+    6
+  );
   ws['!cols'] = [
-    { wch: 4 },   // index col
-    { wch: 18 },  // label col
+    { wch: Math.max(maxLabelLength, 18) },  // label col (width based on longest field label)
     ...model.columns.map((col) => {
       const px = args.layout?.supplyWidths?.[col.supplyId] ?? defaultSupplyWidth * 6;
       return { wch: Math.round(px / 6) };
