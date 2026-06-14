@@ -21,3 +21,13 @@
 - A 列宽度复用 Step 2-4 公式 `Math.max(maxLabelLength * 16, 120)`（Univer 像素）或 `Math.max(maxLabelLength, 18)`（Excel `wch` 字符宽度），保证 eFuse 标签如 `硬件(efuse)` 完整显示。
 - 历史 plan/spec（如 `2026-05-28-step5-exact-excel-export.md`）作为实施快照不修改，本次变更以本 ADR 单一权威记录。
 - 实施计划：`docs/superpowers/plans/2026-06-13-step5-column-alignment.md`；commits：`baf40ba` (删 indexLabel) → `121e152` (excel 1+N) → `d7f1c44` (univer 1+N) → `e19aebf` (test 1+N 断言)。
+
+## 2026-06-13 - Step 3-5 新增列"单独成列"语义
+- 现状：所有 step 共用同一段 before/after 位置逻辑（`App.tsx:handleStructureColumnInsert` 的 `afterSupplyId` 计算）
+- 决策：Step 2 保持 `before=挤占 anchor 左侧`、`after=anchor 之后`；Step 3-5 统一为"所有插入都到 anchor 之后"（`before` 与 `after` 业务层等价）
+- 实现：`App.tsx` 的 `afterSupplyId` 映射加 `currentStep >= 3` 三元判断
+- Univer 端不动：`TrialProductionSheet.tsx` 仍 step-agnostic，方向（`Direction.LEFT/RIGHT`）由 Univer 命令层区分，业务层统一映射
+- 函数 invariant：`insertDynamicSupply` 签名/行为不变；`dynamicStructure.test.ts` 4 个用例不变
+- 测试策略 A：0 新增测试；靠 `dynamicStructure.test.ts`（Step 2 行为）+ `behavior.test.tsx`（Step 3+`after` 链路）守护
+- 业务影响：Step 3-5 用户点"左侧插入列"现在等价于"右侧插入列"，新列永远追加在 anchor 之后；anchor 保持原位
+- 实施计划：`docs/superpowers/plans/2026-06-13-step3-5-insert-column-after-anchor.md`；commit：`ba80770 refactor(insert-column): step 3-5 always insert after anchor`
