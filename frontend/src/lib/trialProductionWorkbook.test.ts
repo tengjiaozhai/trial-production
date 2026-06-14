@@ -80,7 +80,7 @@ describe('buildTrialProductionWorkbook', () => {
     });
 
     const ws = wb.Sheets['搭配表'];
-    expect(ws['B2']?.v).toBe('硬件(efuse)');
+    expect(ws['A2']?.v).toBe('硬件(efuse)');
   });
 
   it('applies ABAB color scheme to title rows', () => {
@@ -99,7 +99,7 @@ describe('buildTrialProductionWorkbook', () => {
     const ws = wb.Sheets['搭配表'];
     
     // Field rows should have body styles
-    const b2 = ws['B2']; // First field row
-    expect(b2?.s?.fill?.fgColor?.rgb).toBe('F7FBFF'); // BLOCK_A body
+    const a2 = ws['A2']; // First field row
+    expect(a2?.s?.fill?.fgColor?.rgb).toBe('F7FBFF'); // BLOCK_A body
   });
 });

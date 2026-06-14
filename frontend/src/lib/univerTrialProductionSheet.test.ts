@@ -436,8 +436,8 @@ describe('buildWorkbookSnapshot - group rows merge', () => {
     expect(model.readOnly).toBe(true);
     expect(model.step5Model).toBeDefined();
     expect(snapshot.sheets.sheet1.cellData[0]?.[0]?.v).toBe('基础信息');
-    expect(snapshot.sheets.sheet1.cellData[1]?.[1]?.v).toBe('项目名称');
-    expect(snapshot.sheets.sheet1.cellData[1]?.[2]?.v).toBe('X6728');
+    expect(snapshot.sheets.sheet1.cellData[1]?.[0]?.v).toBe('项目名称');
+    expect(snapshot.sheets.sheet1.cellData[1]?.[1]?.v).toBe('X6728');
     expect(snapshot.sheets.sheet1.mergeData.length).toBeGreaterThan(0);
   });
 });

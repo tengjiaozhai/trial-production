@@ -224,6 +224,6 @@ describe('getSheetDataBounds', () => {
     });
     const bounds = getSheetDataBounds(model);
     expect(bounds.lastRow).toBe(model.step5Model!.rows.length - 1);
-    expect(bounds.lastCol).toBe(1 + model.step5Model!.columns.length);
+    expect(bounds.lastCol).toBe(model.step5Model!.columns.length);
   });
 });
