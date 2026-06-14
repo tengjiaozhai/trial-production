@@ -39,7 +39,7 @@ describe('buildStep4StorageValidationResults', () => {
         validationResult: {
           ok: false,
           reasons: ['flash EMMC 不匹配'],
-          mismatches: [{ targetFieldId: 'emmc', reason: 'flash EMMC 不匹配', kind: 'mismatch' }],
+          mismatches: [{ targetFieldId: 'emmc', reason: 'flash EMMC 不匹配' }],
         },
       })
     ).toEqual([
@@ -67,7 +67,7 @@ describe('buildStep4StorageValidationResults', () => {
         validationResult: {
           ok: false,
           reasons: ['flash DDR 不匹配'],
-          mismatches: [{ targetFieldId: 'ddr', reason: 'flash DDR 不匹配', kind: 'mismatch' }],
+          mismatches: [{ targetFieldId: 'ddr', reason: 'flash DDR 不匹配' }],
         },
       })
     ).toEqual([
@@ -96,8 +96,8 @@ describe('buildStep4StorageValidationResults', () => {
           ok: false,
           reasons: ['flash EMMC 不匹配', 'flash DDR 不匹配'],
           mismatches: [
-            { targetFieldId: 'emmc', reason: 'flash EMMC 不匹配', kind: 'mismatch' },
-            { targetFieldId: 'ddr', reason: 'flash DDR 不匹配', kind: 'mismatch' },
+            { targetFieldId: 'emmc', reason: 'flash EMMC 不匹配' },
+            { targetFieldId: 'ddr', reason: 'flash DDR 不匹配' },
           ],
         },
       })
@@ -154,31 +154,4 @@ describe('buildStep4StorageValidationResults', () => {
     ]);
   });
 
-  it('returns an unfilled card for emmc kind=unfilled', () => {
-    expect(
-      buildStep4StorageValidationResults({
-        skuId: 'sku_1',
-        supplyId: 's_1',
-        prefix: '[X6728 · 一供] ',
-        storage: '4+128',
-        validationResult: {
-          ok: false,
-          reasons: ['flash EMMC 未填'],
-          mismatches: [{ targetFieldId: 'emmc', reason: 'flash EMMC 未填', kind: 'unfilled' }],
-        },
-      })
-    ).toEqual([
-      {
-        id: 'RULE-STORAGE-sku_1-s_1-emmc',
-        title: 'flash EMMC 未填',
-        detail: '[X6728 · 一供] flash EMMC 字段未填写，无法核验存储(4+128)。',
-        amReference: 'Rule-2',
-        level: 'error',
-        fieldId: 'storage',
-        targetFieldId: 'emmc',
-        skuId: 'sku_1',
-        supplyId: 's_1',
-      },
-    ]);
-  });
 });

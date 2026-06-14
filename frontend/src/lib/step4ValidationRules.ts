@@ -12,12 +12,9 @@ export function extractTrailingSize(raw: string): string {
   return fallback.length > 0 ? fallback[fallback.length - 1][1] : '';
 }
 
-export type StorageMismatchKind = 'unfilled' | 'mismatch';
-
 export type StorageMismatch = {
   targetFieldId: 'emmc' | 'ddr';
   reason: string;
-  kind: StorageMismatchKind;
 };
 
 export function validateStorageAgainstComponents(args: {
@@ -37,19 +34,13 @@ export function validateStorageAgainstComponents(args: {
   const emmcSize = extractTrailingSize(args.emmc);
   const ddrSize = extractTrailingSize(args.ddr);
 
-  if (!emmcSize) {
-    reasons.push('flash EMMC 未填');
-    mismatches.push({ targetFieldId: 'emmc', reason: 'flash EMMC 未填', kind: 'unfilled' });
-  } else if (emmcSize !== pair.emmc) {
+  if (emmcSize && emmcSize !== pair.emmc) {
     reasons.push('flash EMMC 不匹配');
-    mismatches.push({ targetFieldId: 'emmc', reason: 'flash EMMC 不匹配', kind: 'mismatch' });
+    mismatches.push({ targetFieldId: 'emmc', reason: 'flash EMMC 不匹配' });
   }
-  if (!ddrSize) {
-    reasons.push('flash DDR 未填');
-    mismatches.push({ targetFieldId: 'ddr', reason: 'flash DDR 未填', kind: 'unfilled' });
-  } else if (ddrSize !== pair.ddr) {
+  if (ddrSize && ddrSize !== pair.ddr) {
     reasons.push('flash DDR 不匹配');
-    mismatches.push({ targetFieldId: 'ddr', reason: 'flash DDR 不匹配', kind: 'mismatch' });
+    mismatches.push({ targetFieldId: 'ddr', reason: 'flash DDR 不匹配' });
   }
 
   return { ok: reasons.length === 0, reasons, mismatches };

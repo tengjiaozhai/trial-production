@@ -7,27 +7,6 @@ type StorageValidationResult = {
   mismatches: StorageMismatch[];
 };
 
-function titleForMismatch(mismatch: StorageMismatch): string {
-  const isEmmc = mismatch.targetFieldId === 'emmc';
-  if (mismatch.kind === 'unfilled') {
-    return isEmmc ? 'flash EMMC 未填' : 'flash DDR 未填';
-  }
-  return isEmmc ? '存储与 flash EMMC 冲突' : '存储与 flash DDR 冲突';
-}
-
-function detailForMismatch(args: {
-  prefix: string;
-  storage: string;
-  mismatch: StorageMismatch;
-}): string {
-  const { prefix, storage, mismatch } = args;
-  if (mismatch.kind === 'unfilled') {
-    const fieldLabel = mismatch.targetFieldId === 'emmc' ? 'flash EMMC' : 'flash DDR';
-    return `${prefix}${fieldLabel} 字段未填写，无法核验存储(${storage})。`;
-  }
-  return `${prefix}存储(${storage})与${mismatch.reason}冲突。`;
-}
-
 export function buildStep4StorageValidationResults(args: {
   skuId: string;
   supplyId: string;
@@ -69,8 +48,8 @@ export function buildStep4StorageValidationResults(args: {
 
   return validationResult.mismatches.map((mismatch) => ({
     id: `RULE-STORAGE-${skuId}-${supplyId}-${mismatch.targetFieldId}`,
-    title: titleForMismatch(mismatch),
-    detail: detailForMismatch({ prefix, storage, mismatch }),
+    title: mismatch.targetFieldId === 'emmc' ? '存储与 flash EMMC 冲突' : '存储与 flash DDR 冲突',
+    detail: `${prefix}存储(${storage})与${mismatch.reason}冲突。`,
     amReference: 'Rule-2',
     level: 'error',
     fieldId: 'storage',

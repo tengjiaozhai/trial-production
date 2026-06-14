@@ -45,7 +45,7 @@ describe('validateStorageAgainstComponents', () => {
     ).toEqual({
       ok: false,
       reasons: ['flash EMMC 不匹配'],
-      mismatches: [{ targetFieldId: 'emmc', reason: 'flash EMMC 不匹配', kind: 'mismatch' }],
+      mismatches: [{ targetFieldId: 'emmc', reason: 'flash EMMC 不匹配' }],
     });
   });
 
@@ -59,7 +59,7 @@ describe('validateStorageAgainstComponents', () => {
     ).toEqual({
       ok: false,
       reasons: ['flash DDR 不匹配'],
-      mismatches: [{ targetFieldId: 'ddr', reason: 'flash DDR 不匹配', kind: 'mismatch' }],
+      mismatches: [{ targetFieldId: 'ddr', reason: 'flash DDR 不匹配' }],
     });
   });
 
@@ -74,8 +74,8 @@ describe('validateStorageAgainstComponents', () => {
       ok: false,
       reasons: ['flash EMMC 不匹配', 'flash DDR 不匹配'],
       mismatches: [
-        { targetFieldId: 'emmc', reason: 'flash EMMC 不匹配', kind: 'mismatch' },
-        { targetFieldId: 'ddr', reason: 'flash DDR 不匹配', kind: 'mismatch' },
+        { targetFieldId: 'emmc', reason: 'flash EMMC 不匹配' },
+        { targetFieldId: 'ddr', reason: 'flash DDR 不匹配' },
       ],
     });
   });
@@ -90,63 +90,28 @@ describe('validateStorageAgainstComponents', () => {
     ).toEqual({ ok: false, reasons: ['存储格式错误'], mismatches: [] });
   });
 
-  it('treats empty emmc as unfilled (not mismatch)', () => {
+  it('skips emmc when empty, only reports ddr mismatch', () => {
     expect(
       validateStorageAgainstComponents({
         storage: '4+128',
         emmc: '',
-        ddr: '14201579一供三星4G',
+        ddr: '14201579一供三星8G',
       })
     ).toEqual({
       ok: false,
-      reasons: ['flash EMMC 未填'],
-      mismatches: [{ targetFieldId: 'emmc', reason: 'flash EMMC 未填', kind: 'unfilled' }],
+      reasons: ['flash DDR 不匹配'],
+      mismatches: [{ targetFieldId: 'ddr', reason: 'flash DDR 不匹配' }],
     });
   });
 
-  it('treats empty ddr as unfilled (not mismatch)', () => {
-    expect(
-      validateStorageAgainstComponents({
-        storage: '4+128',
-        emmc: '14201661一供宏芯宇128G',
-        ddr: '',
-      })
-    ).toEqual({
-      ok: false,
-      reasons: ['flash DDR 未填'],
-      mismatches: [{ targetFieldId: 'ddr', reason: 'flash DDR 未填', kind: 'unfilled' }],
-    });
-  });
-
-  it('treats whitespace-only emmc as unfilled', () => {
-    expect(
-      validateStorageAgainstComponents({
-        storage: '4+128',
-        emmc: '   ',
-        ddr: '14201579一供三星4G',
-      })
-    ).toEqual({
-      ok: false,
-      reasons: ['flash EMMC 未填'],
-      mismatches: [{ targetFieldId: 'emmc', reason: 'flash EMMC 未填', kind: 'unfilled' }],
-    });
-  });
-
-  it('reports both emmc and ddr as unfilled when both are empty', () => {
+  it('returns no mismatches when both emmc and ddr are empty', () => {
     expect(
       validateStorageAgainstComponents({
         storage: '4+128',
         emmc: '',
         ddr: '',
       })
-    ).toEqual({
-      ok: false,
-      reasons: ['flash EMMC 未填', 'flash DDR 未填'],
-      mismatches: [
-        { targetFieldId: 'emmc', reason: 'flash EMMC 未填', kind: 'unfilled' },
-        { targetFieldId: 'ddr', reason: 'flash DDR 未填', kind: 'unfilled' },
-      ],
-    });
+    ).toEqual({ ok: true, reasons: [], mismatches: [] });
   });
 });
 
