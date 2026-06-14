@@ -38,15 +38,15 @@ describe('buildStep4StorageValidationResults', () => {
         storage: '4+128',
         validationResult: {
           ok: false,
-          reasons: ['flash EMMC不匹配'],
-          mismatches: [{ targetFieldId: 'emmc', reason: 'flash EMMC不匹配' }],
+          reasons: ['flash EMMC 不匹配'],
+          mismatches: [{ targetFieldId: 'emmc', reason: 'flash EMMC 不匹配', kind: 'mismatch' }],
         },
       })
     ).toEqual([
       {
         id: 'RULE-STORAGE-sku_1-s_1-emmc',
         title: '存储与 flash EMMC 冲突',
-        detail: '[X6728 · 一供] 存储(4+128)与flash EMMC不匹配冲突。',
+        detail: '[X6728 · 一供] 存储(4+128)与flash EMMC 不匹配冲突。',
         amReference: 'Rule-2',
         level: 'error',
         fieldId: 'storage',
@@ -66,15 +66,15 @@ describe('buildStep4StorageValidationResults', () => {
         storage: '4+128',
         validationResult: {
           ok: false,
-          reasons: ['flash DDR不匹配'],
-          mismatches: [{ targetFieldId: 'ddr', reason: 'flash DDR不匹配' }],
+          reasons: ['flash DDR 不匹配'],
+          mismatches: [{ targetFieldId: 'ddr', reason: 'flash DDR 不匹配', kind: 'mismatch' }],
         },
       })
     ).toEqual([
       {
         id: 'RULE-STORAGE-sku_1-s_1-ddr',
         title: '存储与 flash DDR 冲突',
-        detail: '[X6728 · 一供] 存储(4+128)与flash DDR不匹配冲突。',
+        detail: '[X6728 · 一供] 存储(4+128)与flash DDR 不匹配冲突。',
         amReference: 'Rule-2',
         level: 'error',
         fieldId: 'storage',
@@ -94,10 +94,10 @@ describe('buildStep4StorageValidationResults', () => {
         storage: '4+128',
         validationResult: {
           ok: false,
-          reasons: ['flash EMMC不匹配', 'flash DDR不匹配'],
+          reasons: ['flash EMMC 不匹配', 'flash DDR 不匹配'],
           mismatches: [
-            { targetFieldId: 'emmc', reason: 'flash EMMC不匹配' },
-            { targetFieldId: 'ddr', reason: 'flash DDR不匹配' },
+            { targetFieldId: 'emmc', reason: 'flash EMMC 不匹配', kind: 'mismatch' },
+            { targetFieldId: 'ddr', reason: 'flash DDR 不匹配', kind: 'mismatch' },
           ],
         },
       })
@@ -105,7 +105,7 @@ describe('buildStep4StorageValidationResults', () => {
       {
         id: 'RULE-STORAGE-sku_1-s_1-emmc',
         title: '存储与 flash EMMC 冲突',
-        detail: '[X6728 · 一供] 存储(4+128)与flash EMMC不匹配冲突。',
+        detail: '[X6728 · 一供] 存储(4+128)与flash EMMC 不匹配冲突。',
         amReference: 'Rule-2',
         level: 'error',
         fieldId: 'storage',
@@ -116,7 +116,7 @@ describe('buildStep4StorageValidationResults', () => {
       {
         id: 'RULE-STORAGE-sku_1-s_1-ddr',
         title: '存储与 flash DDR 冲突',
-        detail: '[X6728 · 一供] 存储(4+128)与flash DDR不匹配冲突。',
+        detail: '[X6728 · 一供] 存储(4+128)与flash DDR 不匹配冲突。',
         amReference: 'Rule-2',
         level: 'error',
         fieldId: 'storage',
@@ -148,6 +148,34 @@ describe('buildStep4StorageValidationResults', () => {
         amReference: 'Rule-2',
         level: 'error',
         fieldId: 'storage',
+        skuId: 'sku_1',
+        supplyId: 's_1',
+      },
+    ]);
+  });
+
+  it('returns an unfilled card for emmc kind=unfilled', () => {
+    expect(
+      buildStep4StorageValidationResults({
+        skuId: 'sku_1',
+        supplyId: 's_1',
+        prefix: '[X6728 · 一供] ',
+        storage: '4+128',
+        validationResult: {
+          ok: false,
+          reasons: ['flash EMMC 未填'],
+          mismatches: [{ targetFieldId: 'emmc', reason: 'flash EMMC 未填', kind: 'unfilled' }],
+        },
+      })
+    ).toEqual([
+      {
+        id: 'RULE-STORAGE-sku_1-s_1-emmc',
+        title: 'flash EMMC 未填',
+        detail: '[X6728 · 一供] flash EMMC 字段未填写，无法核验存储(4+128)。',
+        amReference: 'Rule-2',
+        level: 'error',
+        fieldId: 'storage',
+        targetFieldId: 'emmc',
         skuId: 'sku_1',
         supplyId: 's_1',
       },

@@ -12,6 +12,14 @@ export function extractTrailingSize(raw: string): string {
   return fallback.length > 0 ? fallback[fallback.length - 1][1] : '';
 }
 
+export type StorageMismatchKind = 'unfilled' | 'mismatch';
+
+export type StorageMismatch = {
+  targetFieldId: 'emmc' | 'ddr';
+  reason: string;
+  kind: StorageMismatchKind;
+};
+
 export function validateStorageAgainstComponents(args: {
   storage: string;
   emmc: string;
@@ -19,23 +27,29 @@ export function validateStorageAgainstComponents(args: {
 }): {
   ok: boolean;
   reasons: string[];
-  mismatches: Array<{ targetFieldId: 'emmc' | 'ddr'; reason: string }>;
+  mismatches: StorageMismatch[];
 } {
   const pair = parseStoragePair(args.storage);
   if (!pair) return { ok: false, reasons: ['存储格式错误'], mismatches: [] };
 
   const reasons: string[] = [];
-  const mismatches: Array<{ targetFieldId: 'emmc' | 'ddr'; reason: string }> = [];
+  const mismatches: StorageMismatch[] = [];
   const emmcSize = extractTrailingSize(args.emmc);
   const ddrSize = extractTrailingSize(args.ddr);
 
-  if (!emmcSize || emmcSize !== pair.emmc) {
-    reasons.push('flash EMMC不匹配');
-    mismatches.push({ targetFieldId: 'emmc', reason: 'flash EMMC不匹配' });
+  if (!emmcSize) {
+    reasons.push('flash EMMC 未填');
+    mismatches.push({ targetFieldId: 'emmc', reason: 'flash EMMC 未填', kind: 'unfilled' });
+  } else if (emmcSize !== pair.emmc) {
+    reasons.push('flash EMMC 不匹配');
+    mismatches.push({ targetFieldId: 'emmc', reason: 'flash EMMC 不匹配', kind: 'mismatch' });
   }
-  if (!ddrSize || ddrSize !== pair.ddr) {
-    reasons.push('flash DDR不匹配');
-    mismatches.push({ targetFieldId: 'ddr', reason: 'flash DDR不匹配' });
+  if (!ddrSize) {
+    reasons.push('flash DDR 未填');
+    mismatches.push({ targetFieldId: 'ddr', reason: 'flash DDR 未填', kind: 'unfilled' });
+  } else if (ddrSize !== pair.ddr) {
+    reasons.push('flash DDR 不匹配');
+    mismatches.push({ targetFieldId: 'ddr', reason: 'flash DDR 不匹配', kind: 'mismatch' });
   }
 
   return { ok: reasons.length === 0, reasons, mismatches };
