@@ -1,5 +1,6 @@
 import type { FieldDefinition, SKUData, StepId, SupplyTag } from '../types';
-import { normalizeSelectedSupplyKey } from './supplyProjection';
+import { buildNewSkuId, buildNewSupplyId, createBlankSkuFromTemplate } from './tableOperations';
+import { getNextUnusedSupplyKey, normalizeSelectedSupplyKey, projectSkuForStep } from './supplyProjection';
 
 const SKU_SCOPED_FIELD_IDS = new Set(['project', 'stage', 'mb_id', 'storage', 'band']);
 
@@ -40,6 +41,64 @@ export function insertDynamicSupply(args: {
   return normalizeSelectedSupplyKey({
     ...args.sku,
     supplies: nextSupplies,
+  });
+}
+
+export function insertStructureColumn(args: {
+  skuData: SKUData[];
+  currentStep: StepId | number;
+  position: 'before' | 'after';
+  anchorSkuId: string;
+  anchorSupplyId: string;
+  newSkuId?: string;
+  newSupplyId?: string;
+  newSupplyKey?: SupplyTag;
+}): SKUData[] {
+  if (args.currentStep >= 3) {
+    const anchorIndex = args.skuData.findIndex((sku) => sku.id === args.anchorSkuId);
+    if (anchorIndex === -1) {
+      return args.skuData;
+    }
+
+    const anchorSku = args.skuData[anchorIndex];
+    const anchorSupply = anchorSku.supplies.find((supply) => supply.id === args.anchorSupplyId);
+    const projectedAnchor = projectSkuForStep(
+      anchorSupply
+        ? {
+            ...anchorSku,
+            selectedSupplyKey: anchorSupply.supplyKey,
+          }
+        : anchorSku,
+      args.currentStep,
+    );
+    const newSku = createBlankSkuFromTemplate(projectedAnchor, args.newSkuId ?? buildNewSkuId());
+    const insertIndex = args.position === 'before' ? anchorIndex : anchorIndex + 1;
+
+    return [
+      ...args.skuData.slice(0, insertIndex),
+      newSku,
+      ...args.skuData.slice(insertIndex),
+    ];
+  }
+
+  return args.skuData.map((sku) => {
+    if (sku.id !== args.anchorSkuId) {
+      return sku;
+    }
+
+    const anchorIndex = sku.supplies.findIndex((supply) => supply.id === args.anchorSupplyId);
+    const afterSupplyId =
+      args.position === 'before'
+        ? (anchorIndex > 0 ? sku.supplies[anchorIndex - 1]?.id : undefined)
+        : args.anchorSupplyId;
+
+    return insertDynamicSupply({
+      sku,
+      afterSupplyId,
+      currentStep: args.currentStep,
+      newSupplyId: args.newSupplyId ?? buildNewSupplyId(),
+      newSupplyKey: args.newSupplyKey ?? getNextUnusedSupplyKey(sku),
+    });
   });
 }
 

@@ -47,7 +47,7 @@ import type { SplitOptionFieldId } from './types';
 import { buildTrialProductionWorkbook } from './lib/trialProductionWorkbook';
 import type { Step5LayoutSnapshot } from './lib/trialProductionWorkbook';
 import { isSkuSpanningField } from './lib/step5TableModel';
-import { normalizeSelectedSupplyKey, projectSkuForStep, projectSkusForStep, listSupplyKeys, getNextUnusedSupplyKey } from './lib/supplyProjection';
+import { normalizeSelectedSupplyKey, projectSkuForStep, projectSkusForStep, listSupplyKeys } from './lib/supplyProjection';
 import { insertFieldAfter, createInsertedField, createBlankSkuFromTemplate, buildNewSkuId, captureCopyFromSku, pasteCopiedIntoTarget, buildNewSupplyId } from './lib/tableOperations';
 import type { CopiedSku } from './lib/tableOperations';
 import { LoginPage } from './components/LoginPage';
@@ -55,7 +55,7 @@ import { checkLoginStatus, recordUsage } from './lib/auth';
 import type { UserInfo } from './lib/auth';
 import { normalizeFieldValue, normalizeHistoryEntries, normalizeHistoryEntry, normalizeSkuDataValues } from './lib/skuValueNormalization';
 import { getLocalBypassUser, shouldBypassLocalLogin } from './config/localAuth';
-import { buildNextCustomFieldLabel, insertDynamicSupply, updateCustomFieldLabel } from './lib/dynamicStructure';
+import { buildNextCustomFieldLabel, insertStructureColumn, updateCustomFieldLabel } from './lib/dynamicStructure';
 import { getQaSeedEntries, shouldAllowQaSeed } from './lib/qaHistorySeeds';
 import { resolveHistoryLoadTransition } from './lib/historyLoadTransition';
 
@@ -1069,24 +1069,12 @@ export default function App() {
     anchorSupplyId: string;
   }) => {
     setSkuData((prev) =>
-      prev.map((sku) => {
-        if (sku.id !== payload.anchorSkuId) return sku;
-
-        const anchorIndex = sku.supplies.findIndex((supply) => supply.id === payload.anchorSupplyId);
-        const afterSupplyId =
-          currentStep >= 3
-            ? payload.anchorSupplyId
-            : payload.position === 'before'
-              ? (anchorIndex > 0 ? sku.supplies[anchorIndex - 1]?.id : undefined)
-              : payload.anchorSupplyId;
-
-        return insertDynamicSupply({
-          sku,
-          afterSupplyId,
-          currentStep,
-          newSupplyId: buildNewSupplyId(),
-          newSupplyKey: getNextUnusedSupplyKey(sku),
-        });
+      insertStructureColumn({
+        skuData: prev,
+        currentStep,
+        position: payload.position,
+        anchorSkuId: payload.anchorSkuId,
+        anchorSupplyId: payload.anchorSupplyId,
       })
     );
     setIsExportDisabled(true);
