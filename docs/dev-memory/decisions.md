@@ -31,3 +31,13 @@
 - 测试策略 A：0 新增测试；靠 `dynamicStructure.test.ts`（Step 2 行为）+ `behavior.test.tsx`（Step 3+`after` 链路）守护
 - 业务影响：Step 3-5 用户点"左侧插入列"现在等价于"右侧插入列"，新列永远追加在 anchor 之后；anchor 保持原位
 - 实施计划：`docs/superpowers/plans/2026-06-13-step3-5-insert-column-after-anchor.md`；commit：`ba80770 refactor(insert-column): step 3-5 always insert after anchor`
+
+## 2026-06-13 - 修复 Step 3+ 插入新 supply 时 selectedSupplyKey 自动丢失 anchor
+- 背景：Step 3 选中 B1 → 在 B1 左侧新增一列 aa1 → 切到 Step 4 后 B1 丢失，只剩 aa1
+- 根因：`dynamicStructure.ts:insertDynamicSupply` 在 Step 3+ 下自动把 `selectedSupplyKey` 切到新插入的 supply；Step 4 投影（`supplyProjection.ts:projectSkuForStep`）按 selectedSupplyKey 过滤，导致 anchor 被丢弃
+- 决策：`insertDynamicSupply` 改为单一职责 — 只做"插入新 supply"，不再附带 selectedSupplyKey 切换副作用；调用方按需显式控制切换
+- 函数 invariant：`insertDynamicSupply` 不再修改 `selectedSupplyKey`，新 supply 插入后 anchor 仍保持选中
+- 测试：`dynamicStructure.test.ts` "switches selectedSupplyKey to the inserted supply from step 3 onward" 反转为 "keeps the current selectedSupplyKey when inserting a new supply from step 3 onward"
+- 业务影响：用户在 Step 3+ 选中 anchor 后点"插入列"，anchor 保持选中；切到 Step 4 看到 anchor 而不是新列；新列需要用户主动切到才能编辑
+- 兼容性：与 `App.tsx:handleStructureColumnInsert` 的现有调用无冲突；现有 `dynamicStructure.test.ts` 7 个用例全过
+- 实施计划：`docs/superpowers/plans/2026-06-13-fix-insert-supply-selected-supply-key.md`；commits：`f56679d` (red test) → `00ded56` (fix)
