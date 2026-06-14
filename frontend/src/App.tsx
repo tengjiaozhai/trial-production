@@ -1090,38 +1090,6 @@ export default function App() {
     setIsExportDisabled(true);
   }, [currentStep]);
 
-  const handleFieldLabelChange = useCallback((fieldId: string, label: string) => {
-    const nextLabel = label.trim();
-    if (!nextLabel) return;
-
-    setActiveFields((prev) => updateCustomFieldLabel(prev, fieldId, nextLabel));
-    setIsExportDisabled(true);
-  }, []);
-
-  const handleAppendField = useCallback(() => {
-    setActiveFields((prev) => {
-      if (prev.length === 0) return prev;
-      const last = prev[prev.length - 1];
-      const newField = createInsertedField(last.id, prev, buildNextCustomFieldLabel(prev));
-      return insertFieldAfter(prev, last.id, newField);
-    });
-    setIsExportDisabled(true);
-  }, []);
-
-  const handleAppendSupplyToAllSkus = useCallback(() => {
-    setSkuData((prev) =>
-      prev.map((sku) =>
-        insertDynamicSupply({
-          sku,
-          currentStep,
-          newSupplyId: buildNewSupplyId(),
-          newSupplyKey: getNextUnusedSupplyKey(sku),
-        })
-      )
-    );
-    setIsExportDisabled(true);
-  }, [currentStep]);
-
   const handleAddSku = () => {
     const newSku: SKUData = {
       id: `sku_${Date.now()}`,
@@ -1131,20 +1099,6 @@ export default function App() {
       supplies: [{ id: 's1', supplyKey: '一供', label: '一供', values: {} }]
     };
     setSkuData(prev => [...prev, newSku]);
-  };
-
-  const handleAddSupply = (skuId: string) => {
-    setSkuData(prev => prev.map(sku => {
-      if (sku.id !== skuId) return sku;
-
-      return insertDynamicSupply({
-        sku,
-        currentStep,
-        newSupplyId: buildNewSupplyId(),
-        newSupplyKey: getNextUnusedSupplyKey(sku),
-      });
-    }));
-    setIsExportDisabled(true);
   };
 
   const handleUpdateSupplyLabel = (skuId: string, supplyId: string, val: string) => {
@@ -1611,10 +1565,7 @@ export default function App() {
                     onSelectedSupplyChange={currentStep === 3 ? handleUpdateSelectedSupply : undefined}
                     onStructureRowInsert={handleStructureRowInsert}
                     onStructureColumnInsert={handleStructureColumnInsert}
-                    onFieldLabelChange={handleFieldLabelChange}
                     onStep5LayoutChange={setStep5Layout}
-                    onAppendField={handleAppendField}
-                    onAppendSupplyToAllSkus={handleAppendSupplyToAllSkus}
                   />
                 </div>
               </motion.div>

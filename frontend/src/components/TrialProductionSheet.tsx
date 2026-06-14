@@ -1,13 +1,4 @@
 import { useEffect, useMemo, useRef, forwardRef, useImperativeHandle, useState } from 'react';
-import { createUniver, LocaleType, mergeLocales } from '@univerjs/presets';
-import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core';
-import UniverPresetSheetsCoreZhCN from '@univerjs/preset-sheets-core/locales/zh-CN';
-import { UniverSheetsDataValidationPreset } from '@univerjs/preset-sheets-data-validation';
-import UniverPresetSheetsDataValidationZhCN from '@univerjs/preset-sheets-data-validation/locales/zh-CN';
-import '@univerjs/preset-sheets-data-validation/lib/index.css';
-import { Direction, ICommandService } from '@univerjs/core';
-import { FUniver } from '@univerjs/core/facade';
-import { Plus } from 'lucide-react';
 import type { SKUData, FieldDefinition, StepId, SupplyTag } from '../types';
 import type { Step2CellConflict } from '../lib/step2CellConflicts';
 import { buildTrialProductionSheetModel } from '../lib/univerTrialProductionSheet';
@@ -100,10 +91,7 @@ interface TrialProductionSheetProps {
   onSelectedSupplyChange?: (skuId: string, supplyKey: string) => void;
   onStructureRowInsert?: (payload: StructureRowInsertPayload) => void;
   onStructureColumnInsert?: (payload: StructureColumnInsertPayload) => void;
-  onFieldLabelChange?: (fieldId: string, label: string) => void;
   onStep5LayoutChange?: (layout: { supplyWidths: Record<string, number>; rowHeights: Record<string, number> }) => void;
-  onAppendField?: () => void;
-  onAppendSupplyToAllSkus?: () => void;
   className?: string;
 }
 
@@ -124,16 +112,13 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       onSelectedSupplyChange,
       onStructureRowInsert,
       onStructureColumnInsert,
-      onFieldLabelChange,
       onStep5LayoutChange,
-      onAppendField,
-      onAppendSupplyToAllSkus,
       className,
     } = props;
 
     const containerRef = useRef<HTMLDivElement>(null);
-    const univerRef = useRef<ReturnType<typeof createUniver> | null>(null);
-    const univerAPIRef = useRef<ReturnType<typeof createUniver>['univerAPI'] | null>(null);
+    const univerRef = useRef<{ univer: { dispose: () => void }; univerAPI: unknown } | null>(null);
+    const univerAPIRef = useRef<unknown>(null);
     const [univerReady, setUniverReady] = useState(false);
     const cellMapRef = useRef<Record<string, import('../lib/univerTrialProductionSheet').TrialProductionCellKey>>({});
     const modelRef = useRef<ReturnType<typeof buildTrialProductionSheetModel> | null>(null);
@@ -323,7 +308,7 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
       const columns = currentModel.readOnly && currentModel.step5Model
         ? currentModel.step5Model.columns
         : currentModel.columns;
-      const leadingColumns = currentModel.readOnly && currentModel.step5Model ? 2 : 1;
+      const leadingColumns = 1;
       const dataColumnIndex = column - leadingColumns;
       const anchorColumn = columns[dataColumnIndex];
       if (!anchorColumn) return null;
@@ -485,47 +470,93 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
 
     // Initialize Univer once
     useEffect(() => {
+      if (currentStep < 2) return;
       const container = containerRef.current;
       if (!container || univerRef.current) return;
 
-      const univerInstance = createUniver({
-        locale: LocaleType.ZH_CN,
-        locales: {
-          [LocaleType.ZH_CN]: mergeLocales(
-            UniverPresetSheetsCoreZhCN,
-            UniverPresetSheetsDataValidationZhCN,
-          ),
-        },
-        presets: [
-          UniverSheetsCorePreset({
-            container: containerRef.current,
-          }),
-          UniverSheetsDataValidationPreset(),
-        ],
-      });
+      let cancelled = false;
+      let dispose: (() => void) | null = null;
 
-      univerRef.current = univerInstance;
-      univerAPIRef.current = univerInstance.univerAPI;
-      const readyTimer = window.setTimeout(() => {
-        setUniverReady(true);
-      }, 0);
-      univerReadyTimersRef.current.push(readyTimer);
+      ;(async () => {
+        const [
+          { createUniver, LocaleType, mergeLocales },
+          { UniverSheetsCorePreset },
+          UniverPresetSheetsCoreZhCNModule,
+          { UniverSheetsDataValidationPreset },
+          UniverPresetSheetsDataValidationZhCNModule,
+        ] = await Promise.all([
+          import('@univerjs/presets'),
+          import('@univerjs/preset-sheets-core'),
+          import('@univerjs/preset-sheets-core/locales/zh-CN'),
+          import('@univerjs/preset-sheets-data-validation'),
+          import('@univerjs/preset-sheets-data-validation/locales/zh-CN'),
+        ]);
+        const UniverPresetSheetsCoreZhCN = UniverPresetSheetsCoreZhCNModule.default;
+        const UniverPresetSheetsDataValidationZhCN = UniverPresetSheetsDataValidationZhCNModule.default;
+
+        if (cancelled) return;
+        if (!containerRef.current) return;
+
+        const univerInstance = createUniver({
+          locale: LocaleType.ZH_CN,
+          locales: {
+            [LocaleType.ZH_CN]: mergeLocales(
+              UniverPresetSheetsCoreZhCN,
+              UniverPresetSheetsDataValidationZhCN,
+            ),
+          },
+          presets: [
+            UniverSheetsCorePreset({
+              container: containerRef.current,
+            }),
+            UniverSheetsDataValidationPreset(),
+          ],
+        });
+
+        if (cancelled) {
+          try {
+            univerInstance.univer.dispose();
+          } catch {
+            // ignore dispose errors during cancel
+          }
+          return;
+        }
+
+        univerRef.current = univerInstance;
+        univerAPIRef.current = univerInstance.univerAPI;
+        const readyTimer = window.setTimeout(() => {
+          setUniverReady(true);
+        }, 0);
+        univerReadyTimersRef.current.push(readyTimer);
+
+        dispose = () => {
+          try {
+            univerInstance.univer.dispose();
+          } catch {
+            // ignore dispose errors during unmount
+          }
+        };
+      })();
 
       return () => {
+        cancelled = true;
         clearTimersInRef(focusRetryTimersRef);
         clearTimersInRef(viewportRestoreTimersRef);
         clearTimersInRef(univerReadyTimersRef);
-        univerInstance.univer.dispose();
+        if (dispose) {
+          dispose();
+        } else if (univerRef.current) {
+          try {
+            univerRef.current.univer.dispose();
+          } catch {
+            // ignore dispose errors during unmount
+          }
+        }
         setUniverReady(false);
         univerRef.current = null;
         univerAPIRef.current = null;
-        try {
-          univerInstance.univer.dispose();
-        } catch {
-          // ignore dispose errors during unmount
-        }
       };
-    }, []);
+    }, [currentStep]);
 
     // Structure fingerprint: only changes when step / fields / efuse config change
     const structureKey = useMemo(
@@ -537,10 +568,10 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
     useEffect(() => {
       if (!univerReady) return;
       if (lastStructureKeyRef.current === structureKey) return;
-      lastStructureKeyRef.current = structureKey;
 
       const api = univerAPIRef.current;
       if (!api) return;
+      lastStructureKeyRef.current = structureKey;
       const preserveViewport = previousStepRef.current === currentStep;
       const currentWorkbook = preserveViewport ? api.getActiveWorkbook() : null;
       const viewportState = preserveViewport
@@ -704,65 +735,74 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
 
     useEffect(() => {
       if (!univerReady) return;
-      const commandService = univerRef.current?.univer?.__getInjector?.().get?.(ICommandService);
-      if (!commandService) return;
-      const isStructureCommand = (command: any) =>
-        STRUCTURE_ROW_INSERT_COMMAND_IDS.has(command?.id) || STRUCTURE_COLUMN_INSERT_COMMAND_IDS.has(command?.id);
+      let cancelled = false;
+      let beforeDisposable: { dispose?: () => void } | null = null;
+      let disposable: { dispose?: () => void } | null = null;
 
-      const beforeDisposable = commandService.beforeCommandExecuted((command: any) => {
-        if (!isStructureCommand(command)) return;
-        const worksheet = univerAPIRef.current?.getActiveWorkbook()?.getActiveSheet();
-        pendingStructureViewportRef.current = captureSheetViewportState(worksheet);
-        pendingStructureInsertRef.current = resolveStructureInsertFromActiveCell(command.id, worksheet);
-      });
+      ;(async () => {
+        const { Direction, ICommandService } = await import('@univerjs/core');
+        if (cancelled) return;
+        const commandService = univerRef.current?.univer?.__getInjector?.().get?.(ICommandService);
+        if (!commandService) return;
+        const isStructureCommand = (command: any) =>
+          STRUCTURE_ROW_INSERT_COMMAND_IDS.has(command?.id) || STRUCTURE_COLUMN_INSERT_COMMAND_IDS.has(command?.id);
 
-      const disposable = commandService.onCommandExecuted((command: any) => {
-        if (!isStructureCommand(command)) return;
-        if (command.id === 'sheet.command.insert-row' || command.id === 'sheet.command.insert-col') {
-          if (!command?.params?.range) return;
+        beforeDisposable = commandService.beforeCommandExecuted((command: any) => {
+          if (!isStructureCommand(command)) return;
+          const worksheet = univerAPIRef.current?.getActiveWorkbook()?.getActiveSheet();
+          pendingStructureViewportRef.current = captureSheetViewportState(worksheet);
+          pendingStructureInsertRef.current = resolveStructureInsertFromActiveCell(command.id, worksheet);
+        });
 
-          if (command.id === 'sheet.command.insert-row' && onStructureRowInsert) {
-            const position = command.params.direction === Direction.UP ? 'before' : 'after';
-            const anchorRowIndex = command.params.direction === Direction.UP
-              ? command.params.range.startRow
-              : command.params.range.startRow - 1;
-            const payload = resolveStructureRowInsertPayload(anchorRowIndex, position);
-            if (payload) {
-              onStructureRowInsert(payload);
+        disposable = commandService.onCommandExecuted((command: any) => {
+          if (!isStructureCommand(command)) return;
+          if (command.id === 'sheet.command.insert-row' || command.id === 'sheet.command.insert-col') {
+            if (!command?.params?.range) return;
+
+            if (command.id === 'sheet.command.insert-row' && onStructureRowInsert) {
+              const position = command.params.direction === Direction.UP ? 'before' : 'after';
+              const anchorRowIndex = command.params.direction === Direction.UP
+                ? command.params.range.startRow
+                : command.params.range.startRow - 1;
+              const payload = resolveStructureRowInsertPayload(anchorRowIndex, position);
+              if (payload) {
+                onStructureRowInsert(payload);
+              }
+              pendingStructureInsertRef.current = null;
+              return;
             }
-            pendingStructureInsertRef.current = null;
+
+            if (command.id === 'sheet.command.insert-col' && onStructureColumnInsert) {
+              const position = command.params.direction === Direction.LEFT ? 'before' : 'after';
+              const anchorColumnIndex = command.params.direction === Direction.LEFT
+                ? command.params.range.startColumn
+                : command.params.range.startColumn - 1;
+              const payload = resolveStructureColumnInsertPayload(anchorColumnIndex, position);
+              if (payload) {
+                onStructureColumnInsert(payload);
+              }
+              pendingStructureInsertRef.current = null;
+            }
             return;
           }
 
-          if (command.id === 'sheet.command.insert-col' && onStructureColumnInsert) {
-            const position = command.params.direction === Direction.LEFT ? 'before' : 'after';
-            const anchorColumnIndex = command.params.direction === Direction.LEFT
-              ? command.params.range.startColumn
-              : command.params.range.startColumn - 1;
-            const payload = resolveStructureColumnInsertPayload(anchorColumnIndex, position);
-            if (payload) {
-              onStructureColumnInsert(payload);
-            }
-            pendingStructureInsertRef.current = null;
+          const pendingInsert = pendingStructureInsertRef.current;
+          pendingStructureInsertRef.current = null;
+          if (!pendingInsert) return;
+
+          if (pendingInsert.type === 'row' && onStructureRowInsert) {
+            onStructureRowInsert(pendingInsert.payload);
+            return;
           }
-          return;
-        }
 
-        const pendingInsert = pendingStructureInsertRef.current;
-        pendingStructureInsertRef.current = null;
-        if (!pendingInsert) return;
-
-        if (pendingInsert.type === 'row' && onStructureRowInsert) {
-          onStructureRowInsert(pendingInsert.payload);
-          return;
-        }
-
-        if (pendingInsert.type === 'column' && onStructureColumnInsert) {
-          onStructureColumnInsert(pendingInsert.payload);
-        }
-      });
+          if (pendingInsert.type === 'column' && onStructureColumnInsert) {
+            onStructureColumnInsert(pendingInsert.payload);
+          }
+        });
+      })();
 
       return () => {
+        cancelled = true;
         beforeDisposable?.dispose?.();
         disposable?.dispose?.();
       };
@@ -804,12 +844,8 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
         if (!isConfirm) return;
 
         const rowObj = modelRef.current?.rows[row];
-        if (column === 0 && rowObj?.kind === 'field' && rowObj.fieldId && onFieldLabelChange) {
-          const fieldDefinition = getRowFieldDefinition(rowObj.fieldId);
-          if (fieldDefinition?.behavior === 'manual') {
-            const nextLabel = normalizeUniverEditValue(value);
-            onFieldLabelChange(rowObj.fieldId, nextLabel);
-          }
+        // Column 0 is the field-label column — runtime label edits are disabled.
+        if (column === 0) {
           return;
         }
 
@@ -890,40 +926,13 @@ export const TrialProductionSheet = forwardRef<TrialProductionSheetHandle, Trial
         disposable?.dispose?.();
         valueChangedDisposable?.dispose?.();
       };
-    }, [univerReady, onUpdateValue, onSelectedSupplyChange, onFieldLabelChange, fieldIndex]);
+    }, [univerReady, onUpdateValue, onSelectedSupplyChange, fieldIndex]);
 
     return (
       <div
         className="flex flex-col h-full"
         data-testid="trial-production-sheet-wrapper"
       >
-        {(onAppendField || onAppendSupplyToAllSkus) && (
-          <div
-            className="flex items-center gap-2 px-3 py-2 border-b border-[#DDE7F3] bg-[#F6F9FF]"
-            data-testid="trial-production-sheet-toolbar"
-          >
-            {onAppendSupplyToAllSkus && (
-              <button
-                type="button"
-                data-testid="append-supply-button"
-                onClick={onAppendSupplyToAllSkus}
-                className="flex items-center gap-1 px-2 py-1 text-[12px] font-bold text-[#2563EB] hover:bg-white rounded transition-colors"
-              >
-                <Plus size={12} /> 新增供位
-              </button>
-            )}
-            {onAppendField && (
-              <button
-                type="button"
-                data-testid="append-field-button"
-                onClick={onAppendField}
-                className="flex items-center gap-1 px-2 py-1 text-[12px] font-bold text-[#2563EB] hover:bg-white rounded transition-colors"
-              >
-                <Plus size={12} /> 新增字段
-              </button>
-            )}
-          </div>
-        )}
         <div
           ref={containerRef}
           className={`${className ?? ''} flex-1 min-h-0`.trim()}
@@ -960,9 +969,8 @@ function calculateColumnWidths(
       6
     );
 
-    // Step 5 renders an index column and a field-label column before values.
-    widths[0] = { w: 48 };
-    widths[1] = { w: Math.max(maxLabelLength * 16, 120) };
+    // Step 5 renders a single field-label column (col 0) before value columns.
+    widths[0] = { w: Math.max(maxLabelLength * 16, 120) };
 
     const maxTextsPerCol: string[] = new Array(step5Model.columns.length).fill('');
     for (const row of step5Model.rows) {
@@ -982,7 +990,7 @@ function calculateColumnWidths(
 
     for (let i = 0; i < step5Model.columns.length; i++) {
       const width = Math.max(measureWidth(maxTextsPerCol[i]) + 16, 80); // +16 padding, min 80px
-      widths[i + 2] = { w: width };
+      widths[i + 1] = { w: width };
     }
 
     return widths;
@@ -1049,8 +1057,8 @@ export function getSheetDataBounds(
     const step5Model = model.step5Model!;
     return {
       lastRow: Math.max(step5Model.rows.length - 1, 0),
-      // Step5 layout: col 0 = index, col 1 = label, cols 2..N+1 = value columns
-      lastCol: Math.max(1 + step5Model.columns.length, 0),
+      // Step5 layout: col 0 = label, cols 1..N = value columns
+      lastCol: Math.max(step5Model.columns.length, 0),
     };
   }
 
@@ -1087,7 +1095,7 @@ export function buildWorkbookSnapshot(
   const mergeData: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }> = [];
   const isStep5Preview = model.readOnly && Boolean(model.step5Model);
   const totalValueCols = isStep5Preview ? model.step5Model!.columns.length : model.columns.length;
-  const totalCols = isStep5Preview ? 2 + totalValueCols : 1 + totalValueCols;
+  const totalCols = 1 + totalValueCols;
 
   // For non-Step5, build from model rows and columns
   if (isStep5Preview) {
@@ -1116,11 +1124,10 @@ export function buildWorkbookSnapshot(
         }
       } else {
         const groupStyle = getStyleForGroup(groupIndex, false);
-        cellData[rowIdx][0] = { v: row.indexLabel, s: groupStyle };
-        cellData[rowIdx][1] = { v: row.fieldLabel, s: groupStyle };
+        cellData[rowIdx][0] = { v: row.fieldLabel, s: groupStyle };
 
         const step5Cols = model.step5Model!.columns;
-        let colCursor = 2;
+        let colCursor = 1;
         let colIdx = 0;
         for (const cell of row.cells) {
           let value = cell.value;
