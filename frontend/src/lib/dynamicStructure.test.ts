@@ -76,7 +76,7 @@ describe('insertDynamicSupply', () => {
     });
   });
 
-  it('switches selectedSupplyKey to the inserted supply from step 3 onward', () => {
+  it('keeps the current selectedSupplyKey when inserting a new supply from step 3 onward', () => {
     const sku = makeSku();
 
     const result = insertDynamicSupply({
@@ -87,7 +87,7 @@ describe('insertDynamicSupply', () => {
       newSupplyKey: '三供',
     });
 
-    expect(result.selectedSupplyKey).toBe('三供');
+    expect(result.selectedSupplyKey).toBe('一供');
   });
 
   it('keeps the current selectedSupplyKey in step 2', () => {
