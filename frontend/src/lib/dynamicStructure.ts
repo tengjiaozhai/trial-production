@@ -39,7 +39,6 @@ export function insertDynamicSupply(args: {
 
   return normalizeSelectedSupplyKey({
     ...args.sku,
-    selectedSupplyKey: args.currentStep >= 3 ? args.newSupplyKey : args.sku.selectedSupplyKey,
     supplies: nextSupplies,
   });
 }
