@@ -1074,9 +1074,11 @@ export default function App() {
 
         const anchorIndex = sku.supplies.findIndex((supply) => supply.id === payload.anchorSupplyId);
         const afterSupplyId =
-          payload.position === 'before'
-            ? (anchorIndex > 0 ? sku.supplies[anchorIndex - 1]?.id : undefined)
-            : payload.anchorSupplyId;
+          currentStep >= 3
+            ? payload.anchorSupplyId
+            : payload.position === 'before'
+              ? (anchorIndex > 0 ? sku.supplies[anchorIndex - 1]?.id : undefined)
+              : payload.anchorSupplyId;
 
         return insertDynamicSupply({
           sku,
