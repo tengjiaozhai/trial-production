@@ -1190,7 +1190,7 @@ export default function App() {
         <div className="flex items-center gap-6">
           <div className="font-black text-xl tracking-tight text-[#0f2e4a] flex items-center gap-2">
             <img
-              src="/favicon.png"
+              src={`${import.meta.env.BASE_URL}favicon.png`}
               alt=""
               className="w-6 h-6 shrink-0 rounded object-cover"
               aria-hidden="true"
