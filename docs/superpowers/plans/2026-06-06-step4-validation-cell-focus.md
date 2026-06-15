@@ -48,13 +48,13 @@ export interface ValidationResult {
 
 - [ ] **Step 2: 运行类型检查**
 
-Run: `cd /Users/shenmingjie/tinno/trial-production/trial-production && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npx tsc --noEmit`
+Run: `cd /Volumes/PortableSSD/tin/trial-production && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npx tsc --noEmit`
 Expected: 无错误输出
 
 - [ ] **Step 3: Commit**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production
+cd /Volumes/PortableSSD/tin/trial-production
 git add src/types.ts
 git commit -m "feat: extend ValidationResult with skuId and supplyId for cell targeting"
 ```
@@ -140,13 +140,13 @@ results.push({
 
 - [ ] **Step 2: 运行类型检查**
 
-Run: `cd /Users/shenmingjie/tinno/trial-production/trial-production && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npx tsc --noEmit`
+Run: `cd /Volumes/PortableSSD/tin/trial-production && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npx tsc --noEmit`
 Expected: 无错误输出
 
 - [ ] **Step 3: Commit**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production
+cd /Volumes/PortableSSD/tin/trial-production
 git add src/App.tsx
 git commit -m "feat: add skuId and supplyId to validation results"
 ```
@@ -197,13 +197,13 @@ return (
 
 - [ ] **Step 3: 运行测试**
 
-Run: `cd /Users/shenmingjie/tinno/trial-production/trial-production && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npx vitest run src/components/TrialProductionTable.test.tsx`
+Run: `cd /Volumes/PortableSSD/tin/trial-production && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npx vitest run src/components/TrialProductionTable.test.tsx`
 Expected: 所有测试通过
 
 - [ ] **Step 4: Commit**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production
+cd /Volumes/PortableSSD/tin/trial-production
 git add src/components/TrialProductionTable.tsx
 git commit -m "feat: add data-step4-cell-id attribute to table cells"
 ```
@@ -263,13 +263,13 @@ const focusStep4Validation = (result: ValidationResult) => {
 
 - [ ] **Step 2: 运行类型检查**
 
-Run: `cd /Users/shenmingjie/tinno/trial-production/trial-production && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npx tsc --noEmit`
+Run: `cd /Volumes/PortableSSD/tin/trial-production && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npx tsc --noEmit`
 Expected: 无错误输出
 
 - [ ] **Step 3: Commit**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production
+cd /Volumes/PortableSSD/tin/trial-production
 git add src/components/Sidebar.tsx
 git commit -m "feat: add focusStep4Validation function for cell targeting"
 ```
@@ -313,13 +313,13 @@ git commit -m "feat: add focusStep4Validation function for cell targeting"
 
 - [ ] **Step 3: 运行测试**
 
-Run: `cd /Users/shenmingjie/tinno/trial-production/trial-production && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npx vitest run src/components/Sidebar.test.tsx`
+Run: `cd /Volumes/PortableSSD/tin/trial-production && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npx vitest run src/components/Sidebar.test.tsx`
 Expected: 所有测试通过
 
 - [ ] **Step 4: Commit**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production
+cd /Volumes/PortableSSD/tin/trial-production
 git add src/components/Sidebar.tsx
 git commit -m "feat: enable click-to-focus for step4 validation results"
 ```
@@ -384,13 +384,13 @@ describe('Sidebar step4 validation cell targeting', () => {
 
 - [ ] **Step 2: 运行测试**
 
-Run: `cd /Users/shenmingjie/tinno/trial-production/trial-production && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npx vitest run src/components/Sidebar.test.tsx`
+Run: `cd /Volumes/PortableSSD/tin/trial-production && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npx vitest run src/components/Sidebar.test.tsx`
 Expected: 所有测试通过
 
 - [ ] **Step 3: Commit**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production
+cd /Volumes/PortableSSD/tin/trial-production
 git add src/components/Sidebar.test.tsx
 git commit -m "test: add step4 validation cell targeting tests"
 ```
@@ -401,18 +401,18 @@ git commit -m "test: add step4 validation cell targeting tests"
 
 - [ ] **Step 1: 运行所有测试**
 
-Run: `cd /Users/shenmingjie/tinno/trial-production/trial-production && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npx vitest run`
+Run: `cd /Volumes/PortableSSD/tin/trial-production && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npx vitest run`
 Expected: 所有测试通过
 
 - [ ] **Step 2: 运行类型检查**
 
-Run: `cd /Users/shenmingjie/tinno/trial-production/trial-production && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npx tsc --noEmit`
+Run: `cd /Volumes/PortableSSD/tin/trial-production && /Users/shenmingjie/.nvm/versions/node/v24.13.1/bin/npx tsc --noEmit`
 Expected: 无错误输出
 
 - [ ] **Step 3: 最终 Commit**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production
+cd /Volumes/PortableSSD/tin/trial-production
 git add -A
 git commit -m "feat: complete step4 validation cell focus and highlight feature"
 ```

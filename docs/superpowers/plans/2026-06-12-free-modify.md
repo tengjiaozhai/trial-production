@@ -6,7 +6,7 @@
 本次采用你确认的方案：保留 Univer 原生插入菜单，监听 `sheet.command.insert-row` / `sheet.command.insert-col`，把新增行列转成业务状态变更后持久化。
 
 ## Key Changes
-- 在 [TrialProductionSheet.tsx](/Users/shenmingjie/tinno/trial-production/trial-production/frontend/src/components/TrialProductionSheet.tsx) 增加结构命令监听：
+- 在 [TrialProductionSheet.tsx](/Volumes/PortableSSD/tin/trial-production/frontend/src/components/TrialProductionSheet.tsx) 增加结构命令监听：
   - 监听 `api.Event.CommandExecuted`。
   - 只处理 `sheet.command.insert-row` 和 `sheet.command.insert-col`。
   - 根据当前 sheet model 把插入行映射为 `activeFields` 新增自定义手填字段。

@@ -11,7 +11,7 @@ const { chromium } = require('/Users/shenmingjie/.nvm/versions/node/v24.13.1/lib
 const fs = require('fs');
 const path = require('path');
 
-const SCREENSHOT_PATH = '/Users/shenmingjie/tinno/output/trial-production/e2e-step1-to-step2.png';
+const SCREENSHOT_PATH = '/Volumes/PortableSSD/tin/trial-production/output/trial-production/e2e-step1-to-step2.png';
 const CHROME_PATH = '/Users/shenmingjie/Library/Caches/ms-playwright/chromium-1223/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing';
 
 (async () => {

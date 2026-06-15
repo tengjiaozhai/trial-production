@@ -67,7 +67,7 @@ const getStyleForGroup = (groupIndex: number | undefined, isTitle: boolean) => {
 ### 环境
 - Chromium 路径：`/Users/shenmingjie/Library/Caches/ms-playwright/chromium-1223/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing`
 - Playwright 包：`/Users/shenmingjie/.nvm/versions/node/v24.13.1/lib/node_modules/@playwright/cli/node_modules/playwright`
-- 输出目录：`/Users/shenmingjie/tinno/output/trial-production/`
+- 输出目录：`/Volumes/PortableSSD/tin/trial-production/output/trial-production/`
 
 ### 可复用脚本
 | 脚本 | 覆盖路径 | 断言 |

@@ -43,7 +43,7 @@
 - [ ] **Step 2: 验证字段添加成功**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production && npm run typecheck 2>&1 | head -20
+cd /Volumes/PortableSSD/tin/trial-production && npm run typecheck 2>&1 | head -20
 ```
 
 预期: 无类型错误
@@ -51,7 +51,7 @@ cd /Users/shenmingjie/tinno/trial-production/trial-production && npm run typeche
 - [ ] **Step 3: 提交更改**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production && git add src/constants.ts && git commit -m "feat: add ebom_desc and sub_bom_desc fields to BOM info"
+cd /Volumes/PortableSSD/tin/trial-production && git add src/constants.ts && git commit -m "feat: add ebom_desc and sub_bom_desc fields to BOM info"
 ```
 
 ---
@@ -80,7 +80,7 @@ if (currentStep === 3) {
 - [ ] **Step 2: 验证过滤逻辑**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production && npm run typecheck 2>&1 | head -20
+cd /Volumes/PortableSSD/tin/trial-production && npm run typecheck 2>&1 | head -20
 ```
 
 预期: 无类型错误
@@ -88,7 +88,7 @@ cd /Users/shenmingjie/tinno/trial-production/trial-production && npm run typeche
 - [ ] **Step 3: 提交更改**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production && git add src/components/TrialProductionTable.tsx && git commit -m "feat: add ebom_desc and sub_bom_desc to step3 visible fields"
+cd /Volumes/PortableSSD/tin/trial-production && git add src/components/TrialProductionTable.tsx && git commit -m "feat: add ebom_desc and sub_bom_desc to step3 visible fields"
 ```
 
 ---
@@ -138,7 +138,7 @@ cd /Users/shenmingjie/tinno/trial-production/trial-production && git add src/com
 - [ ] **Step 2: 验证侧边栏更新**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production && npm run typecheck 2>&1 | head -20
+cd /Volumes/PortableSSD/tin/trial-production && npm run typecheck 2>&1 | head -20
 ```
 
 预期: 无类型错误
@@ -146,7 +146,7 @@ cd /Users/shenmingjie/tinno/trial-production/trial-production && npm run typeche
 - [ ] **Step 3: 提交更改**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production && git add src/components/Sidebar.tsx && git commit -m "feat: update sidebar to show BOM desc fields in step3"
+cd /Volumes/PortableSSD/tin/trial-production && git add src/components/Sidebar.tsx && git commit -m "feat: update sidebar to show BOM desc fields in step3"
 ```
 
 ---
@@ -156,7 +156,7 @@ cd /Users/shenmingjie/tinno/trial-production/trial-production && git add src/com
 - [ ] **Step 1: 运行开发服务器**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production && npm run dev
+cd /Volumes/PortableSSD/tin/trial-production && npm run dev
 ```
 
 - [ ] **Step 2: 测试步骤 3 显示**
@@ -178,7 +178,7 @@ cd /Users/shenmingjie/tinno/trial-production/trial-production && npm run dev
 - [ ] **Step 4: 提交最终更改（如有）**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production && git add . && git commit -m "feat: complete BOM desc field implementation"
+cd /Volumes/PortableSSD/tin/trial-production && git add . && git commit -m "feat: complete BOM desc field implementation"
 ```
 
 ---

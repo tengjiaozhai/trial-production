@@ -41,13 +41,13 @@ export interface FieldDefinition {
 
 - [ ] **Step 2: 运行类型检查**
 
-Run: `cd /Users/shenmingjie/tinno/trial-production/trial-production/frontend && npm run lint`
+Run: `cd /Volumes/PortableSSD/tin/trial-production/frontend && npm run lint`
 Expected: PASS（新增可选属性不影响现有代码）
 
 - [ ] **Step 3: Commit**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production/frontend
+cd /Volumes/PortableSSD/tin/trial-production/frontend
 git add src/types.ts
 git commit -m "feat: add fieldCategory to FieldDefinition"
 ```
@@ -180,13 +180,13 @@ export const FIELD_DEFS: FieldDefinition[] = [
 
 - [ ] **Step 2: 运行类型检查**
 
-Run: `cd /Users/shenmingjie/tinno/trial-production/trial-production/frontend && npm run lint`
+Run: `cd /Volumes/PortableSSD/tin/trial-production/frontend && npm run lint`
 Expected: PASS
 
 - [ ] **Step 3: Commit**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production/frontend
+cd /Volumes/PortableSSD/tin/trial-production/frontend
 git add src/constants.ts
 git commit -m "feat: annotate all fields with fieldCategory"
 ```
@@ -277,13 +277,13 @@ export function buildTrialProductionSheetModel(args: {
 
 - [ ] **Step 3: 运行类型检查**
 
-Run: `cd /Users/shenmingjie/tinno/trial-production/trial-production/frontend && npm run lint`
+Run: `cd /Volumes/PortableSSD/tin/trial-production/frontend && npm run lint`
 Expected: PASS
 
 - [ ] **Step 4: Commit**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production/frontend
+cd /Volumes/PortableSSD/tin/trial-production/frontend
 git add src/lib/univerTrialProductionSheet.ts
 git commit -m "feat: implement filterFieldsByStep for step-based field visibility"
 ```
@@ -401,13 +401,13 @@ describe('filterFieldsByStep', () => {
 
 - [ ] **Step 6: 运行测试**
 
-Run: `cd /Users/shenmingjie/tinno/trial-production/trial-production/frontend && npm test -- src/lib/univerTrialProductionSheet.test.ts`
+Run: `cd /Volumes/PortableSSD/tin/trial-production/frontend && npm test -- src/lib/univerTrialProductionSheet.test.ts`
 Expected: 全部通过
 
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production/frontend
+cd /Volumes/PortableSSD/tin/trial-production/frontend
 git add src/lib/univerTrialProductionSheet.test.ts
 git commit -m "test: add field visibility by step tests"
 ```
@@ -418,17 +418,17 @@ git commit -m "test: add field visibility by step tests"
 
 - [ ] **Step 1: 运行全量测试**
 
-Run: `cd /Users/shenmingjie/tinno/trial-production/trial-production/frontend && npm test`
+Run: `cd /Volumes/PortableSSD/tin/trial-production/frontend && npm test`
 Expected: 所有测试通过（已知的 11 个预存失败不受影响）
 
 - [ ] **Step 2: 运行类型检查**
 
-Run: `cd /Users/shenmingjie/tinno/trial-production/trial-production/frontend && npm run lint`
+Run: `cd /Volumes/PortableSSD/tin/trial-production/frontend && npm run lint`
 Expected: PASS
 
 - [ ] **Step 3: 运行 dev server 手动验证**
 
-Run: `cd /Users/shenmingjie/tinno/trial-production/trial-production/frontend && npm run dev`
+Run: `cd /Volumes/PortableSSD/tin/trial-production/frontend && npm run dev`
 验证：
 - Step2：应显示 step1 + auto 字段（约 70 个），manual 字段（包装工艺、辅料清单等）不可见
 - Step3：应显示 step1 + manual 字段（约 39 个），auto 字段（电子物料、结构物料等）不可见
@@ -437,7 +437,7 @@ Run: `cd /Users/shenmingjie/tinno/trial-production/trial-production/frontend && 
 - [ ] **Step 4: Final commit**
 
 ```bash
-cd /Users/shenmingjie/tinno/trial-production/trial-production/frontend
+cd /Volumes/PortableSSD/tin/trial-production/frontend
 git add -A
 git commit -m "feat: implement step-based field visibility"
 ```
