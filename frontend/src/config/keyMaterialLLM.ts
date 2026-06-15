@@ -7,5 +7,5 @@ export const KEY_MATERIAL_LLM_CONFIG = {
   // apiKey: 'tp-cs4st0poko9dbt5iii555c6obwcl8gfpydg35bm2pasyh74p',
   // model: 'mimo-v2.5',
   // endpoint: '/v1/chat/completions',
-  timeoutMs: 30000,
+  timeoutMs: 300000,
 } as const;
