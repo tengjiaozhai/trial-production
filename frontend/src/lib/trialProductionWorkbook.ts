@@ -25,14 +25,13 @@ function createCellStyle(style: { bg?: string | { rgb: string }; ht?: number; vt
     if (style.fs) cellStyle.font.sz = style.fs;
   }
 
-  // Alignment
-  cellStyle.alignment = {};
-  if (style.ht !== undefined) cellStyle.alignment.horizontal = style.ht === 0 ? 'left' : style.ht === 1 ? 'center' : 'right';
-  if (style.vt !== undefined) cellStyle.alignment.vertical = style.vt === 0 ? 'top' : style.vt === 1 ? 'center' : 'bottom';
-  if (style.tb !== undefined) cellStyle.alignment.wrapText = style.tb === 2;
+  // Alignment — always center for the xlsx export (independent of step5Style's
+  // ht/vt values, which are for Univer). wrapText preserved from tb=2.
+  cellStyle.alignment = { horizontal: 'center', vertical: 'center' };
+  if (style.tb === 2) cellStyle.alignment.wrapText = true;
 
   // Border - always build xlsx-format thin black border.
-  // (shared step5Style's `bd` field is Univer-format `t/b/l/r` with `s:1, cl:{rgb}`,
+  // (shared step5Style's `bd` field is Univer-format `t/b/l/r` with `s:13, cl:{rgb}`,
   //  which is incompatible with the xlsx library's `top/bottom/left/right` + `style:'thin'`
   //  format. The border is xlsx-specific, so we build it here rather than reuse the shared one.)
   cellStyle.border = {
