@@ -41,3 +41,39 @@
 - 业务影响：用户在 Step 3+ 选中 anchor 后点"插入列"，anchor 保持选中；切到 Step 4 看到 anchor 而不是新列；新列需要用户主动切到才能编辑
 - 兼容性：与 `App.tsx:handleStructureColumnInsert` 的现有调用无冲突；现有 `dynamicStructure.test.ts` 7 个用例全过
 - 实施计划：`docs/superpowers/plans/2026-06-13-fix-insert-supply-selected-supply-key.md`；commits：`f56679d` (red test) → `00ded56` (fix)
+
+## 2026-06-17 - Step 5 Univer 预览与 xlsx 导出样式收敛
+
+- **背景**:
+  - 之前 step 5 的 Univer 实时预览（`TrialProductionSheet.tsx:buildWorkbookSnapshot`）与 xlsx 文件导出（`trialProductionWorkbook.ts:buildTrialProductionWorkbook`）维护两套独立的样式逻辑，长期出现 4 类差异：
+    - 配色：预览 5 色 ABCDE 循环，导出 2 色 ABAB 循环
+    - 数据列宽：预览内容自适应（min 80px），导出固定 132px（除非传 layout）
+    - 值规范化：预览跑 `normalizeFieldValue` / `normalizeBusinessValue`，导出直接写 `cell.value`
+    - 行高：预览走 Univer 默认，导出走 `layout.rowHeights`
+  - 两套实现分散在两个文件，测试也分别覆盖，每次改一边都得手动同步另一边。
+- **决策**:
+  - 新建 `frontend/src/lib/step5Style.ts` 统一以下 4 个 API：
+    - `getStep5GroupStyle(groupIndex, isTitle)`：5 色 ABCDE 循环（与 `index.css` 设计系统一致）
+    - `calculateStep5ColumnWidths({ model, layout? })`：返回 `{ labelPx, dataPx[] }`，预览端直接用 `w`、导出端转换 `wch = round(px / 6)`
+    - `normalizeStep5CellValue(fieldId, value)`：包装 `normalizeFieldValue` + `normalizeBusinessValue` 兜底
+  - 边框统一在 `getStep5GroupStyle` 内部 `bd` 字段定义（黑 `s:1`），不再依赖 `SHEET_BORDER_COLOR`。
+  - 两个 caller 改为单点调用，删除各自的 `COLOR_SCHEME` / `BLOCK_A` / `BLOCK_B` / `getStyleForGroup`。
+  - 行高暂不抽公共（差异小、且 step5 预览无 rowHeights 可读），后续按需收敛。
+- **影响**:
+  - **代码**:
+    - `frontend/src/lib/step5Style.ts` 新建
+    - `frontend/src/lib/trialProductionWorkbook.ts` 减 ~25 行（删除 BLOCK_A/B、createCellStyle 改造支持 bd、宽度计算简化）
+    - `frontend/src/components/TrialProductionSheet.tsx` 减 ~20 行（删除 BLACK_BORDER、COLOR_SCHEME、getStyleForGroup、step5 列宽计算）
+  - **测试**:
+    - `frontend/src/lib/step5Style.test.ts` 新建（5 用例覆盖 getStep5GroupStyle / normalizeStep5CellValue / calculateStep5ColumnWidths）
+    - `trialProductionWorkbook.test.ts` ABAB 断言改为 ABCDE（6 组循环测试）
+    - `TrialProductionSheet.test.tsx` 删除 50 行本地 `calculateColumnWidths` 副本，改为调用 `calculateStep5ColumnWidths`
+  - **业务变化**:
+    - xlsx 导出现在用 5 色（之前是 2 色），与 Univer 预览 / `index.css` 设计系统一致
+    - xlsx 数据列宽随内容自适应（短值列变窄）
+    - xlsx 单元格值经过规范化（`storage` / `band` / `supply_select` 格式统一）
+  - **类型系统安全网**: 抽公共后 `trialProductionWorkbook.ts` 和 `TrialProductionSheet.tsx` 的样式字段从 `inline` 改为 `import`，TypeScript 编译会暴露遗漏的访问点。
+- **未修改**:
+  - 历史 plan/spec 文档保持原状（`2026-05-28-step5-exact-excel-export.md` / `2026-06-13-step5-column-alignment.md` 等），是历史快照。
+  - `index.css` 的 block 颜色变量与本 ADR 一致，无需改动。
+- **回退**: 不需要。`git revert` 单 commit 即可恢复两套独立实现。
