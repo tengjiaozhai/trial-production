@@ -1,26 +1,16 @@
 import { describe, it, expect } from 'vitest';
 import type { FieldDefinition, SKUData } from '../types';
-import type { TrialProductionSheetModel } from '../lib/univerTrialProductionSheet';
 import { buildTrialProductionSheetModel } from '../lib/univerTrialProductionSheet';
 import { buildWorkbookSnapshot, getSheetDataBounds } from './TrialProductionSheet';
 import { calculateStep5ColumnWidths } from '../lib/step5Style';
 
 describe('calculateStep5ColumnWidths', () => {
-  const mockModel: TrialProductionSheetModel = {
-    columns: [
-      { skuId: 'sku1', supplyId: 'supply1', label: '一供' },
-      { skuId: 'sku1', supplyId: 'supply2', label: '二供' },
-    ],
-    rows: [
-      { kind: 'field', rowIndex: 0, fieldId: 'lcd', fieldLabel: 'LCD' },
-      { kind: 'field', rowIndex: 1, fieldId: 'band', fieldLabel: '频段' },
-    ],
-    cellMap: {},
-    conflictCellKeys: new Set(),
-    readOnly: false,
-  };
+  const mockColumns = [
+    { skuId: 'sku1', supplyId: 'supply1', label: '一供' },
+    { skuId: 'sku1', supplyId: 'supply2', label: '二供' },
+  ];
   const mockStep5Model = {
-    columns: mockModel.columns,
+    columns: mockColumns,
     rows: [
       { kind: 'title' as const, title: 'Basic' },
       { kind: 'field' as const, fieldId: 'lcd', fieldLabel: 'LCD', cells: [
@@ -29,19 +19,10 @@ describe('calculateStep5ColumnWidths', () => {
       ] },
     ],
   };
-  const mockSkuData: SKUData[] = [
-    {
-      id: 'sku1', stage: 'EVT', orderNo: '', project: 'X6728',
-      supplies: [
-        { id: 'supply1', supplyKey: '一供', label: '一供', values: { lcd: 'LCD_6.5寸_OLED', band: 'B1/B3/B5' } },
-        { id: 'supply2', supplyKey: '二供', label: '二供', values: { lcd: 'LCD_6.8寸', band: 'B1/B3' } },
-      ],
-    },
-  ];
-  const fields: FieldDefinition[] = [
-    { id: 'lcd', label: 'LCD', group: '屏幕', behavior: 'auto' },
-    { id: 'band', label: '频段', group: '通信', behavior: 'auto' },
-  ];
+  const emptyMock = {
+    columns: [{ skuId: 'sku1', supplyId: 'supply1', label: '一供' }],
+    rows: [{ kind: 'field' as const, fieldId: 'lcd', fieldLabel: 'LCD', cells: [{ value: '', colSpan: 1 }] }],
+  };
 
   it('labelPx >= 120', () => {
     const result = calculateStep5ColumnWidths({ model: mockStep5Model });
@@ -49,11 +30,7 @@ describe('calculateStep5ColumnWidths', () => {
   });
 
   it('empty data column uses min 80px', () => {
-    const emptyModel = {
-      columns: [{ skuId: 'sku1', supplyId: 'supply1', label: '一供' }],
-      rows: [{ kind: 'field' as const, fieldId: 'lcd', fieldLabel: 'LCD', cells: [{ value: '', colSpan: 1 }] }],
-    };
-    const result = calculateStep5ColumnWidths({ model: emptyModel });
+    const result = calculateStep5ColumnWidths({ model: emptyMock });
     expect(result.dataPx[0]).toBe(80);
   });
 });
