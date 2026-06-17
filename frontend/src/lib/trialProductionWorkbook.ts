@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import type { FieldDefinition, SKUData } from '../types';
 import { buildStep5TableModel, isSkuSpanningField } from './step5TableModel';
 import { getStep5GroupStyle, normalizeStep5CellValue, calculateStep5ColumnWidths } from './step5Style';

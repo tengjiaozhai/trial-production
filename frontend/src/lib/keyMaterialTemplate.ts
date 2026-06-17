@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { KEY_MATERIAL_LLM_CONFIG } from '../config/keyMaterialLLM';
 import type { SplitOptionFieldId, SplitFieldOption } from '../types';
 

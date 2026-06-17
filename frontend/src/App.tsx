@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Upload, FileText, Download, Play, Plus, X, RotateCw, Save, History, Trash2 } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { arrayMove } from '@dnd-kit/sortable';
 
 import { StepsIndicator } from './components/StepsIndicator';

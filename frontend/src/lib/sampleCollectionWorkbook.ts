@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import type { SampleCollectionWorkbookData, SampleCollectionSheet, SampleCollectionFieldId, SplitFieldOption, SupplyTag } from '../types';
 import { KEY_MATERIAL_LLM_CONFIG } from '../config/keyMaterialLLM';
 

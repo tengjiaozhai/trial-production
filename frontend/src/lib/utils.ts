@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import type { PcbaOption, PcbaSourceRow, PcbaWorkbookParseResult, LcdSupplyOption, ManagedMaterialWorkbook } from '../types';
 
 export function cn(...inputs: ClassValue[]) {

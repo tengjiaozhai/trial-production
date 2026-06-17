@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { describe, expect, it } from 'vitest';
 import { buildTrialProductionWorkbook } from './trialProductionWorkbook';
 import type { FieldDefinition, SKUData } from '../types';

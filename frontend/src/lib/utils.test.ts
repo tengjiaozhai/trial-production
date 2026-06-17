@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { extractPcbaOptions, normalizeStorage, extractManagedMaterialWorkbook, resolveLcdOptionsForProject, serializeLcdOptions, extractPcbaWorkbookData, stripVendorSuffix } from './utils';
 
 function makeXlsxFile(aoa: (string | null)[][]): File {
