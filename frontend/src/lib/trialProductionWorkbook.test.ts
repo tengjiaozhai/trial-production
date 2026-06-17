@@ -83,23 +83,43 @@ describe('buildTrialProductionWorkbook', () => {
     expect(ws['A2']?.v).toBe('硬件(efuse)');
   });
 
-  it('applies ABAB color scheme to title rows', () => {
+  it('applies ABCDE 5-color scheme to title rows', () => {
     const wb = buildTrialProductionWorkbook({ projectName: 'X6728', activeFields, skuData });
     const ws = wb.Sheets['搭配表'];
-    
-    // First group title should have BLOCK_A color (EAF3FF)
+
+    // First group title (groupIndex 0) → A: EAF3FF
     const a1 = ws['A1'];
     expect(a1?.s?.fill?.fgColor?.rgb).toBe('EAF3FF');
     expect(a1?.s?.font?.bold).toBe(true);
     expect(a1?.s?.font?.sz).toBe(14);
   });
 
-  it('applies alternating body row colors', () => {
+  it('applies ABCDE 5-color body row colors', () => {
     const wb = buildTrialProductionWorkbook({ projectName: 'X6728', activeFields, skuData });
     const ws = wb.Sheets['搭配表'];
-    
-    // Field rows should have body styles
-    const a2 = ws['A2']; // First field row
-    expect(a2?.s?.fill?.fgColor?.rgb).toBe('F7FBFF'); // BLOCK_A body
+
+    // First field row (groupIndex 0) → A body: F7FBFF
+    const a2 = ws['A2'];
+    expect(a2?.s?.fill?.fgColor?.rgb).toBe('F7FBFF');
+  });
+
+  it('cycles 5 colors across 6+ groups (A→B→C→D→E→A)', () => {
+    const sixGroupFields: FieldDefinition[] = [
+      { id: 'p', label: 'P', group: 'G1', behavior: 'manual' },
+      { id: 'q', label: 'Q', group: 'G2', behavior: 'manual' },
+      { id: 'r', label: 'R', group: 'G3', behavior: 'manual' },
+      { id: 's', label: 'S', group: 'G4', behavior: 'manual' },
+      { id: 't', label: 'T', group: 'G5', behavior: 'manual' },
+      { id: 'u', label: 'U', group: 'G6', behavior: 'manual' },
+    ];
+    const wb = buildTrialProductionWorkbook({ projectName: 'X', activeFields: sixGroupFields, skuData });
+    const ws = wb.Sheets['搭配表'];
+
+    // Each group starts with a title row. With 6 groups, expect 5 distinct title colors.
+    // (Note: G1 emits a __supplier__ row in buildTrialProductionWorkbook's includeSupplierRow mode,
+    //  so G2's title lands at A4 instead of A3.)
+    const titleAddresses = ['A1', 'A4', 'A6', 'A8', 'A10', 'A12'];
+    const titleColors = titleAddresses.map((a) => ws[a]?.s?.fill?.fgColor?.rgb);
+    expect(titleColors).toEqual(['EAF3FF', 'EAFBF7', 'F3EEFF', 'FFF1E6', 'EAF8F0', 'EAF3FF']);
   });
 });
