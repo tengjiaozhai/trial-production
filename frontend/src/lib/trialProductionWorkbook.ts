@@ -1,33 +1,21 @@
 import * as XLSX from 'xlsx';
 import type { FieldDefinition, SKUData } from '../types';
 import { buildStep5TableModel, isSkuSpanningField } from './step5TableModel';
+import { getStep5GroupStyle, normalizeStep5CellValue, calculateStep5ColumnWidths } from './step5Style';
 
 export interface Step5LayoutSnapshot {
   supplyWidths?: Record<string, number>;
   rowHeights?: Record<string, number>;
 }
 
-// ABAB color scheme - same as main table
-const BLOCK_A = {
-  title: { bg: 'EAF3FF', ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 },
-  body: { bg: 'F7FBFF', ht: 2, vt: 2, tb: 2 },
-};
-const BLOCK_B = {
-  title: { bg: 'EAFBF7', ht: 2, vt: 2, tb: 2, bl: 1, fs: 14 },
-  body: { bg: 'F6FFFC', ht: 2, vt: 2, tb: 2 },
-};
-
-function getStyleForGroup(groupIndex: number | undefined, isTitle: boolean) {
-  const block = (groupIndex ?? 0) % 2 === 0 ? BLOCK_A : BLOCK_B;
-  return isTitle ? block.title : block.body;
-}
-
-function createCellStyle(style: { bg?: string; ht?: number; vt?: number; tb?: number; bl?: number; fs?: number }) {
+function createCellStyle(style: { bg?: string | { rgb: string }; ht?: number; vt?: number; tb?: number; bl?: number; fs?: number }) {
   const cellStyle: Record<string, any> = {};
 
-  // Background color
+  // Background color (handle both string and { rgb: string } shapes;
+  // shared step5Style returns the object form to match Univer conventions)
   if (style.bg) {
-    cellStyle.fill = { fgColor: { rgb: style.bg } };
+    const rgb = typeof style.bg === 'string' ? style.bg : style.bg.rgb;
+    cellStyle.fill = { fgColor: { rgb } };
   }
 
   // Font
@@ -43,7 +31,10 @@ function createCellStyle(style: { bg?: string; ht?: number; vt?: number; tb?: nu
   if (style.vt !== undefined) cellStyle.alignment.vertical = style.vt === 0 ? 'top' : style.vt === 1 ? 'center' : 'bottom';
   if (style.tb !== undefined) cellStyle.alignment.wrapText = style.tb === 2;
 
-  // Border - thin black on all sides
+  // Border - always build xlsx-format thin black border.
+  // (shared step5Style's `bd` field is Univer-format `t/b/l/r` with `s:1, cl:{rgb}`,
+  //  which is incompatible with the xlsx library's `top/bottom/left/right` + `style:'thin'`
+  //  format. The border is xlsx-specific, so we build it here rather than reuse the shared one.)
   cellStyle.border = {
     top: { style: 'thin', color: { rgb: '000000' } },
     bottom: { style: 'thin', color: { rgb: '000000' } },
@@ -72,40 +63,33 @@ export function buildTrialProductionWorkbook(args: {
   const totalCols = 1 + totalValueCols;
 
   let rowIdx = 0; // 0-based row index
-  let groupIndex = -1; // Track group index for ABAB coloring
+  let groupIndex = -1; // Track group index for 5-color cycling
 
   for (const row of model.rows) {
     if (row.kind === 'title' || row.kind === 'group') {
-      // Track group index for coloring
       if (row.kind === 'title') {
         groupIndex = 0;
       } else {
         groupIndex++;
       }
 
-      const style = getStyleForGroup(groupIndex, true);
-      const cellStyle = createCellStyle(style);
+      const cellStyle = createCellStyle(getStep5GroupStyle(groupIndex, true));
 
-      // Write title/group cell in column A (c=0)
       const addr = XLSX.utils.encode_cell({ r: rowIdx, c: 0 });
       ws[addr] = { v: row.title, t: 's', s: cellStyle };
-      // Merge across all columns
       if (totalCols > 1) {
         merges.push({ s: { r: rowIdx, c: 0 }, e: { r: rowIdx, c: totalCols - 1 } });
       }
     } else {
-      // field row
-      const style = getStyleForGroup(groupIndex, false);
-      const cellStyle = createCellStyle(style);
+      const cellStyle = createCellStyle(getStep5GroupStyle(groupIndex, false));
 
-      // Col A: field label
       ws[XLSX.utils.encode_cell({ r: rowIdx, c: 0 })] = { v: row.fieldLabel, t: 's', s: cellStyle };
 
-      // Value cells starting at col B (c=1)
       let colCursor = 1;
       for (const cell of row.cells) {
+        const normalized = normalizeStep5CellValue(row.fieldId, cell.value);
         ws[XLSX.utils.encode_cell({ r: rowIdx, c: colCursor })] = {
-          v: cell.value,
+          v: normalized,
           t: 's',
           s: cellStyle,
         };
@@ -127,20 +111,14 @@ export function buildTrialProductionWorkbook(args: {
   // Set merges
   if (merges.length > 0) ws['!merges'] = merges;
 
-  // Set column widths
-  const defaultSupplyWidth = 22;
-  const maxLabelLength = Math.max(
-    ...model.rows
-      .filter((r): r is Extract<(typeof model.rows)[number], { kind: 'field' }> => r.kind === 'field')
-      .map((r) => r.fieldLabel.length),
-    6
-  );
+  // Set column widths (shared with Univer preview)
+  const { labelPx, dataPx } = calculateStep5ColumnWidths({
+    model,
+    layout: args.layout,
+  });
   ws['!cols'] = [
-    { wch: Math.max(maxLabelLength, 18) },  // label col (width based on longest field label)
-    ...model.columns.map((col) => {
-      const px = args.layout?.supplyWidths?.[col.supplyId] ?? defaultSupplyWidth * 6;
-      return { wch: Math.round(px / 6) };
-    }),
+    { wch: Math.round(labelPx / 6) },
+    ...dataPx.map((px) => ({ wch: Math.round(px / 6) })),
   ];
 
   // Set row heights (optional)
