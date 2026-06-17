@@ -7,6 +7,8 @@ import { buildStructureKey } from '../lib/sheetStructureKey';
 import { diffSheetData } from '../lib/sheetDataDiff';
 import { isSkuSpanningField } from '../lib/step5TableModel';
 import { normalizeBusinessValue, normalizeFieldValue, PROD_LOC_OPTIONS } from '../lib/skuValueNormalization';
+import { getStep5GroupStyle, calculateStep5ColumnWidths, normalizeStep5CellValue } from '../lib/step5Style';
+import type { Step5CellStyle } from '../lib/step5Style';
 
 export interface TrialProductionSheetHandle {
   focusCellByBusinessKey: (skuId: string, supplyId: string | undefined, fieldId: string) => void;
@@ -962,37 +964,13 @@ function calculateColumnWidths(
 
   if (isStep5Preview) {
     const step5Model = model.step5Model!;
-    const maxLabelLength = Math.max(
-      ...step5Model.rows
-        .filter((row): row is Extract<(typeof step5Model.rows)[number], { kind: 'field' }> => row.kind === 'field')
-        .map((row) => row.fieldLabel.length),
-      6
-    );
-
-    // Step 5 renders a single field-label column (col 0) before value columns.
-    widths[0] = { w: Math.max(maxLabelLength * 16, 120) };
-
-    const maxTextsPerCol: string[] = new Array(step5Model.columns.length).fill('');
-    for (const row of step5Model.rows) {
-      if (row.kind !== 'field') continue;
-
-      let colCursor = 0;
-      for (const cell of row.cells) {
-        const span = Math.max(1, cell.colSpan);
-        for (let offset = 0; offset < span && colCursor + offset < maxTextsPerCol.length; offset++) {
-          if (cell.value.length > maxTextsPerCol[colCursor + offset].length) {
-            maxTextsPerCol[colCursor + offset] = cell.value;
-          }
-        }
-        colCursor += span;
-      }
+    const { labelPx, dataPx } = calculateStep5ColumnWidths({
+      model: step5Model,
+    });
+    widths[0] = { w: labelPx };
+    for (let i = 0; i < dataPx.length; i++) {
+      widths[i + 1] = { w: dataPx[i] };
     }
-
-    for (let i = 0; i < step5Model.columns.length; i++) {
-      const width = Math.max(measureWidth(maxTextsPerCol[i]) + 16, 80); // +16 padding, min 80px
-      widths[i + 1] = { w: width };
-    }
-
     return widths;
   }
 
@@ -1068,29 +1046,27 @@ export function getSheetDataBounds(
   };
 }
 
+// Add `#` prefix to all rgb values so the shared style is compatible with Univer's cell style format.
+// (xlsx export does not need this — it strips the prefix via the typeof check in createCellStyle.)
+function withUniverHashRgb(style: Step5CellStyle): Step5CellStyle {
+  return {
+    ...style,
+    bg: { rgb: `#${style.bg.rgb}` },
+    bd: {
+      t: { s: style.bd.t.s, cl: { rgb: `#${style.bd.t.cl.rgb}` } },
+      b: { s: style.bd.b.s, cl: { rgb: `#${style.bd.b.cl.rgb}` } },
+      l: { s: style.bd.l.s, cl: { rgb: `#${style.bd.l.cl.rgb}` } },
+      r: { s: style.bd.r.s, cl: { rgb: `#${style.bd.r.cl.rgb}` } },
+    },
+  };
+}
+
 export function buildWorkbookSnapshot(
   model: ReturnType<typeof buildTrialProductionSheetModel>,
   skuData: SKUData[],
   activeFields: FieldDefinition[],
   currentStep: StepId
 ) {
-  // ABCDE color scheme
-  const BLACK_BORDER = { t: { s: 1, cl: { rgb: '#000000' } }, b: { s: 1, cl: { rgb: '#000000' } }, l: { s: 1, cl: { rgb: '#000000' } }, r: { s: 1, cl: { rgb: '#000000' } } };
-
-  const COLOR_SCHEME = [
-    { title: { bg: { rgb: '#EAF3FF' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14, bd: BLACK_BORDER }, body: { bg: { rgb: '#F7FBFF' }, ht: 2, vt: 2, tb: 2, bd: BLACK_BORDER } }, // A: 浅蓝
-    { title: { bg: { rgb: '#EAFBF7' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14, bd: BLACK_BORDER }, body: { bg: { rgb: '#F6FFFC' }, ht: 2, vt: 2, tb: 2, bd: BLACK_BORDER } }, // B: 浅青绿
-    { title: { bg: { rgb: '#F3EEFF' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14, bd: BLACK_BORDER }, body: { bg: { rgb: '#FAF8FF' }, ht: 2, vt: 2, tb: 2, bd: BLACK_BORDER } }, // C: 浅紫
-    { title: { bg: { rgb: '#FFF1E6' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14, bd: BLACK_BORDER }, body: { bg: { rgb: '#FFF8F3' }, ht: 2, vt: 2, tb: 2, bd: BLACK_BORDER } }, // D: 浅橙
-    { title: { bg: { rgb: '#EAF8F0' }, ht: 2, vt: 2, tb: 2, bl: 1, fs: 14, bd: BLACK_BORDER }, body: { bg: { rgb: '#F6FCF8' }, ht: 2, vt: 2, tb: 2, bd: BLACK_BORDER } }, // E: 浅薄荷绿
-  ];
-
-  const getStyleForGroup = (groupIndex: number | undefined, isTitle: boolean) => {
-    const colorIndex = (groupIndex ?? 0) % COLOR_SCHEME.length;
-    const block = COLOR_SCHEME[colorIndex];
-    return isTitle ? block.title : block.body;
-  };
-
   const cellData: Record<number, Record<number, { v?: string; s?: any }>> = {};
   const mergeData: Array<{ startRow: number; endRow: number; startColumn: number; endColumn: number }> = [];
   const isStep5Preview = model.readOnly && Boolean(model.step5Model);
@@ -1112,7 +1088,7 @@ export function buildWorkbookSnapshot(
           groupIndex++;
         }
 
-        const groupStyle = getStyleForGroup(groupIndex, true);
+        const groupStyle = withUniverHashRgb(getStep5GroupStyle(groupIndex, true));
         cellData[rowIdx][0] = { v: row.title, s: groupStyle };
         if (totalCols > 1) {
           mergeData.push({
@@ -1123,7 +1099,7 @@ export function buildWorkbookSnapshot(
           });
         }
       } else {
-        const groupStyle = getStyleForGroup(groupIndex, false);
+        const groupStyle = withUniverHashRgb(getStep5GroupStyle(groupIndex, false));
         cellData[rowIdx][0] = { v: row.fieldLabel, s: groupStyle };
 
         const step5Cols = model.step5Model!.columns;
@@ -1136,7 +1112,7 @@ export function buildWorkbookSnapshot(
             const sku = skuId ? skuData.find((s) => s.id === skuId) : undefined;
             value = normalizeBusinessValue(sku?.selectedSupplyKey ?? '');
           }
-          cellData[rowIdx][colCursor] = { v: normalizeFieldValue(row.fieldId, value), s: groupStyle };
+          cellData[rowIdx][colCursor] = { v: normalizeStep5CellValue(row.fieldId, value), s: groupStyle };
           if (cell.colSpan > 1) {
             mergeData.push({
               startRow: rowIdx,
@@ -1156,7 +1132,7 @@ export function buildWorkbookSnapshot(
     let rowIdx = 0;
     for (const row of model.rows) {
       cellData[rowIdx] = {};
-      const groupStyle = getStyleForGroup(row.groupIndex, row.kind === 'title' || row.kind === 'group');
+      const groupStyle = withUniverHashRgb(getStep5GroupStyle(row.groupIndex, row.kind === 'title' || row.kind === 'group'));
 
       if (row.kind === 'title' || row.kind === 'group') {
         // Group header: put group title in first column with merge across all columns
