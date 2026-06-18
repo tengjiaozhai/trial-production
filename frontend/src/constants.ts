@@ -30,7 +30,7 @@ export const FIELD_DEFS: FieldDefinition[] = [
   // 产品规格
   { id: 'color', label: '颜色', group: '产品规格', behavior: 'manual', fieldCategory: 'manual' },
   { id: 'unit_id', label: '整机标识', group: '产品规格', behavior: 'manual', fieldCategory: 'manual' },
-  { id: 'mb_id', label: '主板标识', group: '产品规格', behavior: 'manual', fieldCategory: 'manual' },
+  { id: 'mb_id', label: '主板标识', group: '产品规格', behavior: 'manual', fieldCategory: 'step1' },
   { id: 'cal_file', label: '校准文件', group: '产品规格', behavior: 'manual', fieldCategory: 'manual' },
   { id: 'band', label: '频段', group: '产品规格', behavior: 'auto', fieldCategory: 'step1' },
   { id: 'storage', label: '存储', group: '产品规格', behavior: 'auto', fieldCategory: 'step1' },
