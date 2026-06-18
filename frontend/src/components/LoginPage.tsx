@@ -64,7 +64,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             试产搭配表自动生成
           </h1>
           <p className="text-sm text-gray-600">
-            请使用 SSO 账号登录
+            请使用 Dora 账号登录
           </p>
         </div>
 
